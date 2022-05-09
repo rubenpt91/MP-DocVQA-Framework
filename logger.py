@@ -15,7 +15,7 @@ class Logger:
         machine = machine_dict.get(socket.gethostname(), socket.gethostname())
 
         tags = [config['Model'], machine]
-        config = {'Batch size': config['batch_size']}
+        config = {'Batch size': config['batch_size'], 'Model': config['Model'], 'Weights': config['Model_weights']}
         self.logger = wb.init(project="DocCVQA Baselines", name=experiment_name, dir=self.log_folder, tags=tags, config=config)
 
         self.current_epoch = 0
@@ -25,13 +25,13 @@ class Logger:
         total_params = sum(p.numel() for p in model_parameters)
         trainable_params = sum(p.numel() for p in model_parameters if p.requires_grad)
 
-        self.wb_logger.log({
+        self.logger.log({
             'Model Params': int(total_params / 1e6),  # In millions
             'Model Trainable Params': int(trainable_params / 1e6)  # In millions
         })
 
-        self.write("Model parameters: {:d} - Trainable: {:d} ({:2.2f}%)".format(
-            model_parameters, trainable_params, trainable_params / model_parameters * 100))
+        print("Model parameters: {:d} - Trainable: {:d} ({:2.2f}%)".format(
+            total_params, trainable_params, trainable_params / total_params * 100))
 
     def log_val_metrics(self, accuracy, anls, update_best=False):
 

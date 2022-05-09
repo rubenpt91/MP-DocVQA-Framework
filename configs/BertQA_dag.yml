@@ -1,0 +1,7 @@
+imdb_dir: /data3fast/users/rperez/imdb/docvqa/
+save_dir: save/
+Model: BertQA
+# Model_weights: bert-large-uncased-whole-word-masking-finetuned-squad
+Model_weights: save/bert_weights/x/bert-large-squad-docvqa-finetuned
+batch_size: 2
+device: cuda

@@ -6,9 +6,9 @@ import torch
 from torch.utils.data import DataLoader
 
 from datasets.SingleDocVQA import SingleDocVQA, singledocvqa_collate_fn
-from models.Longformer import Longformer
+from logger import Logger
 from metrics import Evaluator
-from utils import load_config, save_json
+from utils import build_model, load_config, save_json
 
 
 def evaluate(data_loader, model, evaluator, **kwargs):
@@ -56,18 +56,25 @@ def evaluate(data_loader, model, evaluator, **kwargs):
 
 
 if __name__ == '__main__':
-    config = load_config("configs/longformer.yml")
+    # config = load_config("configs/Longformer.yml")
+    config = load_config("configs/BertQA.yml")
 
     dataset = SingleDocVQA(config['imdb_dir'], split='val')
     val_data_loader = DataLoader(dataset, batch_size=2, shuffle=False, collate_fn=singledocvqa_collate_fn)
-    longformer_model = Longformer(config)
-    longformer_model.model.to(config['device'])
+
+    model = build_model(config)
+
+    logger = Logger(config=config)
+    logger.log_model_parameters(model.model.parameters())
 
     evaluator = Evaluator(case_sensitive=False)
-    accuracy, anls, answers = evaluate(val_data_loader, longformer_model, evaluator, return_scores_by_sample=True, return_answers=True)
+    accuracy_list, anls_list, answers = evaluate(val_data_loader, model, evaluator, return_scores_by_sample=True, return_answers=True)
+    accuracy, anls = np.mean(accuracy_list), np.mean(anls_list)
+    logger.log_val_metrics(accuracy, anls, update_best=False)
 
     save_data = {
         "Model": config["Model"],
+        "Model_weights": config["Model_weights"],
         "Mean accuracy": np.mean(accuracy),
         "Mean ANLS": np.mean(anls),
         "Sample_accuracy": accuracy,

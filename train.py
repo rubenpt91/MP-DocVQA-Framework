@@ -10,7 +10,7 @@ from datasets.SingleDocVQA import SingleDocVQA, singledocvqa_collate_fn
 from models.Longformer import Longformer
 from eval import evaluate
 from metrics import Evaluator
-from utils import load_config
+from utils import build_model, load_config
 from logger import Logger
 from checkpoint import save_model
 
@@ -70,9 +70,7 @@ def train(model, **kwargs):
 
 if __name__ == '__main__':
 
-    config = load_config("configs/longformer.yml")
-    longformer_model = Longformer(config)
-    longformer_model.model.to(config['device'])
-
-    train(longformer_model, **config)
+    config = load_config("configs/Longformer.yml")
+    model = build_model(config)
+    train(model, **config)
 

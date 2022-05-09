@@ -27,7 +27,7 @@ class SingleDocVQA(Dataset):
         record = self.imdb[idx]
         question = record['question']
         context = ' '.join([word.lower() for word in record['ocr_tokens']])
-        answers = list(set(record['answers']))
+        answers = list(set(answer.lower() for answer in record['answers']))
 
         start_idxs, end_idxs = self._get_start_end_idx(context, answers)
 

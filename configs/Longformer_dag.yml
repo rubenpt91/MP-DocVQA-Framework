@@ -1,8 +1,9 @@
-imdb_dir: /SSD/Datasets/DocVQA/Task1/pythia_data/imdb/docvqa/
+imdb_dir: /data3fast/users/rperez/imdb/docvqa/
 save_dir: save/
-Model: LongFormer
+Model: Longformer
 Model_weights: valhalla/longformer-base-4096-finetuned-squadv1
 # Model_weights: mrm8488/longformer-base-4096-finetuned-squadv2
-# Model_weights: allenai/longformer-base-4096-finetuned-triviaqatrain_epochs: 10
+# Model_weights: allenai/longformer-base-4096-finetuned-triviaqa
+train_epochs: 10
 batch_size: 2
 device: cuda
