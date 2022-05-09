@@ -6,13 +6,13 @@
 #SBATCH --job-name=doccvqa_baselines
 #################
 # working directory
-#SBATCH -D /home/rperez/Baselines/
+#SBATCH -D /home/rperez/DocCVQA_Baselines/
 ##############
 # File for job output, you can check job progress
-#SBATCH --output=/home/rperez/Pythia/slurm/%j.out
+#SBATCH --output=/home/rperez/DocCVQA_Baselines/slurm/%j.out
 #################
 # File for errors from the job
-#SBATCH --error=/home/rperez/Pythia/slurm/%j.err
+#SBATCH --error=/home/rperez/DocCVQA_Baselines/slurm/%j.err
 #################
 # Time you think you need
 # In this case, hh:mm:ss, select whatever time you want, the less you ask for the # faster your job will run.
@@ -20,7 +20,7 @@
 #################
 # --gres will give you one GPU, you can ask for more, up to 4 (or how ever many are on the node/card)
 # 1080Ti, TitanXp
-#SBATCH --gres gpu:4
+#SBATCH --gres gpu:1
 # We are submitting to the batch partition
 #SBATCH -p dag
 #################
@@ -31,7 +31,7 @@
 #SBATCH -N 1
 #################
 #memory per node; default is 4000 MB per CPU
-#SBATCH --mem=40000
+#SBATCH --mem=25000
 #################
 #SBATCH --export=ALL
 
@@ -39,17 +39,7 @@
 ################# Prepare the experiment to run #################
 
 # Train SingleDocVQA
-# CODE="python -m torch.distributed.launch --nproc_per_node 4 --master_port=9901 tools/run.py --tasks vqa --dataset t5_singledocvqa --model layout_t5_base --config configs/vqa/docvqa/layoutt5/layoutt5_singledocvqa_1024_textract_ec2.yml --save_dir /data3fast/users/rperez/pythia_save/no_pretrain --distributed True"
-
-# Finetune SingleDocVQA with Textract OCR
-# This is done!!
-# CODE="python -m torch.distributed.launch --nproc_per_node 4 tools/run.py --tasks vqa --dataset t5_singledocvqa --model layout_t5_base --config configs/vqa/docvqa/layoutt5/layoutt5_singledocvqa_ft_1024_textract_ec2.yml --resume_file /data3fast/users/rperez/t5_weights/layoutt5_pt_16x1024_lr2e4/model_31000.ckpt --save_dir /data3fast/users/rperez/pythia_save/textract --distributed True"
-
-# Train on DocCVQA
-# CODE="python -m torch.distributed.launch --nproc_per_node 4 --master_port=9901 tools/run.py --tasks vqa --dataset t5_doccvqa --model layout_ct5_base --config configs/vqa/docvqa/layoutct5/layoutct5_singledocvqa_1024_ec2.yml --resume_file /data3fast/users/rperez/t5_weights/layoutt5_pt_16x1024_lr2e4__ft_16x1024_lr2e4_textract/model_29000.ckpt  --save_dir /data3fast/users/rperez/pythia_save/doccvqa_10CLS --distributed True"
-
-# Train on DocCVQA Collection-wise
-CODE="python -m torch.distributed.launch --nproc_per_node 4 --master_port=9901 tools/run.py --tasks vqa --dataset t5_doccvqa --model layout_ct5_base --config configs/vqa/docvqa/layoutct5/layoutct5_singledocvqa_1024_ec2.yml --resume_file /data3fast/users/rperez/t5_weights/layoutt5_pt_16x1024_lr2e4__ft_16x1024_lr2e4_textract/model_29000.ckpt  --save_dir /data3fast/users/rperez/pythia_save/doccvqa_collection_10CLS --distributed True"
+CODE="python train.py"
 
 
 

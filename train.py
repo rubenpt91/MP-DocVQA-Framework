@@ -7,9 +7,10 @@ import torch
 from torch.utils.data import DataLoader
 
 from datasets.SingleDocVQA import SingleDocVQA, singledocvqa_collate_fn
-from models.LongFormer import LongFormer
+from models.Longformer import Longformer
 from eval import evaluate
 from metrics import Evaluator
+from utils import load_config
 from logger import Logger
 from checkpoint import save_model
 
@@ -49,6 +50,7 @@ def train(model, **kwargs):
 
     evaluator = Evaluator(case_sensitive=False)
     logger = Logger(config=kwargs)
+    logger.log_model_parameters(model.parameters())
 
     train_dataset = SingleDocVQA(kwargs['imdb_dir'], split='train')
     train_data_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=singledocvqa_collate_fn)
@@ -68,16 +70,9 @@ def train(model, **kwargs):
 
 if __name__ == '__main__':
 
-    my_args = {
-        'imdb_dir': '/SSD/Datasets/DocVQA/Task1/pythia_data/imdb/docvqa/',
-        'save_dir': 'save/',
-        'Model': 'LongFormer',
-        'train_epochs': 10,
-        'batch_size': 2,
-        'device': 'cuda'}
+    config = load_config("configs/longformer.yml")
+    longformer_model = Longformer(config)
+    longformer_model.model.to(config['device'])
 
-    longformer_model = LongFormer(config=my_args)
-    longformer_model.model.to(my_args['device'])
-
-    train(longformer_model, **my_args)
+    train(longformer_model, **config)
 

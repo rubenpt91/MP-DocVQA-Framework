@@ -1,0 +1,19 @@
+name: doccvqa_baselines
+channels:
+  - pytorch
+  - nvidia
+  - huggingface
+  - conda-forge
+
+dependencies:
+  - wandb
+  - python
+  - pytorch
+  - torchvision
+  - torchaudio
+  - cudatoolkit=11.1
+  - sentencepiece
+  - transformers
+  - pip
+  - pip:
+    - pytorch-transformers==1.2.0

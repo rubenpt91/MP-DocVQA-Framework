@@ -6,9 +6,9 @@ import torch
 from torch.utils.data import DataLoader
 
 from datasets.SingleDocVQA import SingleDocVQA, singledocvqa_collate_fn
-from models.LongFormer import LongFormer
+from models.Longformer import Longformer
 from metrics import Evaluator
-from utils import save_json
+from utils import load_config, save_json
 
 
 def evaluate(data_loader, model, evaluator, **kwargs):
@@ -56,24 +56,18 @@ def evaluate(data_loader, model, evaluator, **kwargs):
 
 
 if __name__ == '__main__':
-    my_args = {
-        'imdb_dir': '/SSD/Datasets/DocVQA/Task1/pythia_data/imdb/docvqa/',
-        'save_dir': 'save/',
-        'Model': 'LongFormer',
-        'train_epochs': 10,
-        'batch_size': 2,
-        'device': 'cuda'}
+    config = load_config("configs/longformer.yml")
 
-    dataset = SingleDocVQA(my_args['imdb_dir'], split='val')
+    dataset = SingleDocVQA(config['imdb_dir'], split='val')
     val_data_loader = DataLoader(dataset, batch_size=2, shuffle=False, collate_fn=singledocvqa_collate_fn)
-    longformer_model = LongFormer(config=my_args)
-    longformer_model.model.to(my_args['device'])
+    longformer_model = Longformer(config)
+    longformer_model.model.to(config['device'])
 
     evaluator = Evaluator(case_sensitive=False)
     accuracy, anls, answers = evaluate(val_data_loader, longformer_model, evaluator, return_scores_by_sample=True, return_answers=True)
 
     save_data = {
-        "Model": my_args["Model"],
+        "Model": config["Model"],
         "Mean accuracy": np.mean(accuracy),
         "Mean ANLS": np.mean(anls),
         "Sample_accuracy": accuracy,
@@ -81,5 +75,5 @@ if __name__ == '__main__':
         "Answers": answers,
     }
 
-    save_json("{:s}/{:}_results.json".format(my_args['save_dir'], save_data['Model']), save_data)
+    save_json("{:s}/{:}_results.json".format(config['save_dir'], save_data['Model']), save_data)
 

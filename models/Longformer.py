@@ -3,18 +3,12 @@ import torch
 from transformers import LongformerTokenizer, LongformerForQuestionAnswering
 
 
-class LongFormer:
+class Longformer:
 
     def __init__(self, config):
         self.batch_size = config['batch_size']
-        # self.tokenizer = LongformerTokenizer.from_pretrained("allenai/longformer-large-4096-finetuned-triviaqa")
-        # self.model = LongformerForQuestionAnswering.from_pretrained("allenai/longformer-large-4096-finetuned-triviaqa")
-
-        self.tokenizer = LongformerTokenizer.from_pretrained("valhalla/longformer-base-4096-finetuned-squadv1")
-        self.model = LongformerForQuestionAnswering.from_pretrained("valhalla/longformer-base-4096-finetuned-squadv1")
-
-    # valhalla/longformer-base-4096-finetuned-squadv1
-    # mrm8488/longformer-base-4096-finetuned-squadv2
+        self.tokenizer = LongformerTokenizer.from_pretrained(config['Model_weights'])
+        self.model = LongformerForQuestionAnswering.from_pretrained(config['Model_weights'])
 
     def forward(self, question, context, start_idxs=None, end_idxs=None, return_pred_answer=False):
         encoding = self.tokenizer(question, context, return_tensors="pt", padding=True)
