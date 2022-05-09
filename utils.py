@@ -1,7 +1,16 @@
 import yaml, json
+import argparse
 
 from models.Longformer import Longformer
 from models.BertQA import BertQA
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Baselines for DocCVQAv2')
+
+    parser.add_argument('-c', '--config', type=str, required=True, help='Path to yml file with experiment configuration.')
+
+    return parser.parse_args()
 
 
 def build_model(config):
