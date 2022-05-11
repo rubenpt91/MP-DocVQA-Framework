@@ -4,6 +4,10 @@ Model: Longformer
 Model_weights: valhalla/longformer-base-4096-finetuned-squadv1
 # Model_weights: mrm8488/longformer-base-4096-finetuned-squadv2
 # Model_weights: allenai/longformer-base-4096-finetuned-triviaqa
-train_epochs: 10
-batch_size: 2
 device: cuda
+
+training_parameters:
+  lr: 2e-4
+  batch_size: 2
+  train_epochs: 10
+  warmup_iterations: 1000

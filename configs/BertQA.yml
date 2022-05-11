@@ -3,6 +3,10 @@ save_dir: save/
 Model: BertQA
 # Model_weights: bert-large-uncased-whole-word-masking-finetuned-squad
 Model_weights: save/bert_weights/bert-large-squad-docvqa-finetuned
-train_epochs: 10
-batch_size: 2
 device: cuda
+
+training_parameters:
+  lr: 2e-4
+  batch_size: 2
+  train_epochs: 10
+  warmup_iterations: 1000

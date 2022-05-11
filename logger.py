@@ -15,7 +15,7 @@ class Logger:
         machine = machine_dict.get(socket.gethostname(), socket.gethostname())
 
         tags = [config['Model'], machine]
-        config = {'Batch size': config['batch_size'], 'Model': config['Model'], 'Weights': config['Model_weights']}
+        config = {'Batch size': config['training_parameters']['batch_size'], 'Model': config['Model'], 'Weights': config['Model_weights']}
         self.logger = wb.init(project="DocCVQA Baselines", name=experiment_name, dir=self.log_folder, tags=tags, config=config)
 
         self.current_epoch = 0

@@ -8,7 +8,8 @@ from torch.utils.data import DataLoader
 from datasets.SingleDocVQA import SingleDocVQA, singledocvqa_collate_fn
 from logger import Logger
 from metrics import Evaluator
-from utils import parse_args, build_model, load_config, save_json
+from utils import parse_args, load_config, save_json
+from build_utils import build_model
 
 
 def evaluate(data_loader, model, evaluator, **kwargs):
@@ -61,7 +62,7 @@ if __name__ == '__main__':
     config = load_config(args.config)
 
     dataset = SingleDocVQA(config['imdb_dir'], split='val')
-    val_data_loader = DataLoader(dataset, batch_size=2, shuffle=False, collate_fn=singledocvqa_collate_fn)
+    val_data_loader = DataLoader(dataset, batch_size=config['training_parameters']['batch_size'], shuffle=False, collate_fn=singledocvqa_collate_fn)
 
     model = build_model(config)
 

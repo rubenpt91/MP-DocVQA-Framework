@@ -10,12 +10,13 @@ from datasets.SingleDocVQA import SingleDocVQA, singledocvqa_collate_fn
 from models.Longformer import Longformer
 from eval import evaluate
 from metrics import Evaluator
-from utils import parse_args, build_model, load_config
+from build_utils import build_model, build_optimizer
+from utils import parse_args, load_config
 from logger import Logger
 from checkpoint import save_model
 
 
-def train_epoch(data_loader, model, evaluator, logger, **kwargs):
+def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, **kwargs):
     model.model.train()
 
     for batch_idx, batch in enumerate(tqdm(data_loader)):
@@ -24,10 +25,15 @@ def train_epoch(data_loader, model, evaluator, logger, **kwargs):
         gt_answers = batch['answers']
         start_idxs = batch['start_indxs']
         end_indxs = batch['end_indxs']
-        with torch.no_grad():
-            outputs, pred_answers = model.forward(questions, contexts, start_idxs, end_indxs, return_pred_answer=True)
 
+        outputs, pred_answers = model.forward(questions, contexts, start_idxs, end_indxs, return_pred_answer=True)
+
+        outputs.loss.backward()
+        optimizer.step()
+        lr_scheduler.step()
         # outputs.loss.backward()
+
+        optimizer.zero_grad()
 
         metric = evaluator.get_metrics(gt_answers, pred_answers)
         batch_acc = np.mean(metric['accuracy'])
@@ -44,13 +50,13 @@ def train_epoch(data_loader, model, evaluator, logger, **kwargs):
 
 def train(model, **kwargs):
 
-    epochs = kwargs['train_epochs']
+    epochs = kwargs['training_parameters']['train_epochs']
     # device = kwargs['device']
-    batch_size = kwargs['batch_size']
+    batch_size = kwargs['training_parameters']['batch_size']
 
     evaluator = Evaluator(case_sensitive=False)
     logger = Logger(config=kwargs)
-    logger.log_model_parameters(model.parameters())
+    logger.log_model_parameters(model.model.parameters())
 
     train_dataset = SingleDocVQA(kwargs['imdb_dir'], split='train')
     train_data_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=singledocvqa_collate_fn)
@@ -58,9 +64,11 @@ def train(model, **kwargs):
     val_data_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=singledocvqa_collate_fn)
     logger.len_dataset = len(train_data_loader)
 
+    optimizer, lr_scheduler = build_optimizer(model, length_train_loader=len(train_data_loader), config=kwargs)
+
     for epoch_ix in range(epochs):
         logger.current_epoch = epoch_ix
-        train_epoch(train_data_loader, model, evaluator, logger, **kwargs)
+        train_epoch(train_data_loader, model, optimizer, lr_scheduler, evaluator, logger, **kwargs)
         accuracy, anls, _ = evaluate(val_data_loader, model, evaluator, return_scores_by_sample=False, return_pred_answers=False, **kwargs)
 
         is_updated = evaluator.update_global_metrics(accuracy, anls, epoch_ix)

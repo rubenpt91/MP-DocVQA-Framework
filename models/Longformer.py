@@ -6,7 +6,7 @@ from transformers import LongformerTokenizer, LongformerForQuestionAnswering
 class Longformer:
 
     def __init__(self, config):
-        self.batch_size = config['batch_size']
+        self.batch_size = config['training_parameters']['batch_size']
         self.tokenizer = LongformerTokenizer.from_pretrained(config['Model_weights'])
         self.model = LongformerForQuestionAnswering.from_pretrained(config['Model_weights'])
 
