@@ -9,7 +9,7 @@ from models.BertQA import BertQA
 
 def build_optimizer(model, length_train_loader, config):
     optimizer_class = getattr(transformers, 'AdamW')
-    optimizer = optimizer_class(model.model.parameters(), lr=2e-4)
+    optimizer = optimizer_class(model.model.parameters(), lr=float(config['training_parameters']['lr']))
     num_training_steps = config['training_parameters']['train_epochs'] * length_train_loader
     lr_scheduler = get_scheduler(
         name="linear", optimizer=optimizer, num_warmup_steps=config['training_parameters']['warmup_iterations'], num_training_steps=num_training_steps

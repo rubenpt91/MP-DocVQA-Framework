@@ -28,12 +28,11 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
 
         outputs, pred_answers = model.forward(questions, contexts, start_idxs, end_indxs, return_pred_answer=True)
 
+        optimizer.zero_grad()
         outputs.loss.backward()
         optimizer.step()
         lr_scheduler.step()
         # outputs.loss.backward()
-
-        optimizer.zero_grad()
 
         metric = evaluator.get_metrics(gt_answers, pred_answers)
         batch_acc = np.mean(metric['accuracy'])
@@ -56,7 +55,7 @@ def train(model, **kwargs):
 
     evaluator = Evaluator(case_sensitive=False)
     logger = Logger(config=kwargs)
-    logger.log_model_parameters(model.model.parameters())
+    logger.log_model_parameters(model)
 
     train_dataset = SingleDocVQA(kwargs['imdb_dir'], split='train')
     train_data_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=singledocvqa_collate_fn)

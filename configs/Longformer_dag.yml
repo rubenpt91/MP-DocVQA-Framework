@@ -1,4 +1,4 @@
-imdb_dir: /data3fast/users/rperez/imdb/docvqa/
+imdb_dir: /data/users/rperez/imdb/docvqa/
 save_dir: save/
 Model: Longformer
 Model_weights: valhalla/longformer-base-4096-finetuned-squadv1

@@ -21,9 +21,9 @@ class Logger:
         self.current_epoch = 0
         self.len_dataset = 0
 
-    def log_model_parameters(self, model_parameters):
-        total_params = sum(p.numel() for p in model_parameters)
-        trainable_params = sum(p.numel() for p in model_parameters if p.requires_grad)
+    def log_model_parameters(self, model):
+        total_params = sum(p.numel() for p in model.model.parameters())
+        trainable_params = sum(p.numel() for p in model.model.parameters() if p.requires_grad)
 
         self.logger.log({
             'Model Params': int(total_params / 1e6),  # In millions
