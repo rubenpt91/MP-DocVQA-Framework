@@ -7,7 +7,7 @@ Model_weights: valhalla/longformer-base-4096-finetuned-squadv1
 device: cuda
 
 training_parameters:
-  lr: 2e-4
+  lr: 3e-5  # 2e-4
   batch_size: 4
   train_epochs: 10
   warmup_iterations: 1000
