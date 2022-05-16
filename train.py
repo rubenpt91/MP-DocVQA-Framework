@@ -26,13 +26,12 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
         start_idxs = batch['start_indxs']
         end_indxs = batch['end_indxs']
 
-        outputs, pred_answers = model.forward(questions, contexts, start_idxs, end_indxs, return_pred_answer=True)
+        outputs, pred_answers = model.forward(questions, contexts, gt_answers, start_idxs, end_indxs, return_pred_answer=True)
 
-        optimizer.zero_grad()
+        # optimizer.zero_grad()
         outputs.loss.backward()
         optimizer.step()
         lr_scheduler.step()
-        # outputs.loss.backward()
 
         metric = evaluator.get_metrics(gt_answers, pred_answers)
         batch_acc = np.mean(metric['accuracy'])

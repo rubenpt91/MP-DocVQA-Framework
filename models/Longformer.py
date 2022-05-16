@@ -1,20 +1,59 @@
+import re, random
 
 import torch
-from transformers import LongformerTokenizer, LongformerForQuestionAnswering
+from transformers import LongformerTokenizer, LongformerTokenizerFast, LongformerForQuestionAnswering
 
 
 class Longformer:
 
     def __init__(self, config):
         self.batch_size = config['training_parameters']['batch_size']
-        self.tokenizer = LongformerTokenizer.from_pretrained(config['Model_weights'])
+        self.tokenizer = LongformerTokenizerFast.from_pretrained(config['Model_weights'])
         self.model = LongformerForQuestionAnswering.from_pretrained(config['Model_weights'])
 
-    def forward(self, question, context, start_idxs=None, end_idxs=None, return_pred_answer=False):
+    def get_start_end_idx(self, question, context, answers):
+
+        # encodings = self.tokenizer.encode_plus([question, context], padding=True)
+
+        pos_idx = []
+        for batch_idx in range(self.batch_size):
+            batch_pos_idxs = []
+            for answer in answers[batch_idx]:
+                # start_idx = context[batch_idx].find(answer)
+                start_idxs = [m.start() for m in re.finditer(answer, context[batch_idx])]
+
+                for start_idx in start_idxs:
+                    end_idx = start_idx + len(answer)
+
+                    encodings = self.tokenizer.encode_plus([question[batch_idx], context[batch_idx]], padding=True)
+
+                    context_encodings = self.tokenizer.encode_plus(context[batch_idx])
+                    start_positions_context = context_encodings.char_to_token(start_idx)
+                    end_positions_context = context_encodings.char_to_token(end_idx - 1)
+
+                    sep_idx = encodings['input_ids'].index(self.tokenizer.sep_token_id)
+                    start_positions = start_positions_context + sep_idx + 1
+                    end_positions = end_positions_context + sep_idx + 2
+
+                    if self.tokenizer.decode(encodings['input_ids'][start_positions:end_positions]).strip() == answer:
+                        batch_pos_idxs.append([start_positions, end_positions])
+                        break
+
+            if len(batch_pos_idxs) > 0:
+                pos_idx.append(random.choice(batch_pos_idxs))
+            else:
+                pos_idx.append([999999, 999999])
+
+        start_idxs = torch.LongTensor([idx[0] for idx in pos_idx]).to(self.model.device)
+        end_idxs = torch.LongTensor([idx[1] for idx in pos_idx]).to(self.model.device)
+        return start_idxs, end_idxs
+
+    def forward(self, question, context, answers, start_idxs=None, end_idxs=None, return_pred_answer=False):
         encoding = self.tokenizer(question, context, return_tensors="pt", padding=True)
         input_ids = encoding["input_ids"].to(self.model.device)
         attention_mask = encoding["attention_mask"].to(self.model.device)
 
+        # start_pos, end_pos = self.get_start_end_idx(question, context, answers)
         start_pos = torch.LongTensor(start_idxs).to(self.model.device) if start_idxs else None
         end_pos = torch.LongTensor(end_idxs).to(self.model.device) if end_idxs else None
 
