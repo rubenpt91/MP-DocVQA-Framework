@@ -28,10 +28,10 @@ class Longformer:
         end_idxs = torch.argmax(outputs.end_logits, axis=1)
 
         answers = []
-        for elm_idx in range(len(input_tokens)):
-            context_tokens = self.tokenizer.convert_ids_to_tokens(input_tokens[elm_idx].tolist())
+        for batch_idx in range(len(input_tokens)):
+            context_tokens = self.tokenizer.convert_ids_to_tokens(input_tokens[batch_idx].tolist())
 
-            answer_tokens = context_tokens[start_idxs[elm_idx]: end_idxs[elm_idx] + 1]
+            answer_tokens = context_tokens[start_idxs[batch_idx]: end_idxs[batch_idx] + 1]
             answer = self.tokenizer.decode(
                 self.tokenizer.convert_tokens_to_ids(answer_tokens)
             )

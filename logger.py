@@ -15,11 +15,20 @@ class Logger:
         machine = machine_dict.get(socket.gethostname(), socket.gethostname())
 
         tags = [config['Model'], machine]
-        config = {'Batch size': config['training_parameters']['batch_size'], 'Model': config['Model'], 'Weights': config['Model_weights']}
-        self.logger = wb.init(project="DocCVQA Baselines", name=experiment_name, dir=self.log_folder, tags=tags, config=config)
+        config = {'Model': config['Model'], 'Weights': config['Model_weights'],
+                  'Batch size': config['training_parameters']['batch_size'], 'lr': config['training_parameters']['lr']}
+        self.logger = wb.init(project="DocCVQA_Baselines", name=experiment_name, dir=self.log_folder, tags=tags, config=config)
+        self._print_config(config)
 
         self.current_epoch = 0
         self.len_dataset = 0
+
+    def _print_config(self, config):
+        print("{:s}: {:s} \n{{".format(config['Model'], config['Weights']))
+        for k, v in config.items():
+            if k != 'Model' and k != 'Weights':
+                print("\t{:}: {:}".format(k, v))
+        print("}\n")
 
     def log_model_parameters(self, model):
         total_params = sum(p.numel() for p in model.model.parameters())

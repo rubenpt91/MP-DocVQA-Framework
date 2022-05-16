@@ -54,7 +54,7 @@ class SingleDocVQA(Dataset):
         if len(answer_positions) > 0:
             start_idx, end_idx = random.choice(answer_positions)  # If both answers are in the context. Choose one randomly.
         else:
-            start_idx, end_idx = 999999, 999999  # If the indices are out of the sequence length they are ignored. o we set them as a very big number.
+            start_idx, end_idx = 999999, 999999  # If the indices are out of the sequence length they are ignored. Therefore, we set them as a very big number.
 
         return start_idx, end_idx
 
