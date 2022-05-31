@@ -1,0 +1,3 @@
+dataset_parameters:
+  dataset_name: SQuAD
+  imdb_dir: /data/users/rperez/baselines_data/SQuAD/

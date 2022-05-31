@@ -1,0 +1,3 @@
+dataset_parameters:
+  dataset_name: SQuAD
+  imdb_dir: /SSD2/DocCVQA_Baselines_data/SQuAD

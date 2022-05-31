@@ -1,4 +1,6 @@
-imdb_dir: /SSD/Datasets/DocVQA/Task1/pythia_data/imdb/docvqa/
+includes:
+  - configs/datasets/SQuAD.yml
+
 save_dir: save/
 Model: Longformer
 Model_weights: valhalla/longformer-base-4096-finetuned-squadv1
@@ -11,6 +13,3 @@ training_parameters:
   batch_size: 2
   train_epochs: 10
   warmup_iterations: 1000
-
-dataset_parameters:
-  dataset_name: SQuAD

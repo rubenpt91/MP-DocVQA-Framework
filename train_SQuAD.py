@@ -92,7 +92,7 @@ def train(model, config):
 if __name__ == '__main__':
 
     args = parse_args()
-    config = load_config(args.config)
+    config = load_config(args.config, args)
     model = build_model(config)
     train(model, config)
 

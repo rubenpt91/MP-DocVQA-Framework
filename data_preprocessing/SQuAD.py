@@ -8,7 +8,7 @@ from transformers import LongformerTokenizerFast
 
 
 def get_correct_alignement(context, answer):
-    """ Some original examples in SQuAD have indices wrong by 1 or 2 character. We test and fix this here. """
+    """ Some original examples in SQuAD.yml have indices wrong by 1 or 2 character. We test and fix this here. """
     gold_text = answer['text'][0]
     start_idx = answer['answer_start'][0]
     end_idx = start_idx + len(gold_text)
@@ -69,6 +69,6 @@ if __name__ == '__main__':
     valid_dataset.set_format(type='torch', columns=columns)
 
     # Cache the dataset, so we can load it directly for training
-    # torch.save(train_dataset, '/SSD2/DocCVQA_Baselines_data/SQuAD/train_data.pt')
-    torch.save(valid_dataset, '/SSD2/DocCVQA_Baselines_data/SQuAD/val_data.pt')
+    # torch.save(train_dataset, '/SSD2/DocCVQA_Baselines_data/SQuAD.yml/train_data.pt')
+    torch.save(valid_dataset, '/SSD2/DocCVQA_Baselines_data/SQuAD.yml/val_data.pt')
 

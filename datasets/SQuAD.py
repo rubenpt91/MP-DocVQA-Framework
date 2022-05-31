@@ -15,8 +15,8 @@ from torch.utils.data import DataLoader
 
 class SQuAD(Dataset):
 
-    def __init__(self, split):
-        self.dataset = torch.load('/SSD2/DocCVQA_Baselines_data/{:s}_data.pt'.format(split))
+    def __init__(self, root_dir, split):
+        self.dataset = torch.load(os.path.join(root_dir, "{:s}_data.pt").format(split))
 
     def __len__(self):
         return len(self.dataset)
