@@ -10,7 +10,7 @@ from datasets.SingleDocVQA import SingleDocVQA, singledocvqa_collate_fn
 from models.Longformer import Longformer
 from eval import evaluate
 from metrics import Evaluator
-from build_utils import build_model, build_optimizer
+from build_utils import build_model, build_optimizer, build_dataset
 from utils import parse_args, load_config
 from logger import Logger
 from checkpoint import save_model
@@ -23,10 +23,10 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
         questions = batch['questions']
         contexts = batch['contexts']
         gt_answers = batch['answers']
-        start_idxs = batch['start_indxs']
+        start_indxs = batch['start_indxs']
         end_indxs = batch['end_indxs']
 
-        outputs, pred_answers = model.forward(questions, contexts, gt_answers, start_idxs, end_indxs, return_pred_answer=True)
+        outputs, pred_answers = model.forward(questions, contexts, gt_answers, start_indxs, end_indxs, return_pred_answer=True)
 
         # optimizer.zero_grad()
         outputs.loss.backward()
@@ -77,7 +77,7 @@ def train(model, **kwargs):
 if __name__ == '__main__':
 
     args = parse_args()
-    config = load_config(args.config)
     model = build_model(config)
+
     train(model, **config)
 

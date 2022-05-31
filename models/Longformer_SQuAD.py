@@ -57,18 +57,13 @@ class Longformer:
         end_idxs = torch.LongTensor([idx[1] for idx in pos_idx]).to(self.model.device)
         return start_idxs, end_idxs
 
-    def forward(self, question, context, answers, start_idxs=None, end_idxs=None, return_pred_answer=False):
-        encoding = self.tokenizer(question, context, return_tensors="pt", padding=True)
-        input_ids = encoding["input_ids"].to(self.model.device)
-        attention_mask = encoding["attention_mask"].to(self.model.device)
-
-        start_pos, end_pos = self.get_start_end_idx(question, context, answers)
-        # start_pos = torch.LongTensor(start_idxs).to(self.model.device) if start_idxs else None
-        # end_pos = torch.LongTensor(end_idxs).to(self.model.device) if end_idxs else None
+    def forward(self, input_ids, attention_mask, start_pos, end_pos, return_pred_answer=False):
+        input_ids = input_ids.to(self.model.device)
+        attention_mask = attention_mask.to(self.model.device)
+        start_pos = start_pos.to(self.model.device)
+        end_pos = end_pos.to(self.model.device)
 
         outputs = self.model(input_ids, attention_mask=attention_mask, start_positions=start_pos, end_positions=end_pos)
-        # pred_start_idxs = torch.argmax(outputs.start_logits, axis=1)
-        # pred_end_idxs = torch.argmax(outputs.end_logits, axis=1)
         pred_answers = self.get_answer_from_model_output(input_ids, outputs) if return_pred_answer else None
 
         return outputs, pred_answers
