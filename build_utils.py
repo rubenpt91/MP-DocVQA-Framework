@@ -5,7 +5,7 @@ import transformers
 from transformers import get_scheduler
 
 from models.Longformer_SQuAD import Longformer
-from models.BertQA import BertQA
+from models.BertQA_SQuAD import BertQA
 
 
 def build_optimizer(model, length_train_loader, config):

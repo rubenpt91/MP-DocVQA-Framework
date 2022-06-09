@@ -20,43 +20,6 @@ class Longformer:
         self.tokenizer = LongformerTokenizerFast.from_pretrained(config['Model_weights'])
         self.model = LongformerForQuestionAnswering.from_pretrained(config['Model_weights'])
 
-    def get_start_end_idx(self, question, context, answers):
-
-        # encodings = self.tokenizer.encode_plus([question, context], padding=True)
-
-        pos_idx = []
-        for batch_idx in range(self.batch_size):
-            batch_pos_idxs = []
-            for answer in answers[batch_idx]:
-                # start_idx = context[batch_idx].find(answer)
-                start_idxs = [m.start() for m in re.finditer(re.escape(answer), context[batch_idx])]
-
-                for start_idx in start_idxs:
-                    end_idx = start_idx + len(answer)
-
-                    encodings = self.tokenizer.encode_plus([question[batch_idx], context[batch_idx]], padding=True)
-
-                    context_encodings = self.tokenizer.encode_plus(context[batch_idx])
-                    start_positions_context = context_encodings.char_to_token(start_idx)
-                    end_positions_context = context_encodings.char_to_token(end_idx - 1)
-
-                    sep_idx = encodings['input_ids'].index(self.tokenizer.sep_token_id)
-                    start_positions = start_positions_context + sep_idx + 1
-                    end_positions = end_positions_context + sep_idx + 2
-
-                    if self.tokenizer.decode(encodings['input_ids'][start_positions:end_positions]).strip() == answer:
-                        batch_pos_idxs.append([start_positions, end_positions])
-                        break
-
-            if len(batch_pos_idxs) > 0:
-                pos_idx.append(random.choice(batch_pos_idxs))
-            else:
-                pos_idx.append([0, 0])
-
-        start_idxs = torch.LongTensor([idx[0] for idx in pos_idx]).to(self.model.device)
-        end_idxs = torch.LongTensor([idx[1] for idx in pos_idx]).to(self.model.device)
-        return start_idxs, end_idxs
-
     def forward(self, input_ids, attention_mask, start_pos, end_pos, return_pred_answer=False):
         input_ids = input_ids.to(self.model.device)
         attention_mask = attention_mask.to(self.model.device)

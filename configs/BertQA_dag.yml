@@ -1,4 +1,6 @@
-imdb_dir: /data/users/rperez/imdb/docvqa/
+includes:
+  - configs/datasets/SQuAD_dag.yml
+
 save_dir: save/
 Model: BertQA
 # Model_weights: bert-large-uncased-whole-word-masking-finetuned-squad

@@ -1,9 +1,12 @@
-imdb_dir: /SSD/Datasets/DocVQA/Task1/pythia_data/imdb/docvqa/
+includes:
+  - configs/datasets/SQuAD.yml
+
 save_dir: save/
 Model: BertQA
+# Model_weights: bert-base-uncased
 # Model_weights: bert-large-uncased-whole-word-masking-finetuned-squad
 Model_weights: save/bert_weights/bert-large-squad-docvqa-finetuned
-device: cuda
+device: cpu
 
 training_parameters:
   lr: 2e-4

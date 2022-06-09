@@ -14,8 +14,9 @@ class Logger:
         machine_dict = {'cvc117': 'Local', 'cudahpc16': 'DAG', 'cudahpc25': 'DAG-A40'}
         machine = machine_dict.get(socket.gethostname(), socket.gethostname())
 
-        tags = [config['Model'], machine]
-        config = {'Model': config['Model'], 'Weights': config['Model_weights'],
+        dataset = config['dataset_parameters']['dataset_name']
+        tags = [config['Model'], dataset, machine]
+        config = {'Model': config['Model'], 'Weights': config['Model_weights'], 'Dataset': dataset,
                   'Batch size': config['training_parameters']['batch_size'], 'lr': config['training_parameters']['lr']}
         self.logger = wb.init(project="DocCVQA_Baselines", name=experiment_name, dir=self.log_folder, tags=tags, config=config)
         self._print_config(config)

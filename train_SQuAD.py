@@ -37,10 +37,11 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
             answer = model.tokenizer.decode(ans_ids)
             gt_answers.append(answer)
 
-        # optimizer.zero_grad()
+        #
         outputs.loss.backward()
         optimizer.step()
         lr_scheduler.step()
+        optimizer.zero_grad()
 
         metric = evaluator.get_metrics(gt_answers, pred_answers)
         batch_acc = np.mean(metric['accuracy'])
