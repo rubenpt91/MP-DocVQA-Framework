@@ -25,16 +25,19 @@ def evaluate(data_loader, model, evaluator, **kwargs):
         total_accuracies = 0
         total_anls = 0
 
-    answers = []
+    all_pred_answers = []
     model.model.eval()
 
     for batch_idx, batch in enumerate(tqdm(data_loader)):
         questions = batch['questions']
         contexts = batch['contexts']
         gt_answers = batch['answers']
+        # start_pos = torch.LongTensor(batch['start_indxs'])
+        # end_pos = torch.LongTensor(batch['end_indxs'])
 
         with torch.no_grad():
-            outputs, pred_answers = model.forward(questions, contexts, return_pred_answer=True)
+            outputs, pred_answers = model.forward(questions, contexts, gt_answers, return_pred_answer=True)  # Longformer
+            # outputs, pred_answers = model.forward(questions, contexts, start_pos=start_pos, end_pos=end_pos, return_pred_answer=True)  # Longformer SQuAD
             # print(pred_answers)
 
         metric = evaluator.get_metrics(gt_answers, pred_answers)
@@ -47,27 +50,27 @@ def evaluate(data_loader, model, evaluator, **kwargs):
             total_anls += sum(metric['anls'])
 
         if return_answers:
-            answers.extend(pred_answers)
+            all_pred_answers.extend(pred_answers)
 
     if not return_scores_by_sample:
         total_accuracies = total_accuracies/len(data_loader.dataset)
         total_anls = total_anls/len(data_loader.dataset)
 
-    return total_accuracies, total_anls, answers
+    return total_accuracies, total_anls, all_pred_answers
 
 
 if __name__ == '__main__':
 
     args = parse_args()
-    config = load_config(args.config)
+    config = load_config(args)
 
     dataset = SingleDocVQA(config['imdb_dir'], split='val')
-    val_data_loader = DataLoader(dataset, batch_size=config['training_parameters']['batch_size'], shuffle=False, collate_fn=singledocvqa_collate_fn)
+    val_data_loader = DataLoader(dataset, batch_size=config['batch_size'], shuffle=False, collate_fn=singledocvqa_collate_fn)
 
     model = build_model(config)
 
     logger = Logger(config=config)
-    logger.log_model_parameters(model.model.parameters())
+    logger.log_model_parameters(model)
 
     evaluator = Evaluator(case_sensitive=False)
     accuracy_list, anls_list, answers = evaluate(val_data_loader, model, evaluator, return_scores_by_sample=True, return_answers=True)
@@ -75,8 +78,8 @@ if __name__ == '__main__':
     logger.log_val_metrics(accuracy, anls, update_best=False)
 
     save_data = {
-        "Model": config["Model"],
-        "Model_weights": config["Model_weights"],
+        "Model": config["model_name"],
+        "Model_weights": config["model_weights"],
         "Mean accuracy": np.mean(accuracy),
         "Mean ANLS": np.mean(anls),
         "Sample_accuracy": accuracy,

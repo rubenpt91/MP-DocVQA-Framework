@@ -9,15 +9,15 @@ class Logger:
         self.log_folder = config['save_dir']
 
         experiment_date = datetime.datetime.now().strftime('%Y.%m.%d_%H.%M.%S')
-        experiment_name = "{:s}__{:}".format(config['Model'], experiment_date)
+        experiment_name = "{:s}__{:}".format(config['model_name'], experiment_date)
 
         machine_dict = {'cvc117': 'Local', 'cudahpc16': 'DAG', 'cudahpc25': 'DAG-A40'}
         machine = machine_dict.get(socket.gethostname(), socket.gethostname())
 
-        dataset = config['dataset_parameters']['dataset_name']
-        tags = [config['Model'], dataset, machine]
-        config = {'Model': config['Model'], 'Weights': config['Model_weights'], 'Dataset': dataset,
-                  'Batch size': config['training_parameters']['batch_size'], 'lr': config['training_parameters']['lr']}
+        dataset = config['dataset_name']
+        tags = [config['model_name'], dataset, machine]
+        config = {'Model': config['model_name'], 'Weights': config['model_weights'], 'Dataset': dataset,
+                  'Batch size': config['batch_size'], 'lr': config['lr']}
         self.logger = wb.init(project="DocCVQA_Baselines", name=experiment_name, dir=self.log_folder, tags=tags, config=config)
         self._print_config(config)
 

@@ -1,15 +1,16 @@
 includes:
-  - configs/datasets/SQuAD.yml
+  - configs/datasets/SQuAD_dag.yml
 
 save_dir: save/
-Model: Longformer
-Model_weights: valhalla/longformer-base-4096-finetuned-squadv1
+model_name: Longformer
+model_weights: valhalla/longformer-base-4096-finetuned-squadv1
 # Model_weights: mrm8488/longformer-base-4096-finetuned-squadv2
 # Model_weights: allenai/longformer-base-4096-finetuned-triviaqa
 device: cuda
 
 training_parameters:
-  lr: 3e-5  # 2e-4
-  batch_size: 3
+  lr: 1e-4  # (Longformer Colab) # 3e-5  # (Original Longformer paper) # 2e-4  # (LayoutHT5)
+  batch_size: 4
   train_epochs: 10
   warmup_iterations: 1000
+

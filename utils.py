@@ -5,7 +5,9 @@ import argparse
 def parse_args():
     parser = argparse.ArgumentParser(description='Baselines for DocCVQAv2')
 
-    parser.add_argument('-c', '--config', type=str, required=True, help='Path to yml file with experiment configuration.')
+    # parser.add_argument('-c', '--config', type=str, required=True, help='Path to yml file with experiment configuration.')
+    parser.add_argument('-m', '--model', type=str, required=True, help='Path to yml file with model configuration.')
+    parser.add_argument('-d', '--dataset', type=str, required=True, help='Path to yml file with dataset configuration.')
 
     return parser.parse_args()
 
@@ -15,8 +17,21 @@ def save_json(path, data):
         json.dump(data, f)
 
 
-def load_config(config_path, args):
-    return parse_config(yaml.safe_load(open(config_path, "r")), args)
+def load_config(args):
+    model_config_path = "configs/models/{:}.yml".format(args.model)
+    dataset_config_path = "configs/datasets/{:}.yml".format(args.dataset)
+    model_config = parse_config(yaml.safe_load(open(model_config_path, "r")), args)
+    dataset_config = parse_config(yaml.safe_load(open(dataset_config_path, "r")), args)
+    training_config = model_config.pop('training_parameters')
+
+    # Append and overwrite config values from argumments.
+    # config = {'dataset_params': dataset_config, 'model_params': model_config, 'training_params': training_config}
+    config = {**dataset_config, **model_config, **training_config}
+
+    config = {k: v for k, v in args._get_kwargs()} | config
+    config.pop('model')
+    config.pop('dataset')
+    return config
 
 
 def parse_config(config, args):
@@ -24,7 +39,5 @@ def parse_config(config, args):
     for included_config_path in config.get('includes', []):
         config = load_config(included_config_path, args) | config
 
-    # Append and overwrite config values from argumments.
-    config = {k: v for k, v in args._get_kwargs()} | config
     return config
 

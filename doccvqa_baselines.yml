@@ -1,4 +1,4 @@
-name: doccvqa_baselines
+name: doccvqa_baselines_new
 channels:
   - pytorch
   - nvidia
@@ -11,7 +11,10 @@ dependencies:
   - pytorch=1.10
   - torchvision
   - torchaudio
-  - cudatoolkit=11.1
+  - cudatoolkit=11.0
   - sentencepiece
-  - transformers
+  - transformers=4.20.0
   - editdistance
+
+# conda install pytorch torchvision cudatoolkit=11.2 -c pytorch
+# conda install transformers -c huggingface

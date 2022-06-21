@@ -1,24 +1,15 @@
 import re, random
 
 import torch
-from transformers import LongformerTokenizer, LongformerTokenizerFast, LongformerForQuestionAnswering
+from transformers import BigBirdTokenizer, BigBirdTokenizerFast, BigBirdForQuestionAnswering
 
-""" From https://colab.research.google.com/github/patil-suraj/Notebooks/blob/master/longformer_qa_training.ipynb#scrollTo=ON0le-uD4yiK
-Longformer uses sliding-window local attention which scales linearly with sequence length. This is what allows longformer to handle longer sequences. For more details on how the sliding window attention works, please refer to the paper. Along with local attention longformer also allows you to use global attention for certain tokens. For QA task, all question tokens should have global attention.
 
-The attention is configured using the attention_mask paramter of the forward method of LongformerForQuestionAnswering. Mask values are selected in [0, 1, 2]: 0 for no attention (padding tokens), 1 for local attention (a sliding window attention), 2 for global attention (tokens that attend to all other tokens, and all other tokens attend to them).
-
-As stated above all question tokens should be given gloabl attention. The LongformerForQuestionAnswering model handles this automatically for you. To allow it to do that
-
-    The input sequence must have three sep tokens, i.e the sequence should be encoded like this <s> question</s></s> context</s>. If you encode the question and answer as a input pair, then the tokenizer already takes care of that, you shouldn't worry about it.
-    input_ids should always be a batch of examples.
-"""
-class Longformer:
+class BigBird:
 
     def __init__(self, config):
         self.batch_size = config['batch_size']
-        self.tokenizer = LongformerTokenizerFast.from_pretrained(config['model_weights'])
-        self.model = LongformerForQuestionAnswering.from_pretrained(config['model_weights'])
+        self.tokenizer = BigBirdTokenizerFast.from_pretrained(config['model_weights'])
+        self.model = BigBirdForQuestionAnswering.from_pretrained(config['model_weights'])
 
     def get_start_end_idx(self, question, context, answers):
 

@@ -19,7 +19,7 @@ class Evaluator:
         batch_accuracy = []
         batch_anls = []
         for batch_idx in range(len(preds)):
-            gt = [self._preprocess_str(gt_elm) for gt_elm in gt_answers]
+            gt = [self._preprocess_str(gt_elm) for gt_elm in gt_answers[batch_idx]]
             pred = self._preprocess_str(preds[batch_idx])
 
             batch_accuracy.append(self._calculate_accuracy(gt, pred))

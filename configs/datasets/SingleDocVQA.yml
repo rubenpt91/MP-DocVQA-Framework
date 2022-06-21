@@ -1,0 +1,2 @@
+dataset_name: SingleDocVQA
+imdb_dir: /SSD/Datasets/DocVQA/Task1/pythia_data/imdb/docvqa  # /imdb/collection/imdb_train.npy
