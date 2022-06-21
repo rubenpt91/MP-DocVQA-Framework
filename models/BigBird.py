@@ -49,7 +49,7 @@ class BigBird:
         return start_idxs, end_idxs
 
     def forward(self, question, context, answers, start_idxs=None, end_idxs=None, return_pred_answer=False):
-        encoding = self.tokenizer(question, context, return_tensors="pt", padding=True)
+        encoding = self.tokenizer(question, context, return_tensors="pt", padding=True, truncation=True)
         input_ids = encoding["input_ids"].to(self.model.device)
         attention_mask = encoding["attention_mask"].to(self.model.device)
 
