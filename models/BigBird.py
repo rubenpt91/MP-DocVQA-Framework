@@ -25,7 +25,7 @@ class BigBird:
                 for start_idx in start_idxs:
                     end_idx = start_idx + len(answer)
 
-                    encodings = self.tokenizer.encode_plus([question[batch_idx], context[batch_idx]], padding=True)
+                    encodings = self.tokenizer.encode_plus([question[batch_idx], context[batch_idx]], padding=True,  truncation=True)
 
                     context_encodings = self.tokenizer.encode_plus(context[batch_idx])
                     start_positions_context = context_encodings.char_to_token(start_idx)
