@@ -5,7 +5,7 @@ model_weights: google/bigbird-base-trivia-itc  # TriviaQA
 device: cuda
 
 training_parameters:
-  lr: 2e-4  # 2e-4
+  lr: 1e-4  # 2e-4
   batch_size: 3
   train_epochs: 10
   warmup_iterations: 1000

@@ -41,3 +41,18 @@ def parse_config(config, args):
 
     return config
 
+
+def correct_alignment(context, answer, start_idx, end_idx):
+
+    if context[start_idx: end_idx] == answer:
+        return [start_idx, end_idx]
+
+    elif context[start_idx - 1: end_idx] == answer:
+        return [start_idx - 1, end_idx]
+
+    elif context[start_idx: end_idx + 1] == answer:
+        return [start_idx, end_idx + 1]
+
+    else:
+        print(context[start_idx: end_idx], answer)
+        return None

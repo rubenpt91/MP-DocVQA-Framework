@@ -2,6 +2,7 @@ import re, random
 
 import torch
 from transformers import LongformerTokenizer, LongformerTokenizerFast, LongformerForQuestionAnswering
+from utils import correct_alignment
 
 """ From https://colab.research.google.com/github/patil-suraj/Notebooks/blob/master/longformer_qa_training.ipynb#scrollTo=ON0le-uD4yiK
 Longformer uses sliding-window local attention which scales linearly with sequence length. This is what allows longformer to handle longer sequences. For more details on how the sliding window attention works, please refer to the paper. Along with local attention longformer also allows you to use global attention for certain tokens. For QA task, all question tokens should have global attention.
@@ -20,6 +21,7 @@ class Longformer:
         self.tokenizer = LongformerTokenizerFast.from_pretrained(config['model_weights'])
         self.model = LongformerForQuestionAnswering.from_pretrained(config['model_weights'])
 
+    """
     def get_start_end_idx(self, question, context, answers):
 
         # encodings = self.tokenizer.encode_plus([question, context], padding=True)
@@ -56,13 +58,61 @@ class Longformer:
         start_idxs = torch.LongTensor([idx[0] for idx in pos_idx]).to(self.model.device)
         end_idxs = torch.LongTensor([idx[1] for idx in pos_idx]).to(self.model.device)
         return start_idxs, end_idxs
+    """
+
+    def get_start_end_idx(self, encoding, context, answers):
+
+        # encodings = self.tokenizer.encode_plus([question, context], padding=True)
+
+        pos_idx = []
+        for batch_idx in range(self.batch_size):
+            batch_pos_idxs = []
+            for answer in answers[batch_idx]:
+                start_idxs = [m.start() for m in re.finditer(re.escape(answer), context[batch_idx])]
+
+                for start_idx in start_idxs:
+                    end_idx = start_idx + len(answer)
+                    start_idx, end_idx = correct_alignment(context[batch_idx], answer, start_idx, end_idx)
+
+                    if start_idx is not None:
+                        batch_pos_idxs.append([start_idx, end_idx])
+                        break
+
+            if len(batch_pos_idxs) > 0:
+                start_idx, end_idx = random.choice(batch_pos_idxs)
+
+                context_encodings = self.tokenizer.encode_plus(context[batch_idx], padding=True, truncation=True)
+                start_positions_context = context_encodings.char_to_token(start_idx)
+                end_positions_context = context_encodings.char_to_token(end_idx - 1)
+
+                # here we will compute the start and end position of the answer in the whole example
+                # as the example is encoded like this <s> question</s></s> context</s>
+                # and we know the position of the answer in the context
+                # we can just find out the index of the sep token and then add that to position + 1 (+1 because there are two sep tokens)
+                # this will give us the position of the answer span in whole example
+                sep_idx = encoding['input_ids'][batch_idx].tolist().index(self.tokenizer.sep_token_id)
+                start_position = start_positions_context + sep_idx + 1
+                end_position = end_positions_context + sep_idx + 1
+
+                if end_position > 512:
+                    start_position, end_position = 0, 0
+
+                pos_idx.append([start_position, end_position])
+
+            else:
+                pos_idx.append([0, 0])
+
+        start_idxs = torch.LongTensor([idx[0] for idx in pos_idx]).to(self.model.device)
+        end_idxs = torch.LongTensor([idx[1] for idx in pos_idx]).to(self.model.device)
+
+        return start_idxs, end_idxs
 
     def forward(self, question, context, answers, start_idxs=None, end_idxs=None, return_pred_answer=False):
         encoding = self.tokenizer(question, context, return_tensors="pt", padding=True)
         input_ids = encoding["input_ids"].to(self.model.device)
         attention_mask = encoding["attention_mask"].to(self.model.device)
 
-        start_pos, end_pos = self.get_start_end_idx(question, context, answers)
+        start_pos, end_pos = self.get_start_end_idx(encoding, context, answers)
         # start_pos = torch.LongTensor(start_idxs).to(self.model.device) if start_idxs else None
         # end_pos = torch.LongTensor(end_idxs).to(self.model.device) if end_idxs else None
 
