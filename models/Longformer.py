@@ -91,10 +91,12 @@ class Longformer:
                 # we can just find out the index of the sep token and then add that to position + 1 (+1 because there are two sep tokens)
                 # this will give us the position of the answer span in whole example
                 sep_idx = encoding['input_ids'][batch_idx].tolist().index(self.tokenizer.sep_token_id)
-                start_position = start_positions_context + sep_idx + 1
-                end_position = end_positions_context + sep_idx + 1
 
-                if end_position > 512:
+                if start_positions_context is not None and end_positions_context is not None:
+                    start_position = start_positions_context + sep_idx + 1
+                    end_position = end_positions_context + sep_idx + 1
+
+                else:
                     start_position, end_position = 0, 0
 
                 pos_idx.append([start_position, end_position])
@@ -108,7 +110,7 @@ class Longformer:
         return start_idxs, end_idxs
 
     def forward(self, question, context, answers, start_idxs=None, end_idxs=None, return_pred_answer=False):
-        encoding = self.tokenizer(question, context, return_tensors="pt", padding=True)
+        encoding = self.tokenizer(question, context, return_tensors="pt", padding=True, truncation=True)
         input_ids = encoding["input_ids"].to(self.model.device)
         attention_mask = encoding["attention_mask"].to(self.model.device)
 
@@ -140,3 +142,7 @@ class Longformer:
             answers.append(answer)
 
         return answers
+
+    # def to(self, device):
+    #     self.model.to(device)
+

@@ -1,6 +1,3 @@
-includes:
-  - configs/datasets/SQuAD_dag.yml
-
 save_dir: save/
 model_name: Longformer
 model_weights: valhalla/longformer-base-4096-finetuned-squadv1

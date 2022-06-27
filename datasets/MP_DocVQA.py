@@ -13,10 +13,13 @@ from torch.utils.data import DataLoader
 
 class MPDocVQA(Dataset):
 
-    def __init__(self, imbd_dir, split):
+    def __init__(self, imbd_dir, page_retrieval, split):
         data = np.load(os.path.join(imbd_dir, "imdb_{:s}.npy".format(split)), allow_pickle=True)
         self.header = data[0]
         self.imdb = data[1:]
+
+        self.page_retrieval = page_retrieval.lower()
+        assert(self.page_retrieval in ['oracle', 'concat'])
 
         self.max_answers = 2
 
@@ -27,7 +30,17 @@ class MPDocVQA(Dataset):
         record = self.imdb[idx]
         question = record['question']
         answer_page_idx = record['answer_page_idx']
-        context = ' '.join([word.lower() for word in record['ocr_tokens'][answer_page_idx]])
+
+        if self.page_retrieval == 'oracle':
+            context = ' '.join([word.lower() for word in record['ocr_tokens'][answer_page_idx]])
+
+        elif self.page_retrieval == 'concat':
+            context = ""
+            for page_ix in range(record['imdb_doc_pages']):
+                context += " " + ' '.join([word.lower() for word in record['ocr_tokens'][page_ix]])
+
+            context = context.strip()
+
         answers = list(set(answer.lower() for answer in record['answers']))
 
         start_idxs, end_idxs = self._get_start_end_idx(context, answers)

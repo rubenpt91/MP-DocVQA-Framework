@@ -1,7 +1,7 @@
 save_dir: save/
 model_name: BigBird
 # model_weights: abhinavkulkarni/bigbird-roberta-base-finetuned-squad
-model_weights: google/bigbird-base-trivia-itc  # TriviaQA
+model_weights: google/bigbird-base-trivia-itc  # TriviaQA  # I should use etc for using question tokens as global attention.
 device: cuda
 
 training_parameters:

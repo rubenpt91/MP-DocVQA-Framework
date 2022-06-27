@@ -15,9 +15,12 @@ class Logger:
         machine = machine_dict.get(socket.gethostname(), socket.gethostname())
 
         dataset = config['dataset_name']
+        page_retrieval = config.get('page_retrieval', '-').capitalize()
+
         tags = [config['model_name'], dataset, machine]
-        config = {'Model': config['model_name'], 'Weights': config['model_weights'], 'Dataset': dataset,
+        config = {'Model': config['model_name'], 'Weights': config['model_weights'], 'Dataset': dataset, 'Page retrieval': page_retrieval,
                   'Batch size': config['batch_size'], 'lr': config['lr']}
+
         self.logger = wb.init(project="DocCVQA_Baselines", name=experiment_name, dir=self.log_folder, tags=tags, config=config)
         self._print_config(config)
 

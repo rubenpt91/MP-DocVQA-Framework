@@ -28,10 +28,11 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
 
         outputs, pred_answers = model.forward(questions, contexts, gt_answers, start_indxs, end_indxs, return_pred_answer=True)
 
-        # optimizer.zero_grad()
         outputs.loss.backward()
         optimizer.step()
         lr_scheduler.step()
+
+        optimizer.zero_grad()
 
         metric = evaluator.get_metrics(gt_answers, pred_answers)
         batch_acc = np.mean(metric['accuracy'])
@@ -48,9 +49,9 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
 
 def train(model, **kwargs):
 
-    epochs = kwargs['training_parameters']['train_epochs']
+    epochs = kwargs['train_epochs']
     # device = kwargs['device']
-    batch_size = kwargs['training_parameters']['batch_size']
+    batch_size = kwargs['batch_size']
 
     evaluator = Evaluator(case_sensitive=False)
     logger = Logger(config=kwargs)
@@ -75,8 +76,9 @@ def train(model, **kwargs):
 
 
 if __name__ == '__main__':
-
     args = parse_args()
+    config = load_config(args)
+
     model = build_model(config)
 
     train(model, **config)

@@ -1,0 +1,3 @@
+dataset_name: MP-DocVQA
+imdb_dir: /data/users/rperez/imdb/collection  # /imdb/collection/imdb_train.npy
+page_retrieval: Oracle  # Oracle / Concat / Logits

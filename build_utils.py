@@ -52,18 +52,19 @@ def my_import(name):
 
 def build_dataset(config, split):
 
-    dataset_config = config['dataset_parameters']
-    if dataset_config['dataset_name'] == 'SQuAD':
+    if config['dataset_name'] == 'SQuAD':
         from datasets.SQuAD import SQuAD
-        dataset = SQuAD(dataset_config['imdb_dir'], split)
+        dataset = SQuAD(config['imdb_dir'], split)
 
-    elif dataset_config['dataset_name'] == 'SingleDocVQA':
-        from datasets.SingleDocVQA import SingleDocVQA
-        dataset = SingleDocVQA(dataset_config['imdb_dir'], split)
+    elif config['dataset_name'] == 'SingleDocVQA':
+        # from datasets.SingleDocVQA import SingleDocVQA
+        # dataset = SingleDocVQA(config['imdb_dir'], split)
+        from datasets.SingleDocVQA_trainer import SingleDocVQA
+        dataset = SingleDocVQA(config['imdb_dir'], split, config['model_weights'])
 
-    elif dataset_config['dataset_name'] == 'MP-DocVQA':
+    elif config['dataset_name'] == 'MP-DocVQA':
         from datasets.MP_DocVQA import MPDocVQA
-        dataset = MPDocVQA(dataset_config['imdb_dir'], split)
+        dataset = MPDocVQA(config['imdb_dir'], config['page_retrieval'], split)
 
     else:
         raise ValueError
