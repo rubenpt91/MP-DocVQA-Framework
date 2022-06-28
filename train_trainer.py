@@ -1,6 +1,7 @@
-import logging
+import datetime, logging
 from build_utils import build_model, build_dataset
 from utils import parse_args, load_config
+from logger import Logger
 from trainer_based.trainer_utils import ModelArguments, DataTrainingArguments, data_collator
 from transformers import (
     HfArgumentParser,
@@ -16,10 +17,12 @@ if __name__ == "__main__":
 
     args = parse_args()
     config = load_config(args)
-
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
 
+    # experiment_date = datetime.datetime.now().strftime('%Y.%m.%d_%H.%M.%S')
+    # experiment_name = "{:s}__{:}".format(config['model_name'], experiment_date)
     model_args, data_args, training_args = parser.parse_json_file(json_file='trainer_based/args.json')
+    # training_args.run_name = experiment_name
     logger.info("Training/evaluation parameters %s", training_args)
 
     # Set seed
@@ -28,6 +31,9 @@ if __name__ == "__main__":
     train_dataset = build_dataset(config, 'train')
     valid_dataset = build_dataset(config, 'val')
     model = build_model(config)
+
+    my_logger = Logger(config=config)
+    my_logger.log_model_parameters(model)
 
     # Initialize our Trainer
     trainer = Trainer(
