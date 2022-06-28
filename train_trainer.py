@@ -32,8 +32,8 @@ if __name__ == "__main__":
     valid_dataset = build_dataset(config, 'val')
     model = build_model(config)
 
-    my_logger = Logger(config=config)
-    my_logger.log_model_parameters(model)
+    # my_logger = Logger(config=config)
+    # my_logger.log_model_parameters(model)
     # training_args.run_name = my_logger.experiment_name
 
     # Initialize our Trainer
