@@ -9,7 +9,7 @@ class Logger:
         self.log_folder = config['save_dir']
 
         experiment_date = datetime.datetime.now().strftime('%Y.%m.%d_%H.%M.%S')
-        experiment_name = "{:s}__{:}".format(config['model_name'], experiment_date)
+        self.experiment_name = "{:s}__{:}".format(config['model_name'], experiment_date)
 
         machine_dict = {'cvc117': 'Local', 'cudahpc16': 'DAG', 'cudahpc25': 'DAG-A40'}
         machine = machine_dict.get(socket.gethostname(), socket.gethostname())
@@ -21,7 +21,7 @@ class Logger:
         config = {'Model': config['model_name'], 'Weights': config['model_weights'], 'Dataset': dataset, 'Page retrieval': page_retrieval,
                   'Batch size': config['batch_size'], 'lr': config['lr']}
 
-        self.logger = wb.init(project="DocCVQA_Baselines", name=experiment_name, dir=self.log_folder, tags=tags, config=config)
+        self.logger = wb.init(project="DocCVQA_Baselines", name=self.experiment_name, dir=self.log_folder, tags=tags, config=config)
         self._print_config(config)
 
         self.current_epoch = 0

@@ -22,7 +22,6 @@ if __name__ == "__main__":
     # experiment_date = datetime.datetime.now().strftime('%Y.%m.%d_%H.%M.%S')
     # experiment_name = "{:s}__{:}".format(config['model_name'], experiment_date)
     model_args, data_args, training_args = parser.parse_json_file(json_file='trainer_based/args.json')
-    # training_args.run_name = experiment_name
     logger.info("Training/evaluation parameters %s", training_args)
 
     # Set seed
@@ -34,6 +33,7 @@ if __name__ == "__main__":
 
     my_logger = Logger(config=config)
     my_logger.log_model_parameters(model)
+    # training_args.run_name = my_logger.experiment_name
 
     # Initialize our Trainer
     trainer = Trainer(
