@@ -1,4 +1,4 @@
-import datetime, logging
+import os, datetime, logging
 from build_utils import build_model, build_dataset
 from utils import parse_args, load_config
 from logger import Logger
@@ -19,8 +19,9 @@ if __name__ == "__main__":
     config = load_config(args)
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
 
-    # experiment_date = datetime.datetime.now().strftime('%Y.%m.%d_%H.%M.%S')
-    # experiment_name = "{:s}__{:}".format(config['model_name'], experiment_date)
+    os.environ['WANDB_PROJECT'] = 'DocCVQA_Baselines'
+    experiment_date = datetime.datetime.now().strftime('%Y.%m.%d_%H.%M.%S')
+    experiment_name = "{:s}__{:}".format(config['model_name'], experiment_date)
     model_args, data_args, training_args = parser.parse_json_file(json_file='trainer_based/args.json')
     logger.info("Training/evaluation parameters %s", training_args)
 
