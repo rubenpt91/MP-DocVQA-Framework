@@ -12,6 +12,6 @@
   "do_train": true,
   "evaluate_during_training": true,
   "logging_steps": 100,
-  "eval_steps": 100,
+  "eval_steps": 200,
   "save_steps": 3000
 }
