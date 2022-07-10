@@ -53,12 +53,13 @@ class Logger:
         print("Model parameters: {:d} - Trainable: {:d} ({:2.2f}%)".format(
             total_params, trainable_params, trainable_params / total_params * 100))
 
-    def log_val_metrics(self, accuracy, anls, update_best=False):
+    def log_val_metrics(self, accuracy, anls, ret_prec, update_best=False):
 
-        str_msg = "Epoch {:d}: Accuracy {:2.4f}  ANLS {:2.4f}".format(self.current_epoch, accuracy, anls)
+        str_msg = "Epoch {:d}: Accuracy {:2.2f}     ANLS {:2.4f}    Retrieval precision: {:2.2f}%".format(self.current_epoch, accuracy*100, anls, ret_prec*100)
         self.logger.log({
             'Val/Epoch Accuracy': accuracy,
             'Val/Epoch ANLS': anls,
+            'Val/Epoch Ret. Prec': ret_prec,
         }, step=self.current_epoch*self.len_dataset + self.len_dataset)
 
         if update_best:

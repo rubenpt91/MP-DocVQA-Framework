@@ -19,7 +19,7 @@ class MPDocVQA(Dataset):
         self.imdb = data[1:]
 
         self.page_retrieval = page_retrieval.lower()
-        assert(self.page_retrieval in ['oracle', 'concat'])
+        assert(self.page_retrieval in ['oracle', 'concat', 'logits'])
 
         self.max_answers = 2
 
@@ -41,16 +41,26 @@ class MPDocVQA(Dataset):
 
             context = context.strip()
 
+        elif self.page_retrieval == 'logits':
+            context = []
+            for page_ix in range(record['imdb_doc_pages']):
+                context.append(' '.join([word.lower() for word in record['ocr_tokens'][page_ix]]))
+
         answers = list(set(answer.lower() for answer in record['answers']))
 
-        start_idxs, end_idxs = self._get_start_end_idx(context, answers)
+        if self.page_retrieval == 'oracle' or self.page_retrieval == 'concat':
+            start_idxs, end_idxs = self._get_start_end_idx(context, answers)
+
+        elif self.page_retrieval == 'logits':
+            start_idxs, end_idxs = self._get_start_end_idx(context[record['answer_page_idx']], answers)
 
         sample_info = {'question_id': record['question_id'],
                        'questions': question,
                        'contexts': context,
                        'answers': answers,
                        'start_indxs': start_idxs,
-                       'end_indxs': end_idxs
+                       'end_indxs': end_idxs,
+                       'answer_page_idx': record['answer_page_idx']
                        }
 
         return sample_info
@@ -80,4 +90,4 @@ def singledocvqa_collate_fn(batch):
 
 if __name__ == '__main__':
 
-    singledocvqa = SingleDocVQA("/SSD/Datasets/DocVQA/Task1/pythia_data/imdb/docvqa/", split='val')
+    mp_docvqa = MPDocVQA("/SSD/Datasets/DocVQA/Task1/pythia_data/imdb/collection", split='val')

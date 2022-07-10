@@ -1,10 +1,8 @@
-includes:
-  - configs/datasets/SQuAD_dag.yml
-
 save_dir: save/
-Model: BertQA
-# Model_weights: bert-large-uncased-whole-word-masking-finetuned-squad
-Model_weights: save/bert_weights/x/bert-large-squad-docvqa-finetuned
+model_name: BertQA
+# model_weights: bert-base-uncased
+# model_weights: bert-large-uncased-whole-word-masking-finetuned-squad
+model_weights: save/bert_weights/x/bert-large-squad-docvqa-finetuned
 device: cuda
 
 training_parameters:

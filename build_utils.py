@@ -4,12 +4,6 @@ import transformers
 
 from transformers import get_scheduler
 
-from models.BertQA_SQuAD import BertQA
-from models.Longformer import Longformer
-# from models.Longformer_SQuAD import Longformer
-
-from models.BigBird import BigBird
-
 
 def build_optimizer(model, length_train_loader, config):
     optimizer_class = getattr(transformers, 'AdamW')
@@ -24,15 +18,28 @@ def build_optimizer(model, length_train_loader, config):
 
 def build_model(config):
 
-    available_models = ['BertQA', 'Longformer', 'BigBird']
+    available_models = ['BertQA', 'Longformer', 'BigBird', 'T5', 'LT5']
     if config['model_name'].lower() == 'bert' or config['model_name'].lower() == 'bertqa':
+        from models.BertQA import BertQA
         model = BertQA(config)
 
     elif config['model_name'].lower() == 'longformer':
+        from models.Longformer import Longformer
+        # from models.Longformer_SQuAD import Longformer
         model = Longformer(config)
 
     elif config['model_name'].lower() == 'bigbird':
+        from models.BigBird import BigBird
         model = BigBird(config)
+
+    elif config['model_name'].lower() == 't5':
+        from models.T5 import T5
+        model = T5(config)
+
+    elif config['model_name'].lower() == 'lt5':
+        # from models.LT5 import LT5
+        # model = LT5(config)
+        raise NotImplementedError("Currently LT5 is not implemented in this framework.")
 
     else:
         raise ValueError("Value '{:s}' for model selection not expected. Please choose one of {:}".format(config['model_name'], ', '.join(available_models)))

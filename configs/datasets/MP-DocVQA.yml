@@ -1,3 +1,3 @@
 dataset_name: MP-DocVQA
 imdb_dir: /SSD/Datasets/DocVQA/Task1/pythia_data/imdb/collection  # /imdb/collection/imdb_train.npy
-page_retrieval: Concat  # Oracle / Concat / Logits
+page_retrieval: Oracle  # Oracle / Concat / Logits

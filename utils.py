@@ -56,3 +56,13 @@ def correct_alignment(context, answer, start_idx, end_idx):
     else:
         print(context[start_idx: end_idx], answer)
         return None
+
+
+def time_stamp_to_hhmmss(timestamp, string=True):
+    hh = int(timestamp/3600)
+    mm = int((timestamp-hh*3600)/60)
+    ss = int(timestamp - hh*3600 - mm*60)
+
+    time = "{:02d}:{:02d}:{:02d}".format(hh, mm, ss) if string else [hh, mm, ss]
+
+    return time
