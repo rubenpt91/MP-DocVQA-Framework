@@ -97,4 +97,6 @@ if __name__ == '__main__':
     }
 
     experiment_date = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    save_json("{:s}/results/{:}_results__{:}.json".format(config['save_dir'], config['model_name'], experiment_date), save_data)
+    save_json("{:s}/results/{:}_{:}_{:}__{:}.json".format(config['save_dir'],
+                                                          config['model_name'], config['dataset_name'],
+                                                          config['page_retrieval'].lower(), experiment_date), save_data)

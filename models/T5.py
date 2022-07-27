@@ -71,17 +71,31 @@ class T5:
             labels = labels.input_ids.to(self.model.device)
 
             outputs = self.model(input_ids=tokens.input_ids, attention_mask=tokens.attention_mask, labels=labels)
-            pred_answers = self.get_answer_from_model_output(outputs) if return_pred_answer else None
-            pred_answer_pages = None
+            # pred_answers = self.get_answer_from_model_output(outputs) if return_pred_answer else None
+            pred_answers = self.get_answer_from_model_output(tokens) if return_pred_answer else None
+
+            if self.page_retrieval == 'oracle':
+                pred_answer_pages = batch['answer_page_idx']
+
+            else:
+                pred_answer_pages = None
 
         return outputs, pred_answers, pred_answer_pages
 
+    """
     def get_answer_from_model_output(self, output):
         pred_answers = []
         batched_pred_tokens = output.logits.argmax(dim=-1)
         for pred_tokens in batched_pred_tokens:
             pred_answer = self.tokenizer.decode(pred_tokens)
             pred_answers.append(pred_answer.replace(self.tokenizer.eos_token, '').strip())
+
+        return pred_answers
+    """
+
+    def get_answer_from_model_output(self, input_tokens):
+        output = self.model.generate(**input_tokens)
+        pred_answers = self.tokenizer.batch_decode(output, skip_special_tokens=True)
 
         return pred_answers
 

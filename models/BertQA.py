@@ -63,12 +63,31 @@ class BertQA:
 
             outputs = self.model(input_ids, attention_mask=attention_mask, start_positions=start_pos, end_positions=end_pos)
             pred_answers = self.get_answer_from_model_output(input_ids, outputs) if return_pred_answer else None
-            pred_answer_pages = None
+
+            if self.page_retrieval == 'oracle':
+                pred_answer_pages = batch['answer_page_idx']
+
+            elif self.page_retrieval == 'concat':
+                pred_answer_pages = [batch['context_page_corresp'][batch_idx][pred_start_idx] if len(batch['context_page_corresp'][batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
+
+                # pred_answer_pages = []
+                # for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1)):
+                    # context_page_corresp = batch['context_page_corresp'][batch_idx]
+                    # pred_answer_pages.append(context_page_corresp[pred_start_idx] if len(context_page_corresp) > 0 else 0)
+
+
 
         # start_logits_cnf = [outputs.start_logits[batch_ix, max_start_logits_idx.item()].item() for batch_ix, max_start_logits_idx in enumerate(outputs.start_logits.argmax(-1))]
         # end_logits_cnf = [outputs.end_logits[batch_ix, max_end_logits_idx.item()].item() for batch_ix, max_end_logits_idx in enumerate(outputs.end_logits.argmax(-1))]
 
         return outputs, pred_answers, pred_answer_pages
+
+    def get_start_end_idx(self, encoding, context, answers):
+        if False:
+            pass
+        else:
+            start_pos, end_pos = -1, -1
+        return start_pos, end_pos
 
     def get_answer_from_model_output(self, input_tokens, outputs):
         start_idxs = torch.argmax(outputs.start_logits, axis=1)

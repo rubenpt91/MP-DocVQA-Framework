@@ -36,10 +36,17 @@ class MPDocVQA(Dataset):
 
         elif self.page_retrieval == 'concat':
             context = ""
+            # context_page_corresp = ""
+            context_page_corresp = []
             for page_ix in range(record['imdb_doc_pages']):
-                context += " " + ' '.join([word.lower() for word in record['ocr_tokens'][page_ix]])
+                page_context = " ".join([word.lower() for word in record['ocr_tokens'][page_ix]])
+                context += " " + page_context
+                # context_page_corresp += " " + ''.join([str(page_ix)]*len(page_context))
+                context_page_corresp.extend([-1] + [page_ix]*len(page_context))
+                # context_page_corresp += " " + ' '.join([''.join([str(page_ix)]*len(word)) for word in record['ocr_tokens'][page_ix]])
 
             context = context.strip()
+            context_page_corresp = context_page_corresp[1:]
 
         elif self.page_retrieval == 'logits':
             context = []
@@ -62,6 +69,9 @@ class MPDocVQA(Dataset):
                        'end_indxs': end_idxs,
                        'answer_page_idx': record['answer_page_idx']
                        }
+
+        if self.page_retrieval == 'concat':
+            sample_info['context_page_corresp'] = context_page_corresp
 
         return sample_info
 

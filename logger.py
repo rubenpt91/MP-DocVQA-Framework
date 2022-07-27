@@ -67,7 +67,7 @@ class Logger:
             self.logger.config.update({
                 "Best Accuracy": accuracy,
                 "Best epoch": self.current_epoch
-            })
+            }, allow_val_change=True)
 
         print(str_msg)
 

@@ -110,7 +110,13 @@ class Longformer:
 
             outputs = self.model(input_ids, attention_mask=attention_mask, start_positions=start_pos, end_positions=end_pos)
             pred_answers = self.get_answer_from_model_output(input_ids, outputs) if return_pred_answer else None
-            pred_answer_pages = None
+
+            if self.page_retrieval == 'oracle':
+                pred_answer_pages = batch['answer_page_idx']
+
+            elif self.page_retrieval == 'concat':
+                pred_answer_pages = [batch['context_page_corresp'][batch_idx][pred_start_idx] if len(batch['context_page_corresp'][batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
+
 
         return outputs, pred_answers, pred_answer_pages
 
