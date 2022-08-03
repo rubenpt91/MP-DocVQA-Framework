@@ -65,7 +65,7 @@ def train(model, **kwargs):
     for epoch_ix in range(epochs):
         logger.current_epoch = epoch_ix
         train_epoch(train_data_loader, model, optimizer, lr_scheduler, evaluator, logger, **kwargs)
-        accuracy, anls, ret_prec, _ = evaluate(val_data_loader, model, evaluator, return_scores_by_sample=False, return_pred_answers=False, **kwargs)
+        accuracy, anls, ret_prec, _, _ = evaluate(val_data_loader, model, evaluator, return_scores_by_sample=False, return_pred_answers=False, **kwargs)
 
         is_updated = evaluator.update_global_metrics(accuracy, anls, epoch_ix)
         logger.log_val_metrics(accuracy, anls, ret_prec, update_best=is_updated)

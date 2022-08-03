@@ -67,6 +67,7 @@ def evaluate(data_loader, model, evaluator, **kwargs):
     if not return_scores_by_sample:
         total_accuracies = total_accuracies/len(data_loader.dataset)
         total_anls = total_anls/len(data_loader.dataset)
+        scores_by_samples = []
 
     return total_accuracies, total_anls, total_ret_prec, all_pred_answers, scores_by_samples
 
