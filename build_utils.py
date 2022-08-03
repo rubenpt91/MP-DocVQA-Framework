@@ -32,6 +32,10 @@ def build_model(config):
         from models.BigBird import BigBird
         model = BigBird(config)
 
+    elif config['model_name'].lower() == 'layoutlmv2':
+        from models.LayoutLMv2 import LayoutLMv2
+        model = LayoutLMv2(config)
+
     elif config['model_name'].lower() == 't5':
         from models.T5 import T5
         model = T5(config)

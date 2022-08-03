@@ -33,6 +33,7 @@ class MPDocVQA(Dataset):
 
         if self.page_retrieval == 'oracle':
             context = ' '.join([word.lower() for word in record['ocr_tokens'][answer_page_idx]])
+            image_names = "{:s}.jpg".format(record['image_name'][answer_page_idx])
 
         elif self.page_retrieval == 'concat':
             context = ""
@@ -67,7 +68,8 @@ class MPDocVQA(Dataset):
                        'answers': answers,
                        'start_indxs': start_idxs,
                        'end_indxs': end_idxs,
-                       'answer_page_idx': record['answer_page_idx']
+                       'answer_page_idx': record['answer_page_idx'],
+                       'image_names': image_names
                        }
 
         if self.page_retrieval == 'concat':

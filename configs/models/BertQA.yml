@@ -3,6 +3,8 @@ model_name: BertQA
 # model_weights: bert-base-uncased
 # model_weights: bert-large-uncased-whole-word-masking-finetuned-squad
 model_weights: save/bert_weights/bert-large-squad-docvqa-finetuned
+# model_weights: weights/bertQA_oracle_mp-docvqa__epoch4
+# model_weights: weights/checkpoint-5000
 device: cuda
 
 training_parameters:

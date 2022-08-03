@@ -1,12 +1,13 @@
 save_dir: save/
 model_name: Longformer
-model_weights: valhalla/longformer-base-4096-finetuned-squadv1
-# model_weights: mrm8488/longformer-base-4096-finetuned-squadv2
+# model_weights: valhalla/longformer-base-4096-finetuned-squadv1  # Best pretrained.
+model_weights: mrm8488/longformer-base-4096-finetuned-squadv2
 # model_weights: allenai/longformer-base-4096-finetuned-triviaqa
+# model_weights: weights/Longformer_from_simpletransformers/checkpoint-2000
 device: cuda
 
 training_parameters:
-  lr: 2e-4  # 2e-4
+  lr: 1e-4  # 2e-4
   batch_size: 3
   train_epochs: 10
   warmup_iterations: 1000

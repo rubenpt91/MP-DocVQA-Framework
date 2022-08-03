@@ -2,68 +2,19 @@ import re, random
 import numpy as np
 
 import torch
-from transformers import LongformerTokenizer, LongformerTokenizerFast, LongformerForQuestionAnswering
+from transformers import BigBirdTokenizer, BigBirdTokenizerFast, BigBirdForQuestionAnswering
 from utils import correct_alignment
 
-""" From https://colab.research.google.com/github/patil-suraj/Notebooks/blob/master/longformer_qa_training.ipynb#scrollTo=ON0le-uD4yiK
-Longformer uses sliding-window local attention which scales linearly with sequence length. This is what allows longformer to handle longer sequences. For more details on how the sliding window attention works, please refer to the paper. Along with local attention longformer also allows you to use global attention for certain tokens. For QA task, all question tokens should have global attention.
 
-The attention is configured using the attention_mask paramter of the forward method of LongformerForQuestionAnswering. Mask values are selected in [0, 1, 2]: 0 for no attention (padding tokens), 1 for local attention (a sliding window attention), 2 for global attention (tokens that attend to all other tokens, and all other tokens attend to them).
-
-As stated above all question tokens should be given gloabl attention. The LongformerForQuestionAnswering model handles this automatically for you. To allow it to do that
-
-    The input sequence must have three sep tokens, i.e the sequence should be encoded like this <s> question</s></s> context</s>. If you encode the question and answer as a input pair, then the tokenizer already takes care of that, you shouldn't worry about it.
-    input_ids should always be a batch of examples.
-"""
-class Longformer:
+class BigBird:
 
     def __init__(self, config):
         self.batch_size = config['batch_size']
-        self.tokenizer = LongformerTokenizerFast.from_pretrained(config['model_weights'])
-        self.model = LongformerForQuestionAnswering.from_pretrained(config['model_weights'])
-        self.page_retrieval = config.get('page_retrieval', 'oracle').lower()
-        self.ignore_index = 0  # 9999
+        self.tokenizer = BigBirdTokenizerFast.from_pretrained(config['model_weights'])
+        self.model = BigBirdForQuestionAnswering.from_pretrained(config['model_weights'])
+        self.page_retrieval = config['page_retrieval'].lower()
 
-    """ Version 1
-    def get_start_end_idx(self, question, context, answers):
-
-        # encodings = self.tokenizer.encode_plus([question, context], padding=True)
-
-        pos_idx = []
-        for batch_idx in range(self.batch_size):
-            batch_pos_idxs = []
-            for answer in answers[batch_idx]:
-                # start_idx = context[batch_idx].find(answer)
-                start_idxs = [m.start() for m in re.finditer(re.escape(answer), context[batch_idx])]
-
-                for start_idx in start_idxs:
-                    end_idx = start_idx + len(answer)
-
-                    encodings = self.tokenizer.encode_plus([question[batch_idx], context[batch_idx]], padding=True)
-
-                    context_encodings = self.tokenizer.encode_plus(context[batch_idx])
-                    start_positions_context = context_encodings.char_to_token(start_idx)
-                    end_positions_context = context_encodings.char_to_token(end_idx - 1)
-
-                    sep_idx = encodings['input_ids'].index(self.tokenizer.sep_token_id)
-                    start_positions = start_positions_context + sep_idx + 1
-                    end_positions = end_positions_context + sep_idx + 2
-
-                    if self.tokenizer.decode(encodings['input_ids'][start_positions:end_positions]).strip() == answer:
-                        batch_pos_idxs.append([start_positions, end_positions])
-                        break
-
-            if len(batch_pos_idxs) > 0:
-                pos_idx.append(random.choice(batch_pos_idxs))
-            else:
-                pos_idx.append([0, 0])
-
-        start_idxs = torch.LongTensor([idx[0] for idx in pos_idx]).to(self.model.device)
-        end_idxs = torch.LongTensor([idx[1] for idx in pos_idx]).to(self.model.device)
-        return start_idxs, end_idxs
-    """
-
-    def forward(self, batch, return_pred_answer=False):
+    def forward(self,batch, return_pred_answer=False):
 
         question = batch['questions']
         context = batch['contexts']
@@ -110,6 +61,8 @@ class Longformer:
             start_pos, end_pos = self.get_start_end_idx(encoding, context, answers)
 
             outputs = self.model(input_ids, attention_mask=attention_mask, start_positions=start_pos, end_positions=end_pos)
+            # pred_start_idxs = torch.argmax(outputs.start_logits, axis=1)
+            # pred_end_idxs = torch.argmax(outputs.end_logits, axis=1)
             pred_answers = self.get_answer_from_model_output(input_ids, outputs) if return_pred_answer else None
 
             if self.page_retrieval == 'oracle':
@@ -118,24 +71,53 @@ class Longformer:
             elif self.page_retrieval == 'concat':
                 pred_answer_pages = [batch['context_page_corresp'][batch_idx][pred_start_idx] if len(batch['context_page_corresp'][batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
 
-
-        print(batch['question_id'])
-        for gt_answer, pred_answer in zip(answers, pred_answers):
-            print(gt_answer, pred_answer)
-
-        for start_p, end_p, pred_start_p, pred_end_p in zip(start_pos, end_pos, outputs.start_logits.argmax(-1), outputs.end_logits.argmax(-1)):
-            print("GT: {:d}-{:d} \t Pred: {:d}-{:d}".format(start_p.item(), end_p.item(), pred_start_p, pred_end_p))
-
-        start_pos, end_pos = self.get_start_end_idx(encoding, context, answers)
         return outputs, pred_answers, pred_answer_pages
 
-    # Version 2
     def get_start_end_idx(self, encoding, context, answers):
-
         pos_idx = []
         for batch_idx in range(len(context)):
             batch_pos_idxs = []
             for answer in answers[batch_idx]:
+                # start_idx = context[batch_idx].find(answer)
+
+                """ V1 - Based on tokens 
+                start_idxs = [m.start() for m in re.finditer(re.escape(answer), context[batch_idx])]
+
+                for start_idx in start_idxs:
+                    end_idx = start_idx + len(answer)
+
+                    encodings = self.tokenizer.encode_plus([question[batch_idx], context[batch_idx]], padding=True,  truncation=True)
+
+                    context_encodings = self.tokenizer.encode_plus(context[batch_idx])
+                    start_positions_context = context_encodings.char_to_token(start_idx)
+                    end_positions_context = context_encodings.char_to_token(end_idx - 1)
+
+                    sep_idx = encodings['input_ids'].index(self.tokenizer.sep_token_id)
+                    start_positions = start_positions_context + sep_idx + 1
+                    end_positions = end_positions_context + sep_idx + 2
+
+                    if self.tokenizer.decode(encodings['input_ids'][start_positions:end_positions]).strip() == answer:
+                        batch_pos_idxs.append([start_positions, end_positions])
+                        break
+                """
+
+                """ V2 - Based on answer string """
+                """ 
+                start_idxs = [m.start() for m in re.finditer(re.escape(answer), context[batch_idx])]
+
+                for start_idx in start_idxs:
+                    end_idx = start_idx + len(answer)
+
+                    if context[batch_idx][start_idx: end_idx] == answer:
+                        batch_pos_idxs.append([start_idx, end_idx])
+                        break
+
+                    else:
+                        a = 0
+
+                """
+
+                """ V3 - Based on tokens again """
                 start_idxs = [m.start() for m in re.finditer(re.escape(answer), context[batch_idx])]
 
                 for start_idx in start_idxs:
@@ -164,39 +146,25 @@ class Longformer:
                     start_position = start_positions_context + sep_idx + 1
                     end_position = end_positions_context + sep_idx + 1
 
+                    if end_position > 512:
+                        start_position, end_position = 0, 0
+
                 else:
-                    start_position, end_position = self.ignore_index, self.ignore_index
+                    start_position, end_position = 0, 0
 
                 pos_idx.append([start_position, end_position])
 
             else:
-                pos_idx.append([self.ignore_index, self.ignore_index])
+                pos_idx.append([0, 0])
+
+        """ V1 - Based on answer string """
+        # start_idxs = torch.LongTensor([idx[0] for idx in pos_idx]).to(self.model.device)
+        # end_idxs = torch.LongTensor([idx[1] for idx in pos_idx]).to(self.model.device)
 
         start_idxs = torch.LongTensor([idx[0] for idx in pos_idx]).to(self.model.device)
         end_idxs = torch.LongTensor([idx[1] for idx in pos_idx]).to(self.model.device)
 
         return start_idxs, end_idxs
-
-
-    """ Version 3
-    def get_start_end_idx(self, encoding, context, answers):
-        pos_idx = []
-        for batch_idx in range(len(context)):
-            batch_pos_idxs = []
-            for answer in answers[batch_idx]:
-                start_idxs = [m.start() for m in re.finditer(re.escape(answer), context[batch_idx])]
-
-                for start_idx in start_idxs:
-                    end_idx = start_idx + len(answer)
-                    start_idx, end_idx = correct_alignment(context[batch_idx], answer, start_idx, end_idx)
-
-                    if start_idx is not None:
-                        batch_pos_idxs.append([start_idx, end_idx])
-                        break
-
-            if len(batch_pos_idxs) > 0:
-                start_idx, end_idx = random.choice(batch_pos_idxs)
-    """
 
     def get_answer_from_model_output(self, input_tokens, outputs):
         start_idxs = torch.argmax(outputs.start_logits, axis=1)
@@ -215,7 +183,3 @@ class Longformer:
             answers.append(answer)
 
         return answers
-
-    # def to(self, device):
-    #     self.model.to(device)
-

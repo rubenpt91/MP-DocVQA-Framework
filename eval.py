@@ -14,10 +14,11 @@ from build_utils import build_model, build_dataset
 
 def evaluate(data_loader, model, evaluator, **kwargs):
 
-    return_scores_by_sample = kwargs['return_scores_by_sample'] if 'return_scores_by_sample' in kwargs else False
-    return_answers = kwargs['return_answers'] if 'return_answers' in kwargs else False
+    return_scores_by_sample = kwargs.get('return_scores_by_sample', False)
+    return_answers = kwargs.get('return_answers', False)
 
     if return_scores_by_sample:
+        scores_by_samples = {}
         total_accuracies = []
         total_anls = []
         total_ret_prec = []
@@ -41,6 +42,16 @@ def evaluate(data_loader, model, evaluator, **kwargs):
         ret_metric = evaluator.get_retrieval_metric(batch['answer_page_idx'], pred_answer_page)
 
         if return_scores_by_sample:
+            for batch_idx in range(len(batch['question_id'])):
+                scores_by_samples[batch['question_id'][batch_idx]] = {
+                    'accuracy': metric['accuracy'][batch_idx],
+                    'anls': metric['anls'][batch_idx],
+                    'ret_prec': ret_metric[batch_idx],
+                    'pred_answer': pred_answers[batch_idx],
+                    'pred_answer_page': pred_answer_page[batch_idx] if pred_answer_page is not None else None
+                }
+
+        if return_scores_by_sample:
             total_accuracies.extend(metric['accuracy'])
             total_anls.extend(metric['anls'])
             total_ret_prec.extend(ret_metric)
@@ -57,7 +68,7 @@ def evaluate(data_loader, model, evaluator, **kwargs):
         total_accuracies = total_accuracies/len(data_loader.dataset)
         total_anls = total_anls/len(data_loader.dataset)
 
-    return total_accuracies, total_anls, total_ret_prec, all_pred_answers
+    return total_accuracies, total_anls, total_ret_prec, all_pred_answers, scores_by_samples
 
 
 if __name__ == '__main__':
@@ -66,7 +77,7 @@ if __name__ == '__main__':
     config = load_config(args)
     start_time = time.time()
 
-    dataset = build_dataset(config, 'val')
+    dataset = build_dataset(config, 'test')
     val_data_loader = DataLoader(dataset, batch_size=config['batch_size'], shuffle=False, collate_fn=singledocvqa_collate_fn)
 
     model = build_model(config)
@@ -75,7 +86,7 @@ if __name__ == '__main__':
     logger.log_model_parameters(model)
 
     evaluator = Evaluator(case_sensitive=False)
-    accuracy_list, anls_list, ret_prec_list, pred_answers = evaluate(val_data_loader, model, evaluator, return_scores_by_sample=True, return_answers=True)
+    accuracy_list, anls_list, ret_prec_list, pred_answers, scores_by_samples = evaluate(val_data_loader, model, evaluator, return_scores_by_sample=True, return_answers=True)
     accuracy, anls, ret_prec = np.mean(accuracy_list), np.mean(anls_list), np.mean(ret_prec_list)
 
     inf_time = time_stamp_to_hhmmss(time.time() - start_time, string=True)
@@ -90,10 +101,7 @@ if __name__ == '__main__':
         "Mean accuracy": accuracy,
         "Mean ANLS": anls,
         "Mean Retrieval precision": ret_prec,
-        "Sample_accuracy": accuracy_list,
-        "Sample_anls": anls_list,
-        "Sample_ret_prec": ret_prec_list,
-        "Answers": pred_answers,
+        "Scores by samples": scores_by_samples,
     }
 
     experiment_date = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
