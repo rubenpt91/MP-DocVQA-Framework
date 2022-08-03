@@ -119,14 +119,15 @@ class Longformer:
                 pred_answer_pages = [batch['context_page_corresp'][batch_idx][pred_start_idx] if len(batch['context_page_corresp'][batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
 
 
-        print(batch['question_id'])
-        for gt_answer, pred_answer in zip(answers, pred_answers):
-            print(gt_answer, pred_answer)
+        if random.randint(0, 1000) == 0:
+            print(batch['question_id'])
+            for gt_answer, pred_answer in zip(answers, pred_answers):
+                print(gt_answer, pred_answer)
 
-        for start_p, end_p, pred_start_p, pred_end_p in zip(start_pos, end_pos, outputs.start_logits.argmax(-1), outputs.end_logits.argmax(-1)):
-            print("GT: {:d}-{:d} \t Pred: {:d}-{:d}".format(start_p.item(), end_p.item(), pred_start_p, pred_end_p))
+            for start_p, end_p, pred_start_p, pred_end_p in zip(start_pos, end_pos, outputs.start_logits.argmax(-1), outputs.end_logits.argmax(-1)):
+                print("GT: {:d}-{:d} \t Pred: {:d}-{:d}".format(start_p.item(), end_p.item(), pred_start_p, pred_end_p))
 
-        start_pos, end_pos = self.get_start_end_idx(encoding, context, answers)
+        # start_pos, end_pos = self.get_start_end_idx(encoding, context, answers)
         return outputs, pred_answers, pred_answer_pages
 
     # Version 2
