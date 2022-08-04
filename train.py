@@ -38,7 +38,7 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
             'Train/Batch loss': outputs.loss.item(),
             'Train/Batch Accuracy': batch_acc,
             'Train/Batch ANLS': batch_anls,
-            'lr': lr_scheduler.get_lr()[0]
+            'lr': optimizer.param_groups[0]['lr']
         }, step=logger.current_epoch * logger.len_dataset + batch_idx)
 
     # return total_accuracies, total_anls, answers
