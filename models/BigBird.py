@@ -12,7 +12,7 @@ class BigBird:
         self.batch_size = config['batch_size']
         self.tokenizer = BigBirdTokenizerFast.from_pretrained(config['model_weights'])
         self.model = BigBirdForQuestionAnswering.from_pretrained(config['model_weights'])
-        self.page_retrieval = config['page_retrieval'].lower()
+        self.page_retrieval = config.get('page_retrieval', 'oracle').lower()
         self.ignore_index = 9999  # 0
 
     def forward(self, batch, return_pred_answer=False):
