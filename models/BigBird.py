@@ -13,8 +13,9 @@ class BigBird:
         self.tokenizer = BigBirdTokenizerFast.from_pretrained(config['model_weights'])
         self.model = BigBirdForQuestionAnswering.from_pretrained(config['model_weights'])
         self.page_retrieval = config['page_retrieval'].lower()
+        self.ignore_index = 9999  # 0
 
-    def forward(self,batch, return_pred_answer=False):
+    def forward(self, batch, return_pred_answer=False):
 
         question = batch['questions']
         context = batch['contexts']
@@ -71,53 +72,22 @@ class BigBird:
             elif self.page_retrieval == 'concat':
                 pred_answer_pages = [batch['context_page_corresp'][batch_idx][pred_start_idx] if len(batch['context_page_corresp'][batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
 
+        if True:# random.randint(0, 1000) == 0:
+            print(batch['question_id'])
+            for gt_answer, pred_answer in zip(answers, pred_answers):
+                print(gt_answer, pred_answer)
+
+            for start_p, end_p, pred_start_p, pred_end_p in zip(start_pos, end_pos, outputs.start_logits.argmax(-1), outputs.end_logits.argmax(-1)):
+                print("GT: {:d}-{:d} \t Pred: {:d}-{:d}".format(start_p.item(), end_p.item(), pred_start_p, pred_end_p))
+
         return outputs, pred_answers, pred_answer_pages
 
     def get_start_end_idx(self, encoding, context, answers):
+
         pos_idx = []
         for batch_idx in range(len(context)):
             batch_pos_idxs = []
             for answer in answers[batch_idx]:
-                # start_idx = context[batch_idx].find(answer)
-
-                """ V1 - Based on tokens 
-                start_idxs = [m.start() for m in re.finditer(re.escape(answer), context[batch_idx])]
-
-                for start_idx in start_idxs:
-                    end_idx = start_idx + len(answer)
-
-                    encodings = self.tokenizer.encode_plus([question[batch_idx], context[batch_idx]], padding=True,  truncation=True)
-
-                    context_encodings = self.tokenizer.encode_plus(context[batch_idx])
-                    start_positions_context = context_encodings.char_to_token(start_idx)
-                    end_positions_context = context_encodings.char_to_token(end_idx - 1)
-
-                    sep_idx = encodings['input_ids'].index(self.tokenizer.sep_token_id)
-                    start_positions = start_positions_context + sep_idx + 1
-                    end_positions = end_positions_context + sep_idx + 2
-
-                    if self.tokenizer.decode(encodings['input_ids'][start_positions:end_positions]).strip() == answer:
-                        batch_pos_idxs.append([start_positions, end_positions])
-                        break
-                """
-
-                """ V2 - Based on answer string """
-                """ 
-                start_idxs = [m.start() for m in re.finditer(re.escape(answer), context[batch_idx])]
-
-                for start_idx in start_idxs:
-                    end_idx = start_idx + len(answer)
-
-                    if context[batch_idx][start_idx: end_idx] == answer:
-                        batch_pos_idxs.append([start_idx, end_idx])
-                        break
-
-                    else:
-                        a = 0
-
-                """
-
-                """ V3 - Based on tokens again """
                 start_idxs = [m.start() for m in re.finditer(re.escape(answer), context[batch_idx])]
 
                 for start_idx in start_idxs:
@@ -143,23 +113,16 @@ class BigBird:
                 sep_idx = encoding['input_ids'][batch_idx].tolist().index(self.tokenizer.sep_token_id)
 
                 if start_positions_context is not None and end_positions_context is not None:
-                    start_position = start_positions_context + sep_idx + 1
+                    start_position = start_positions_context + sep_idx
                     end_position = end_positions_context + sep_idx + 1
 
-                    if end_position > 512:
-                        start_position, end_position = 0, 0
-
                 else:
-                    start_position, end_position = 0, 0
+                    start_position, end_position = self.ignore_index, self.ignore_index
 
                 pos_idx.append([start_position, end_position])
 
             else:
-                pos_idx.append([0, 0])
-
-        """ V1 - Based on answer string """
-        # start_idxs = torch.LongTensor([idx[0] for idx in pos_idx]).to(self.model.device)
-        # end_idxs = torch.LongTensor([idx[1] for idx in pos_idx]).to(self.model.device)
+                pos_idx.append([self.ignore_index, self.ignore_index])
 
         start_idxs = torch.LongTensor([idx[0] for idx in pos_idx]).to(self.model.device)
         end_idxs = torch.LongTensor([idx[1] for idx in pos_idx]).to(self.model.device)
