@@ -31,13 +31,17 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
         optimizer.zero_grad()
 
         metric = evaluator.get_metrics(gt_answers, pred_answers)
+        ret_metric = evaluator.get_retrieval_metric(batch['answer_page_idx'], pred_answer_page)
+
         batch_acc = np.mean(metric['accuracy'])
         batch_anls = np.mean(metric['anls'])
+        batch_ret_prec = np.mean(ret_metric)
 
         logger.logger.log({
             'Train/Batch loss': outputs.loss.item(),
             'Train/Batch Accuracy': batch_acc,
             'Train/Batch ANLS': batch_anls,
+            'Train/Batch Ret. Prec.': batch_ret_prec,
             'lr': optimizer.param_groups[0]['lr']
         }, step=logger.current_epoch * logger.len_dataset + batch_idx)
 
