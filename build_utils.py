@@ -75,7 +75,7 @@ def build_dataset(config, split):
 
     elif config['dataset_name'] == 'MP-DocVQA':
         from datasets.MP_DocVQA import MPDocVQA
-        dataset = MPDocVQA(config['imdb_dir'], config['page_retrieval'], split)
+        dataset = MPDocVQA(config['imdb_dir'], config['images_dir'], config['page_retrieval'], split)
 
     else:
         raise ValueError

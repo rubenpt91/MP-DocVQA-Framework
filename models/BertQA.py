@@ -1,10 +1,9 @@
-import os
+import re, random
 import torch
 import numpy as np
-from numpy.distutils.system_info import blas_armpl_info
-from transformers import LongformerTokenizer, LongformerForQuestionAnswering
-# from simpletransformers.question_answering import QuestionAnsweringModel
 from transformers import AutoModelForQuestionAnswering, AutoTokenizer
+from utils import correct_alignment
+
 
 class BertQA:
 
@@ -13,12 +12,12 @@ class BertQA:
         self.model = AutoModelForQuestionAnswering.from_pretrained(config['model_weights'])
         self.tokenizer = AutoTokenizer.from_pretrained(config['model_weights'])
         self.page_retrieval = config['page_retrieval'].lower()
+        self.ignore_index = 9999  # 0
 
     def forward(self, batch, return_pred_answer=False):
         question = batch['questions']
         context = batch['contexts']
-        start_idxs = batch.get('start_idxs', None)
-        end_idxs = batch.get('end_idxs', None)
+        answers = batch['answers']
 
         if self.page_retrieval == 'logits':
             outputs = []
@@ -58,8 +57,9 @@ class BertQA:
             input_ids = encoding["input_ids"].to(self.model.device)
             attention_mask = encoding["attention_mask"].to(self.model.device)
 
-            start_pos = torch.LongTensor(start_idxs).to(self.model.device) if start_idxs else None
-            end_pos = torch.LongTensor(end_idxs).to(self.model.device) if end_idxs else None
+            # start_pos = torch.LongTensor(start_idxs).to(self.model.device) if start_idxs else None
+            # end_pos = torch.LongTensor(end_idxs).to(self.model.device) if end_idxs else None
+            start_pos, end_pos, context_page_token_correspondent = self.get_start_end_idx(encoding, context, answers, batch['context_page_corresp'])
 
             outputs = self.model(input_ids, attention_mask=attention_mask, start_positions=start_pos, end_positions=end_pos)
             pred_answers = self.get_answer_from_model_output(input_ids, outputs) if return_pred_answer else None
@@ -68,7 +68,8 @@ class BertQA:
                 pred_answer_pages = batch['answer_page_idx']
 
             elif self.page_retrieval == 'concat':
-                pred_answer_pages = [batch['context_page_corresp'][batch_idx][pred_start_idx] if len(batch['context_page_corresp'][batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
+                # pred_answer_pages = [batch['context_page_corresp'][batch_idx][pred_start_idx] if len(batch['context_page_corresp'][batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
+                pred_answer_pages = [context_page_token_correspondent[batch_idx][pred_start_idx] if len(context_page_token_correspondent[batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
 
                 # pred_answer_pages = []
                 # for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1)):
@@ -80,14 +81,85 @@ class BertQA:
         # start_logits_cnf = [outputs.start_logits[batch_ix, max_start_logits_idx.item()].item() for batch_ix, max_start_logits_idx in enumerate(outputs.start_logits.argmax(-1))]
         # end_logits_cnf = [outputs.end_logits[batch_ix, max_end_logits_idx.item()].item() for batch_ix, max_end_logits_idx in enumerate(outputs.end_logits.argmax(-1))]
 
+        if any([ans[0] == p_ans and gt_answer_page != 0 for ans, p_ans, gt_answer_page in zip(answers, pred_answers, batch['answer_page_idx'])]):
+            for ans, p_ans, gt_answer_page in zip(answers, pred_answers, batch['answer_page_idx']):
+                print(ans, p_ans, gt_answer_page)
+
+            start_pos, end_pos, context_page_token_correspondent = self.get_start_end_idx(encoding, context, answers, batch['context_page_corresp'])
+
         return outputs, pred_answers, pred_answer_pages
 
-    def get_start_end_idx(self, encoding, context, answers):
-        if False:
-            pass
-        else:
-            start_pos, end_pos = -1, -1
-        return start_pos, end_pos
+    def get_start_end_idx(self, encoding, context, answers, context_page_char_correspondent=None):
+
+        pos_idx = []
+        context_page_token_correspondent = []
+        for batch_idx in range(len(context)):
+            batch_pos_idxs = []
+            for answer in answers[batch_idx]:
+                start_idxs = [m.start() for m in re.finditer(re.escape(answer), context[batch_idx])]
+
+                for start_idx in start_idxs:
+                    end_idx = start_idx + len(answer)
+                    start_idx, end_idx = correct_alignment(context[batch_idx], answer, start_idx, end_idx)
+
+                    if start_idx is not None:
+                        batch_pos_idxs.append([start_idx, end_idx])
+                        break
+
+            if len(batch_pos_idxs) > 0:
+                start_idx, end_idx = random.choice(batch_pos_idxs)
+
+                context_encodings = self.tokenizer.encode_plus(context[batch_idx], padding=True, truncation=True)
+                start_positions_context = context_encodings.char_to_token(start_idx)
+                end_positions_context = context_encodings.char_to_token(end_idx - 1)
+
+                # here we will compute the start and end position of the answer in the whole example
+                # as the example is encoded like this <s> question</s></s> context</s>
+                # and we know the position of the answer in the context
+                # we can just find out the index of the sep token and then add that to position + 1 (+1 because there are two sep tokens)
+                # this will give us the position of the answer span in whole example
+                sep_idx = encoding['input_ids'][batch_idx].tolist().index(self.tokenizer.sep_token_id)
+
+                if start_positions_context is not None and end_positions_context is not None:
+                    start_position = start_positions_context + sep_idx
+                    end_position = end_positions_context + sep_idx + 1
+
+                else:
+                    start_position, end_position = self.ignore_index, self.ignore_index
+
+                pos_idx.append([start_position, end_position])
+
+            else:
+                pos_idx.append([self.ignore_index, self.ignore_index])
+
+            # Page correspondence for concat:
+            if self.page_retrieval == 'concat':
+                context_encodings = self.tokenizer.encode_plus(context[batch_idx], padding=True, truncation=True)
+                page_change_idxs = [0] + [i + 1 for i, x in enumerate(context_page_char_correspondent[batch_idx]) if
+                                          x == -1]
+                page_change_idxs_tokens = [context_encodings.char_to_token(idx) for idx in page_change_idxs]
+
+                page_tok_corr = np.empty(len(context_encodings.input_ids))
+                page_tok_corr.fill(-1)
+                for page_idx in range(len(page_change_idxs_tokens)):
+                    if page_change_idxs_tokens[page_idx] is None:
+                        break
+
+                    start_page_idx = page_change_idxs_tokens[page_idx]
+                    if page_idx + 1 < len(page_change_idxs_tokens) and page_change_idxs_tokens[
+                        page_idx + 1] is not None:
+                        end_page_idx = page_change_idxs_tokens[page_idx + 1]
+                    else:
+                        end_page_idx = None
+
+                    page_tok_corr[start_page_idx:end_page_idx] = page_idx
+
+                context_page_token_correspondent.append(page_tok_corr)
+
+        start_idxs = torch.LongTensor([idx[0] for idx in pos_idx]).to(self.model.device)
+        end_idxs = torch.LongTensor([idx[1] for idx in pos_idx]).to(self.model.device)
+
+        return start_idxs, end_idxs, context_page_token_correspondent
 
     def get_answer_from_model_output(self, input_tokens, outputs):
         start_idxs = torch.argmax(outputs.start_logits, axis=1)

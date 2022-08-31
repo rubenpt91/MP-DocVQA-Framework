@@ -22,7 +22,7 @@ class Longformer:
         self.tokenizer = LongformerTokenizerFast.from_pretrained(config['model_weights'])
         self.model = LongformerForQuestionAnswering.from_pretrained(config['model_weights'])
         self.page_retrieval = config.get('page_retrieval', 'oracle').lower()
-        self.ignore_index = 0  # 9999
+        self.ignore_index = 9999  # 0
 
     """ Version 1
     def get_start_end_idx(self, question, context, answers):
@@ -107,7 +107,7 @@ class Longformer:
             input_ids = encoding["input_ids"].to(self.model.device)
             attention_mask = encoding["attention_mask"].to(self.model.device)
 
-            start_pos, end_pos = self.get_start_end_idx(encoding, context, answers)
+            start_pos, end_pos, context_page_token_correspondent = self.get_start_end_idx(encoding, context, answers, batch['context_page_corresp'])
 
             outputs = self.model(input_ids, attention_mask=attention_mask, start_positions=start_pos, end_positions=end_pos)
             pred_answers = self.get_answer_from_model_output(input_ids, outputs) if return_pred_answer else None
@@ -116,7 +116,7 @@ class Longformer:
                 pred_answer_pages = batch['answer_page_idx']
 
             elif self.page_retrieval == 'concat':
-                pred_answer_pages = [batch['context_page_corresp'][batch_idx][pred_start_idx] if len(batch['context_page_corresp'][batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
+                pred_answer_pages = [context_page_token_correspondent[batch_idx][pred_start_idx] if len(context_page_token_correspondent[batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
 
 
         if random.randint(0, 1000) == 0:
@@ -131,9 +131,10 @@ class Longformer:
         return outputs, pred_answers, pred_answer_pages
 
     # Version 2
-    def get_start_end_idx(self, encoding, context, answers):
+    def get_start_end_idx(self, encoding, context, answers, context_page_char_correspondent=None):
 
         pos_idx = []
+        context_page_token_correspondent = []
         for batch_idx in range(len(context)):
             batch_pos_idxs = []
             for answer in answers[batch_idx]:
@@ -173,10 +174,32 @@ class Longformer:
             else:
                 pos_idx.append([self.ignore_index, self.ignore_index])
 
+            # Page correspondence for concat:
+            if self.page_retrieval == 'concat':
+                context_encodings = self.tokenizer.encode_plus(context[batch_idx], padding=True, truncation=True)
+                page_change_idxs = [0] + [i+1 for i, x in enumerate(context_page_char_correspondent[batch_idx]) if x == -1]
+                page_change_idxs_tokens = [context_encodings.char_to_token(idx) for idx in page_change_idxs]
+
+                page_tok_corr = np.empty(len(context_encodings.input_ids))
+                page_tok_corr.fill(-1)
+                for page_idx in range(len(page_change_idxs_tokens)):
+                    if page_change_idxs_tokens[page_idx] is None:
+                        break
+
+                    start_page_idx = page_change_idxs_tokens[page_idx]
+                    if page_idx+1 < len(page_change_idxs_tokens) and page_change_idxs_tokens[page_idx + 1] is not None:
+                        end_page_idx = page_change_idxs_tokens[page_idx + 1]
+                    else:
+                        end_page_idx = None
+
+                    page_tok_corr[start_page_idx:end_page_idx] = page_idx
+
+                context_page_token_correspondent.append(page_tok_corr)
+
         start_idxs = torch.LongTensor([idx[0] for idx in pos_idx]).to(self.model.device)
         end_idxs = torch.LongTensor([idx[1] for idx in pos_idx]).to(self.model.device)
 
-        return start_idxs, end_idxs
+        return start_idxs, end_idxs, context_page_token_correspondent
 
 
     """ Version 3

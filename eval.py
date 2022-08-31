@@ -41,6 +41,12 @@ def evaluate(data_loader, model, evaluator, **kwargs):
         metric = evaluator.get_metrics(batch['answers'], pred_answers)
         ret_metric = evaluator.get_retrieval_metric(batch['answer_page_idx'], pred_answer_page)
 
+        # for sample_ix in range(len(batch['question_id'])):
+        #     if metric['accuracy'][sample_ix] == 1 and batch['answer_page_idx'][sample_ix] != 0:
+        #         pass
+        #         print('x')
+        #         outputs, pred_answers, pred_answer_page = model.forward(batch, return_pred_answer=True)  # Longformer
+
         if return_scores_by_sample:
             for batch_idx in range(len(batch['question_id'])):
                 scores_by_samples[batch['question_id'][batch_idx]] = {

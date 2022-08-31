@@ -1,7 +1,9 @@
 save_dir: save/
 model_name: BigBird
 # model_weights: abhinavkulkarni/bigbird-roberta-base-finetuned-squad
-model_weights: google/bigbird-base-trivia-itc  # TriviaQA  # I should use etc for using question tokens as global attention.
+# model_weights: google/bigbird-base-trivia-itc  # TriviaQA
+model_weights: weights/bigbird_oracle_mp-docvqa__best.ckpt
+# model_weights: weights/BigBird/model__24.ckpt
 device: cuda
 
 training_parameters:
@@ -9,14 +11,3 @@ training_parameters:
   batch_size: 3
   train_epochs: 10
   warmup_iterations: 1000
-
-# https://huggingface.co/google/bigbird-base-trivia-itc:
-# No. of global token = 128
-# Window length = 192
-# No. of random token = 192
-# Max. sequence length = 4096
-# No. of heads = 12
-# No. of hidden layers = 12
-# Hidden layer size = 768
-# Batch size = 32
-# Loss = cross-entropy noisy spans

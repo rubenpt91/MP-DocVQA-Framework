@@ -4,16 +4,11 @@ import random
 
 import numpy as np
 from torch.utils.data import Dataset
-from transformers import LongformerTokenizerFast
-
-
-from torch.utils.data import DataLoader
-
 
 
 class MPDocVQA(Dataset):
 
-    def __init__(self, imbd_dir, page_retrieval, split):
+    def __init__(self, imbd_dir, images_dir, page_retrieval, split):
         data = np.load(os.path.join(imbd_dir, "imdb_{:s}.npy".format(split)), allow_pickle=True)
         self.header = data[0]
         self.imdb = data[1:]
@@ -22,6 +17,7 @@ class MPDocVQA(Dataset):
         assert(self.page_retrieval in ['oracle', 'concat', 'logits'])
 
         self.max_answers = 2
+        self.images_dir = images_dir
 
     def __len__(self):
         return len(self.imdb)
@@ -33,7 +29,8 @@ class MPDocVQA(Dataset):
 
         if self.page_retrieval == 'oracle':
             context = ' '.join([word.lower() for word in record['ocr_tokens'][answer_page_idx]])
-            image_names = "{:s}.jpg".format(record['image_name'][answer_page_idx])
+            context_page_corresp = None
+            image_names = os.path.join(self.images_dir, "{:s}.jpg".format(record['image_name'][answer_page_idx]))
 
         elif self.page_retrieval == 'concat':
             context = ""
@@ -48,11 +45,15 @@ class MPDocVQA(Dataset):
 
             context = context.strip()
             context_page_corresp = context_page_corresp[1:]
+            image_names = [os.path.join(self.images_dir, "{:s}.jpg".format(image_name)) for image_name in record['image_name']]
 
         elif self.page_retrieval == 'logits':
             context = []
             for page_ix in range(record['imdb_doc_pages']):
                 context.append(' '.join([word.lower() for word in record['ocr_tokens'][page_ix]]))
+
+            context_page_corresp = None
+            image_names = [os.path.join(self.images_dir, "{:s}.jpg".format(image_name)) for image_name in record['image_name']]
 
         answers = list(set(answer.lower() for answer in record['answers']))
 
@@ -65,15 +66,13 @@ class MPDocVQA(Dataset):
         sample_info = {'question_id': record['question_id'],
                        'questions': question,
                        'contexts': context,
+                       'context_page_corresp': context_page_corresp,
                        'answers': answers,
                        'start_indxs': start_idxs,
                        'end_indxs': end_idxs,
                        'answer_page_idx': record['answer_page_idx'],
                        'image_names': image_names
                        }
-
-        if self.page_retrieval == 'concat':
-            sample_info['context_page_corresp'] = context_page_corresp
 
         return sample_info
 

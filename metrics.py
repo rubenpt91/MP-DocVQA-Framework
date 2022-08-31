@@ -69,11 +69,7 @@ class Evaluator:
             return 0
 
         answers_similarity = [1 - self.get_edit_distance(gt_elm, pred) / max(len(gt_elm), len(pred)) for gt_elm in gt]
-
-        try:
-            max_similarity = max(answers_similarity)
-        except ValueError:
-            a = 0
+        max_similarity = max(answers_similarity)
 
         anls = max_similarity if max_similarity >= self.anls_threshold else 0
         return anls
