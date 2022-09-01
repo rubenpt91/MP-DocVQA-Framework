@@ -63,6 +63,11 @@ def my_import(name):
 
 def build_dataset(config, split):
 
+    dataset_kwargs = {}
+    if config['model_name'].lower() == 'layoutlmv2':
+        dataset_kwargs['use_images'] = True
+        dataset_kwargs['get_raw_ocr_data'] = True
+
     if config['dataset_name'] == 'SQuAD':
         from datasets.SQuAD import SQuAD
         dataset = SQuAD(config['imdb_dir'], split)
@@ -75,7 +80,7 @@ def build_dataset(config, split):
 
     elif config['dataset_name'] == 'MP-DocVQA':
         from datasets.MP_DocVQA import MPDocVQA
-        dataset = MPDocVQA(config['imdb_dir'], config['images_dir'], config['page_retrieval'], split)
+        dataset = MPDocVQA(config['imdb_dir'], config['images_dir'], config['page_retrieval'], split, dataset_kwargs)
 
     else:
         raise ValueError

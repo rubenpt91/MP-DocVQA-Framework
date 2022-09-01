@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 
 class MPDocVQA(Dataset):
 
-    def __init__(self, imbd_dir, images_dir, page_retrieval, split):
+    def __init__(self, imbd_dir, images_dir, page_retrieval, split, kwargs):
         data = np.load(os.path.join(imbd_dir, "imdb_{:s}.npy".format(split)), allow_pickle=True)
         self.header = data[0]
         self.imdb = data[1:]
@@ -18,6 +18,9 @@ class MPDocVQA(Dataset):
 
         self.max_answers = 2
         self.images_dir = images_dir
+
+        self.use_images = kwargs.get('use_images', False)
+        self.get_raw_ocr_data = kwargs.get('get_raw_ocr_data', False)
 
     def __len__(self):
         return len(self.imdb)
@@ -30,7 +33,13 @@ class MPDocVQA(Dataset):
         if self.page_retrieval == 'oracle':
             context = ' '.join([word.lower() for word in record['ocr_tokens'][answer_page_idx]])
             context_page_corresp = None
-            image_names = os.path.join(self.images_dir, "{:s}.jpg".format(record['image_name'][answer_page_idx]))
+
+            if self.use_images:
+                image_names = os.path.join(self.images_dir, "{:s}.jpg".format(record['image_name'][answer_page_idx]))
+
+            if self.get_raw_ocr_data:
+                words = [word.lower() for word in record['ocr_tokens'][answer_page_idx]]
+                boxes = np.array([bbox for bbox in record['ocr_normalized_boxes'][answer_page_idx]])
 
         elif self.page_retrieval == 'concat':
             context = ""
@@ -45,7 +54,35 @@ class MPDocVQA(Dataset):
 
             context = context.strip()
             context_page_corresp = context_page_corresp[1:]
-            image_names = [os.path.join(self.images_dir, "{:s}.jpg".format(image_name)) for image_name in record['image_name']]
+
+            if self.use_images:
+                image_names = [os.path.join(self.images_dir, "{:s}.jpg".format(image_name)) for image_name in record['image_name']]
+
+            if self.get_raw_ocr_data:
+                num_pages = record['imdb_doc_pages']
+
+                # for p in range(num_pages):
+                #     for bbox in record['ocr_normalized_boxes'][p]:
+                #         assert (bbox[0] <= bbox[2] and bbox[1] <= bbox[3])
+
+                words, boxes = [], []
+                for p in range(num_pages):
+                    words.extend([word.lower() for word in record['ocr_tokens'][p]])
+
+                    mod_boxes = record['ocr_normalized_boxes'][p]
+                    mod_boxes[:, 1] = mod_boxes[:, 1]/num_pages + p/num_pages
+                    mod_boxes[:, 3] = mod_boxes[:, 3]/num_pages + p/num_pages
+
+                    # for bbox in mod_boxes:
+                    #     assert (bbox[0] <= bbox[2] and bbox[1] <= bbox[3])
+
+                    # (record['ocr_normalized_boxes'][p] / num_pages) + p / num_pages  # (Wrong) - This would change left and right also.
+                    boxes.extend(mod_boxes)  # bbox in l,t,r,b --> It is correct to move the whole bounding box. It will be similar as if the pages were displayed in diagonal.
+
+
+                    # words.append([word.lower() for word in record['ocr_tokens'][p]])
+                # boxes = record['ocr_normalized_boxes']
+                boxes = np.array(boxes)
 
         elif self.page_retrieval == 'logits':
             context = []
@@ -53,7 +90,17 @@ class MPDocVQA(Dataset):
                 context.append(' '.join([word.lower() for word in record['ocr_tokens'][page_ix]]))
 
             context_page_corresp = None
-            image_names = [os.path.join(self.images_dir, "{:s}.jpg".format(image_name)) for image_name in record['image_name']]
+
+            if self.use_images:
+                image_names = [os.path.join(self.images_dir, "{:s}.jpg".format(image_name)) for image_name in record['image_name']]
+
+            if self.get_raw_ocr_data:
+                num_pages = record['imdb_doc_pages']
+
+                words = []
+                boxes = record['ocr_normalized_boxes']
+                for p in range(num_pages):
+                    words.append([word.lower() for word in record['ocr_tokens'][p]])
 
         answers = list(set(answer.lower() for answer in record['answers']))
 
@@ -70,9 +117,15 @@ class MPDocVQA(Dataset):
                        'answers': answers,
                        'start_indxs': start_idxs,
                        'end_indxs': end_idxs,
-                       'answer_page_idx': record['answer_page_idx'],
-                       'image_names': image_names
+                       'answer_page_idx': record['answer_page_idx']
                        }
+
+        if self.use_images:
+            sample_info['image_names'] = image_names
+
+        if self.get_raw_ocr_data:
+            sample_info['words'] = words
+            sample_info['boxes'] = boxes
 
         return sample_info
 
