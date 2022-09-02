@@ -498,3 +498,194 @@ class LT5:
 
         return pred_answers
 """
+
+
+
+
+import random
+import numpy as np
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.nn import LayerNorm as BertLayerNorm
+
+from transformers import T5Config, T5Tokenizer, T5ForConditionalGeneration
+
+
+class LayoutT5Config(T5Config):
+    def __init__(self, max_2d_position_embeddings=1024,  **kwargs):
+        super().__init__(**kwargs)
+        self.max_2d_position_embeddings = max_2d_position_embeddings
+        self.hidden_dropout_prob = 0.1
+        self.layer_norm_eps = 1e-12
+
+
+class SpatialEmbeddings(nn.Module):
+    """
+    Spatial embedding by summing x, y, w, h projected by nn.Embedding to hidden size.
+    """
+
+    def __init__(self, config):
+        super(SpatialEmbeddings, self).__init__()
+
+        self.x_position_embeddings = nn.Embedding(
+            config.max_2d_position_embeddings, config.hidden_size
+        )
+        self.y_position_embeddings = nn.Embedding(
+            config.max_2d_position_embeddings, config.hidden_size
+        )
+        self.h_position_embeddings = nn.Embedding(
+            config.max_2d_position_embeddings, config.hidden_size
+        )
+        self.w_position_embeddings = nn.Embedding(
+            config.max_2d_position_embeddings, config.hidden_size
+        )
+
+        self.LayerNorm = BertLayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+
+        self.config = config
+
+    def forward(self, bbox):
+        left_position_embeddings = self.x_position_embeddings(bbox[:, :, 0])
+        upper_position_embeddings = self.y_position_embeddings(bbox[:, :, 1])
+        right_position_embeddings = self.x_position_embeddings(bbox[:, :, 2])
+        lower_position_embeddings = self.y_position_embeddings(bbox[:, :, 3])
+
+        h_position_embeddings = self.h_position_embeddings(bbox[:, :, 3] - bbox[:, :, 1])  # TODO Remove width and height to test how much important are they.
+        w_position_embeddings = self.w_position_embeddings(bbox[:, :, 2] - bbox[:, :, 0])  # TODO Remove width and height to test how much important are they.
+
+        embeddings = (
+                left_position_embeddings
+                + upper_position_embeddings
+                + right_position_embeddings
+                + lower_position_embeddings
+                + h_position_embeddings
+                + w_position_embeddings
+        )
+
+        embeddings = self.LayerNorm(embeddings)
+        embeddings = self.dropout(embeddings)
+        return embeddings
+
+
+class MLP(nn.Module):
+    """ Very simple multi-layer perceptron (also called FFN)"""
+
+    def __init__(self, input_dim, hidden_dim, output_dim, num_layers):
+        super().__init__()
+        self.num_layers = num_layers
+        h = [hidden_dim] * (num_layers - 1)
+        self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
+
+    def forward(self, x):
+        for i, layer in enumerate(self.layers):
+            x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
+        return x
+
+
+class LT5(T5ForConditionalGeneration):
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.config = config
+        self.embeddings = SpatialEmbeddings(config)
+        self.emb_matcher = MLP(self.embeddings.config.hidden_size, 0, self.config.hidden_size, 1)
+
+
+class Proxy_LT5:
+
+    def __init__(self, config):
+        self.batch_size = config['batch_size']
+        config_x = LayoutT5Config.from_pretrained(config['model_weights'])
+        self.tokenizer = T5Tokenizer.from_pretrained(config['model_weights'])
+        self.model = LT5.from_pretrained(config['model_weights'], config=config_x)
+        self.page_retrieval = config['page_retrieval'].lower()
+
+    def forward(self, batch, return_pred_answer=False):
+        question = batch['questions']
+        context = batch['contexts']
+        answers = batch['answers']
+
+        if self.page_retrieval == 'logits':
+            answers = [random.choice(answer) for answer in answers]
+            labels = self.tokenizer(answers, return_tensors='pt', padding=True)
+            labels.input_ids[labels.input_ids[:] == self.tokenizer.pad_token_id] = -100
+            labels = labels.input_ids.to(self.model.device)
+
+            outputs = []
+            pred_answers = []
+            pred_answer_pages = []
+            for batch_idx in range(len(context)):
+                input_text = ["question: {:s}  context: {:s}".format(q, c) for q, c in zip([question[batch_idx]]*len(context[batch_idx]), context[batch_idx])]
+                tokens = self.tokenizer(input_text, return_tensors='pt', padding=True, truncation=True).to(self.model.device)
+
+                max_logits = -999999
+                answer_page = None
+                best_answer = None
+                pred_answer, logits = self.get_answer_from_model_output(tokens)
+                for p_ix in range(len(input_text)):
+                    if logits[p_ix] > max_logits:
+                        max_logits = logits[p_ix]
+                        answer_page = p_ix
+                        best_answer = pred_answer[p_ix]
+
+                outputs.append(None)  # outputs.append(document_outputs)  # During inference outputs are not used.
+                # pred_answers.append(self.get_answer_from_model_output(document_outputs)[0] if return_pred_answer else None)
+                pred_answers.append(best_answer)
+                pred_answer_pages.append(answer_page)
+
+        else:
+            input_text = ["question: {:s}  context: {:s}".format(q, c) for q, c in zip(question, context)]
+            tokens = self.tokenizer(input_text, return_tensors='pt', padding=True, truncation=True).to(self.model.device)
+
+            answers = [random.choice(answer) for answer in answers]
+            labels = self.tokenizer(answers, return_tensors='pt', padding=True)
+            labels.input_ids[labels.input_ids[:] == self.tokenizer.pad_token_id] = -100
+            labels = labels.input_ids.to(self.model.device)
+
+            outputs = self.model(input_ids=tokens.input_ids, attention_mask=tokens.attention_mask, labels=labels)
+            # pred_answers = self.get_answer_from_model_output(outputs) if return_pred_answer else None
+            pred_answers, logits = self.get_answer_from_model_output(tokens) if return_pred_answer else None
+
+            if self.page_retrieval == 'oracle':
+                pred_answer_pages = batch['answer_page_idx']
+
+            else:
+                pred_answer_pages = None
+
+        return outputs, pred_answers, pred_answer_pages
+
+    """
+    def get_answer_from_model_output(self, output):
+        pred_answers = []
+        batched_pred_tokens = output.logits.argmax(dim=-1)
+        for pred_tokens in batched_pred_tokens:
+            pred_answer = self.tokenizer.decode(pred_tokens)
+            pred_answers.append(pred_answer.replace(self.tokenizer.eos_token, '').strip())
+
+        return pred_answers
+    """
+
+    def get_answer_from_model_output(self, input_tokens):
+        bs = input_tokens.input_ids.shape[0]
+        output = self.model.generate(**input_tokens, output_scores=True, return_dict_in_generate=True)
+        pred_answers = self.tokenizer.batch_decode(output['sequences'], skip_special_tokens=True)
+
+        """
+        logits = np.zeros(len(output['scores'][0]))
+        for seq_ix in range(len(output['scores'])):
+            seq_logits = output['scores'][seq_ix].max(dim=-1)
+            for batch_ix, token_id in enumerate(seq_logits.indices):
+                logits[batch_ix] += seq_logits.values[batch_ix] if token_id not in [self.tokenizer.pad_token_id] else 0
+        """
+
+        all_logits = torch.stack(output.scores)
+        best_logits = np.zeros(len(output['scores'][0]))
+        for seq_ix in range(len(output['scores'])):
+            for batch_ix in range(bs):
+                token_id = output.sequences[batch_ix, seq_ix+1]
+                best_logits[batch_ix] += all_logits[seq_ix, batch_ix, token_id] if token_id not in self.tokenizer.all_special_ids else 0
+
+        return pred_answers, best_logits

@@ -41,9 +41,9 @@ def build_model(config):
         model = T5(config)
 
     elif config['model_name'].lower() == 'lt5':
-        # from models.LT5 import LT5
-        # model = LT5(config)
-        raise NotImplementedError("Currently LT5 is not implemented in this framework.")
+        from models.LT5 import Proxy_LT5 as LT5
+        model = LT5(config)
+        # raise NotImplementedError("Currently LT5 is not implemented in this framework.")
 
     else:
         raise ValueError("Value '{:s}' for model selection not expected. Please choose one of {:}".format(config['model_name'], ', '.join(available_models)))

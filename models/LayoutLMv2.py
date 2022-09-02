@@ -78,16 +78,32 @@ class LayoutLMv2:
             outputs = self.model(**encoding, start_positions=None, end_positions=None)
             pred_answers = self.get_answer_from_model_output(encoding.input_ids, outputs) if return_pred_answer else None
 
+            """ DEBUG
             # print(pred_answers)
             for batch_idx in range(len(question)):
                 if pred_answers[batch_idx] in batch['answers'][batch_idx]:
                     pred_start_pos = outputs.start_logits.argmax(-1)[batch_idx].item()
                     pred_end_pos = outputs.end_logits.argmax(-1)[batch_idx].item()
+
+                    wrong = False
                     if pred_start_pos != start_pos[batch_idx]:
                         print("GT start pos {:} and pred start pos {:} are different!!!".format(start_pos[batch_idx], pred_start_pos))
-
+                        wrong = True
                     if pred_end_pos != end_pos[batch_idx]:
                         print("GT end pos {:} and pred end pos {:} are different!!!".format(end_pos[batch_idx], pred_end_pos))
+                        wrong = True
+
+                    if wrong:
+                        print("Answers - GT: {:} \t\t Pred: {:s}".format(batch['answers'][batch_idx], pred_answers[batch_idx]))
+                        pred_span = self.processor.tokenizer.decode(encoding.input_ids[batch_idx][pred_start_pos:pred_end_pos+1])
+                        gt_span = self.processor.tokenizer.decode(encoding.input_ids[batch_idx][start_pos[batch_idx]:end_pos[batch_idx]+1])
+                        print("GT Span: {:s} \t Pred span: {:s}".format(pred_span, gt_span))
+
+                        start_pos, end_pos = self.get_start_end_idx(encoding, context, answers)
+
+                        # for token_pos, token in enumerate(encoding.input_ids[batch_idx]):
+                        #     print(self.processor.tokenizer.decode(token))
+            END DEBUG """
 
             if self.page_retrieval == 'oracle':
                 pred_answer_pages = batch['answer_page_idx']
@@ -95,10 +111,9 @@ class LayoutLMv2:
             elif self.page_retrieval == 'concat':
                 pred_answer_pages = [batch['context_page_corresp'][batch_idx][pred_start_idx] if len(batch['context_page_corresp'][batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
 
-        # if random.randint(0, 1000) == 0:
-        #     print(batch['question_id'])
-        #     for gt_answer, pred_answer in zip(answers, pred_answers):
-        #         print(gt_answer, pred_answer)
+        if random.randint(0, 1000) == 0:
+            for question_id, gt_answer, pred_answer in zip(batch['question_id'], answers, pred_answers):
+                print("ID: {:5d}  GT: {:}  -  Pred: {:s}".format(question_id, gt_answer, pred_answer))
         #
         #     for start_p, end_p, pred_start_p, pred_end_p in zip(start_pos, end_pos, outputs.start_logits.argmax(-1), outputs.end_logits.argmax(-1)):
         #         print("GT: {:d}-{:d} \t Pred: {:d}-{:d}".format(start_p.item(), end_p.item(), pred_start_p, pred_end_p))
@@ -123,15 +138,15 @@ class LayoutLMv2:
 
     def get_start_end_idx(self, encoding, context, answers):
         pos_idx = []
-
         for batch_idx in range(len(encoding.input_ids)):
             answer_pos = []
             for answer in answers[batch_idx]:
-                answer_words_length = len(answer.split())
+                encoded_answer = [token for token in self.processor.tokenizer.encode([answer], boxes=[0, 0, 0, 0]) if token not in self.processor.tokenizer.all_special_ids]
+                answer_tokens_length = len(encoded_answer)
 
-                for token_pos, token in enumerate(encoding.input_ids[batch_idx]):
-                    if self.processor.tokenizer.decode(encoding.input_ids[batch_idx][token_pos:token_pos + answer_words_length]) == answer:
-                        answer_pos.append([token_pos, token_pos + answer_words_length-1])
+                for token_pos in range(len(encoding.input_ids[batch_idx])):
+                    if encoding.input_ids[batch_idx][token_pos: token_pos+answer_tokens_length].tolist() == encoded_answer:
+                        answer_pos.append([token_pos, token_pos + answer_tokens_length-1])
 
             if len(answer_pos) == 0:
                 pos_idx.append([self.ignore_index, self.ignore_index])
