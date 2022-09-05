@@ -7,6 +7,6 @@ device: cuda
 
 training_parameters:
   lr: 5e-05  # 5e-05 From the ModelCard in Huggingface (https://huggingface.co/tiennvcs/layoutlmv2-base-uncased-finetuned-docvqa) -- 2e-4
-  batch_size: 3
+  batch_size: 2
   train_epochs: 10
   warmup_iterations: 1000

@@ -75,7 +75,7 @@ class LayoutLMv2:
             encoding = self.processor(images, question, batch["words"], boxes=boxes, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
 
             start_pos, end_pos = self.get_start_end_idx(encoding, context, answers)
-            outputs = self.model(**encoding, start_positions=None, end_positions=None)
+            outputs = self.model(**encoding, start_positions=start_pos, end_positions=end_pos)
             pred_answers = self.get_answer_from_model_output(encoding.input_ids, outputs) if return_pred_answer else None
 
             """ DEBUG

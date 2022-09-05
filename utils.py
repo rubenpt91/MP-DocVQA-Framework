@@ -8,6 +8,7 @@ def parse_args():
     # parser.add_argument('-c', '--config', type=str, required=True, help='Path to yml file with experiment configuration.')
     parser.add_argument('-m', '--model', type=str, required=True, help='Path to yml file with model configuration.')
     parser.add_argument('-d', '--dataset', type=str, required=True, help='Path to yml file with dataset configuration.')
+    parser.add_argument('--eval_start', type=bool, required=False, default=True, help='Whether to evaluate the model before training or not.')
 
     return parser.parse_args()
 
