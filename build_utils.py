@@ -68,6 +68,9 @@ def build_dataset(config, split):
         dataset_kwargs['use_images'] = True
         dataset_kwargs['get_raw_ocr_data'] = True
 
+    elif config['model_name'].lower() == 'lt5':
+        dataset_kwargs['get_raw_ocr_data'] = True
+
     if config['dataset_name'] == 'SQuAD':
         from datasets.SQuAD import SQuAD
         dataset = SQuAD(config['imdb_dir'], split)

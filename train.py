@@ -64,8 +64,13 @@ def train(model, **kwargs):
     val_data_loader   = DataLoader(val_dataset, batch_size=config['batch_size'],  shuffle=False, collate_fn=singledocvqa_collate_fn)
 
     logger.len_dataset = len(train_data_loader)
-
     optimizer, lr_scheduler = build_optimizer(model, length_train_loader=len(train_data_loader), config=kwargs)
+
+    if kwargs.get('eval_start', False):
+        logger.current_epoch = -1
+        accuracy, anls, ret_prec, _, _ = evaluate(val_data_loader, model, evaluator, return_scores_by_sample=False, return_pred_answers=False, **kwargs)
+        is_updated = evaluator.update_global_metrics(accuracy, anls, -1)
+        logger.log_val_metrics(accuracy, anls, ret_prec, update_best=is_updated)
 
     for epoch_ix in range(epochs):
         logger.current_epoch = epoch_ix
