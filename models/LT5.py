@@ -504,6 +504,7 @@ class LT5:
 
 import random, warnings
 import numpy as np
+from typing import Any, Dict
 
 import torch
 import torch.nn as nn
@@ -513,7 +514,7 @@ from torch.nn import CrossEntropyLoss
 from torch.nn import LayerNorm as BertLayerNorm
 
 from transformers import T5Config, T5Tokenizer, T5ForConditionalGeneration
-from transformers.modeling_outputs import Seq2SeqLMOutput, BaseModelOutput
+from transformers.modeling_outputs import Seq2SeqLMOutput, ModelOutput, BaseModelOutput
 
 
 import transformers.models.t5.modeling_t5
@@ -599,6 +600,26 @@ class LT5(T5ForConditionalGeneration):
         self.spatial_embeddings = SpatialEmbeddings(config)
         self.emb_matcher = MLP(self.spatial_embeddings.config.hidden_size, 0, self.config.hidden_size, 1)
 
+    def _prepare_encoder_decoder_kwargs_for_generation(self, input_ids: torch.LongTensor, model_kwargs) -> Dict[str, Any]:
+        if "encoder_outputs" not in model_kwargs:
+            # retrieve encoder hidden states
+            textual_emb = self.shared(input_ids)  # read from default T5
+            spatial_emb = self.emb_matcher(self.spatial_embeddings(model_kwargs['bbox']))
+            inputs_embeds = textual_emb + spatial_emb
+
+            # retrieve encoder hidden states
+            encoder = self.get_encoder()
+            encoder_kwargs = {argument: value for argument, value in model_kwargs.items()
+                if not (argument.startswith("decoder_") or argument.startswith("cross_attn")) and argument not in ['bbox']
+            }
+            model_kwargs["encoder_outputs"]: ModelOutput = encoder(input_ids=None, inputs_embeds=inputs_embeds, return_dict=True, **encoder_kwargs)
+
+            # encoder(input_ids=None,
+            #         attention_mask=model_kwargs['attention_mask'],
+            #         inputs_embeds=inputs_embeds, **encoder_kwargs)
+        return model_kwargs
+
+
     def forward(
         self,
         input_ids=None,
@@ -660,9 +681,9 @@ class LT5(T5ForConditionalGeneration):
         # Encode if needed (training, first prediction pass)
         if encoder_outputs is None:
             # Convert encoder inputs in embeddings if needed
-            semantic_emb = self.shared(input_ids)  # read from default T5
+            textual_emb = self.shared(input_ids)  # read from default T5
             spatial_emb = self.emb_matcher(self.spatial_embeddings(bbox))
-            inputs_embeds = semantic_emb + spatial_emb
+            inputs_embeds = textual_emb + spatial_emb
             encoder_outputs = self.encoder(
                 input_ids=None,  # Input IDs must be None because input embeds is provided.
                 attention_mask=attention_mask,
@@ -781,22 +802,33 @@ class Proxy_LT5:
         eos_box = [0, 0, 0, 0]
 
         if self.page_retrieval == 'logits':
-            answers = [random.choice(answer) for answer in answers]
-            labels = self.tokenizer(answers, return_tensors='pt', padding=True)
-            labels.input_ids[labels.input_ids[:] == self.tokenizer.pad_token_id] = -100
-            labels = labels.input_ids.to(self.model.device)
-
             outputs = []
             pred_answers = []
             pred_answer_pages = []
             for batch_idx in range(len(context)):
                 input_text = ["question: {:s}  context: {:s}".format(q, c) for q, c in zip([question[batch_idx]]*len(context[batch_idx]), context[batch_idx])]
                 tokens = self.tokenizer(input_text, return_tensors='pt', padding=True, truncation=True).to(self.model.device)
+                boxes = torch.zeros([tokens.input_ids.shape[0], tokens.input_ids.shape[1], 4], dtype=torch.long)
+                boxes[:] = torch.tensor(padding_box)
+
+                question_boxes = torch.tensor([question_box] * len(self.tokenizer("question: {:s}  context: ".format(question[batch_idx])).input_ids[:-1]))
+                for page_idx in range(tokens.input_ids.shape[0]):
+                    if len(batch['words'][batch_idx][page_idx]) >= 1:
+                        context_boxes = torch.tensor(np.array([box for word, word_box in zip(batch['words'][batch_idx][page_idx], batch['boxes'][batch_idx][page_idx]) for box in [word_box] * len(self.tokenizer(word).input_ids[:-1])]))
+                        context_boxes = context_boxes[:self.tokenizer.model_max_length - len(question_boxes) - 1]  # Remove boxes out of model max length.
+                    else:
+                        context_boxes = torch.tensor(padding_box)
+
+                    boxes[page_idx, :len(question_boxes)] = question_boxes
+                    boxes[page_idx, len(question_boxes): len(question_boxes) + len(context_boxes)] = context_boxes * 1000
+                    boxes[page_idx, len(question_boxes) + len(context_boxes)] = torch.tensor(eos_box)
+
+                boxes = boxes.to(self.model.device)
 
                 max_logits = -999999
                 answer_page = None
                 best_answer = None
-                pred_answer, logits = self.get_answer_from_model_output(tokens)
+                pred_answer, logits = self.get_answer_from_model_output(tokens, boxes)
                 for p_ix in range(len(input_text)):
                     if logits[p_ix] > max_logits:
                         max_logits = logits[p_ix]
@@ -823,15 +855,12 @@ class Proxy_LT5:
                     context_boxes = torch.tensor(padding_box)
 
                 boxes[batch_idx, :len(question_boxes)] = question_boxes
-
-                try:
-                    boxes[batch_idx, len(question_boxes): len(question_boxes)+len(context_boxes)] = context_boxes*1000
-                except:
-                    boxes[batch_idx, len(question_boxes): len(question_boxes)+len(context_boxes)] = context_boxes*1000
+                boxes[batch_idx, len(question_boxes): len(question_boxes)+len(context_boxes)] = context_boxes*1000
 
                 boxes[batch_idx, len(question_boxes) + len(context_boxes)] = torch.tensor(eos_box)
 
             boxes = boxes.to(self.model.device)
+
             answers = [random.choice(answer) for answer in answers]
             labels = self.tokenizer(answers, return_tensors='pt', padding=True)
             labels.input_ids[labels.input_ids[:] == self.tokenizer.pad_token_id] = -100
@@ -839,7 +868,7 @@ class Proxy_LT5:
 
             outputs = self.model(input_ids=tokens.input_ids, bbox=boxes, attention_mask=tokens.attention_mask, labels=labels)
             # pred_answers = self.get_answer_from_model_output(outputs) if return_pred_answer else None
-            pred_answers, logits = self.get_answer_from_model_output(tokens) if return_pred_answer else None
+            pred_answers, logits = self.get_answer_from_model_output(tokens, boxes) if return_pred_answer else None
 
             if self.page_retrieval == 'oracle':
                 pred_answer_pages = batch['answer_page_idx']
@@ -860,9 +889,9 @@ class Proxy_LT5:
         return pred_answers
     """
 
-    def get_answer_from_model_output(self, input_tokens):
+    def get_answer_from_model_output(self, input_tokens, boxes):
         bs = input_tokens.input_ids.shape[0]
-        output = self.model.generate(**input_tokens, output_scores=True, return_dict_in_generate=True)
+        output = self.model.generate(bbox=boxes, **input_tokens, output_scores=True, return_dict_in_generate=True)
         pred_answers = self.tokenizer.batch_decode(output['sequences'], skip_special_tokens=True)
 
         """

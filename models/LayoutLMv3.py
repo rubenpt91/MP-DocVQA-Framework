@@ -2,22 +2,20 @@ import re, random
 import numpy as np
 
 import torch
-from transformers import LayoutLMv2Processor, LayoutLMv2ForQuestionAnswering
+from transformers import LayoutLMv3Processor, LayoutLMv3ForQuestionAnswering
 from PIL import Image
-import cv2
+from utils import correct_alignment
 
-# from transformers.models.layoutlmv2.modeling_layoutlmv2 import LayoutLMv2Model    # TODO Remove
-# from transformers.models.layoutlmv2.processing_layoutlmv2 import LayoutLMv2Processor    # TODO Remove
+# from transformers.models.layoutlmv3.modeling_layoutlmv3 import LayoutLMv3Model  # TODO Remove
+# from transformers.models.layoutlmv3.processing_layoutlmv3 import LayoutLMv3Processor    # TODO Remove
 
 
-# https://colab.research.google.com/github/NielsRogge/Transformers-Tutorials/blob/master/LayoutLMv2/DocVQA/Fine_tuning_LayoutLMv2ForQuestionAnswering_on_DocVQA.ipynb
-class LayoutLMv2:
+class LayoutLMv3:
 
     def __init__(self, config):
         self.batch_size = config['batch_size']
-        self.processor = LayoutLMv2Processor.from_pretrained(config['model_weights'])  # Check that this do not fuck up the code.
-        # self.processor = LayoutLMv2Processor.from_pretrained(config['model_weights'], apply_ocr=False)  # Check that this do not fuck up the code.
-        self.model = LayoutLMv2ForQuestionAnswering.from_pretrained(config['model_weights'])
+        self.processor = LayoutLMv3Processor.from_pretrained(config['model_weights'], apply_ocr=False)  # Check that this do not fuck up the code.
+        self.model = LayoutLMv3ForQuestionAnswering.from_pretrained(config['model_weights'])
         self.page_retrieval = config['page_retrieval'].lower()
         self.ignore_index = 9999  # 0
 
@@ -70,12 +68,6 @@ class LayoutLMv2:
 
             if self.page_retrieval == 'oracle':
                 images = [Image.open(img_path).convert("RGB") for img_path in batch['image_names']]
-                # encoding = self.processor(images, question, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
-                # outputs = self.model(**encoding)
-                # pred_answers = self.get_answer_from_model_output(encoding.input_ids, outputs) if return_pred_answer else None
-
-                # images = [Image.open('/SSD2/MP-DocVQA/images/snyc0227_p220.jpg') for img_path in batch['image_names']]
-                # images = [cv2.imread(img_path) for img_path in batch['image_names']]
 
             elif self.page_retrieval == 'concat':
 
@@ -89,6 +81,10 @@ class LayoutLMv2:
             start_pos, end_pos = self.get_start_end_idx(encoding, context, answers)
             outputs = self.model(**encoding, start_positions=start_pos, end_positions=end_pos)
             pred_answers = self.get_answer_from_model_output(encoding.input_ids, outputs) if return_pred_answer else None
+
+            from transformers import LayoutLMv3Tokenizer, LayoutLMv3FeatureExtractor
+            x = LayoutLMv3Processor.from_pretrained('microsoft/layoutlmv3-base', apply_ocr=True)
+            encoding = x(images, question, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
 
             """ DEBUG
             # print(pred_answers)

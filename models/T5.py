@@ -19,11 +19,6 @@ class T5:
         answers = batch['answers']
 
         if self.page_retrieval == 'logits':
-            answers = [random.choice(answer) for answer in answers]
-            labels = self.tokenizer(answers, return_tensors='pt', padding=True)
-            labels.input_ids[labels.input_ids[:] == self.tokenizer.pad_token_id] = -100
-            labels = labels.input_ids.to(self.model.device)
-
             outputs = []
             pred_answers = []
             pred_answer_pages = []
@@ -42,7 +37,6 @@ class T5:
                         best_answer = pred_answer[p_ix]
 
                 outputs.append(None)  # outputs.append(document_outputs)  # During inference outputs are not used.
-                # pred_answers.append(self.get_answer_from_model_output(document_outputs)[0] if return_pred_answer else None)
                 pred_answers.append(best_answer)
                 pred_answer_pages.append(answer_page)
 
@@ -56,7 +50,6 @@ class T5:
             labels = labels.input_ids.to(self.model.device)
 
             outputs = self.model(input_ids=tokens.input_ids, attention_mask=tokens.attention_mask, labels=labels)
-            # pred_answers = self.get_answer_from_model_output(outputs) if return_pred_answer else None
             pred_answers, logits = self.get_answer_from_model_output(tokens) if return_pred_answer else None
 
             if self.page_retrieval == 'oracle':
@@ -67,29 +60,10 @@ class T5:
 
         return outputs, pred_answers, pred_answer_pages
 
-    """
-    def get_answer_from_model_output(self, output):
-        pred_answers = []
-        batched_pred_tokens = output.logits.argmax(dim=-1)
-        for pred_tokens in batched_pred_tokens:
-            pred_answer = self.tokenizer.decode(pred_tokens)
-            pred_answers.append(pred_answer.replace(self.tokenizer.eos_token, '').strip())
-
-        return pred_answers
-    """
-
     def get_answer_from_model_output(self, input_tokens):
         bs = input_tokens.input_ids.shape[0]
         output = self.model.generate(**input_tokens, output_scores=True, return_dict_in_generate=True)
         pred_answers = self.tokenizer.batch_decode(output['sequences'], skip_special_tokens=True)
-
-        """
-        logits = np.zeros(len(output['scores'][0]))
-        for seq_ix in range(len(output['scores'])):
-            seq_logits = output['scores'][seq_ix].max(dim=-1)
-            for batch_ix, token_id in enumerate(seq_logits.indices):
-                logits[batch_ix] += seq_logits.values[batch_ix] if token_id not in [self.tokenizer.pad_token_id] else 0
-        """
 
         all_logits = torch.stack(output.scores)
         best_logits = np.zeros(len(output['scores'][0]))

@@ -18,7 +18,7 @@ def build_optimizer(model, length_train_loader, config):
 
 def build_model(config):
 
-    available_models = ['BertQA', 'Longformer', 'BigBird', 'T5', 'LT5']
+    available_models = ['BertQA', 'LayoutLMv2', 'LayoutLMv3', 'Longformer', 'BigBird', 'T5', 'LT5']
     if config['model_name'].lower() == 'bert' or config['model_name'].lower() == 'bertqa':
         from models.BertQA import BertQA
         model = BertQA(config)
@@ -35,6 +35,10 @@ def build_model(config):
     elif config['model_name'].lower() == 'layoutlmv2':
         from models.LayoutLMv2 import LayoutLMv2
         model = LayoutLMv2(config)
+
+    elif config['model_name'].lower() == 'layoutlmv3':
+        from models.LayoutLMv3 import LayoutLMv3
+        model = LayoutLMv3(config)
 
     elif config['model_name'].lower() == 't5':
         from models.T5 import T5
@@ -64,7 +68,7 @@ def my_import(name):
 def build_dataset(config, split):
 
     dataset_kwargs = {}
-    if config['model_name'].lower() == 'layoutlmv2':
+    if config['model_name'].lower() in ['layoutlmv2', 'layoutlmv3']:
         dataset_kwargs['use_images'] = True
         dataset_kwargs['get_raw_ocr_data'] = True
 
