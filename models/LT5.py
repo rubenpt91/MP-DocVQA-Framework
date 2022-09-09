@@ -443,68 +443,13 @@ class FUCKBase(ModelBase):
         return results
 
 
-@registry.register_model('layout_t5_small')
-class LayoutT5Small(FUCKBase):
-    def __init__(self, config):
-        super().__init__(config)
-        self.layoutT5_config = LayoutT5Config.from_pretrained("t5-small")
-
-    def _build_mmt(self):
-        self.tokenizer = T5Tokenizer.from_pretrained("t5-small")
-        self.mmt = LayoutT5Model.from_pretrained("t5-small", config=self.layoutT5_config)
-
-
-@registry.register_model('layout_t5_base')
-class LayoutT5Base(FUCKBase):
-    def __init__(self, config):
-        super().__init__(config)
-        self.layoutT5_config = LayoutT5Config.from_pretrained("t5-base")
-
-    def _build_mmt(self):
-        self.tokenizer = T5Tokenizer.from_pretrained("t5-base")
-        self.mmt = LayoutT5Model.from_pretrained("t5-base", config=self.layoutT5_config)
-"""
-
 
 """
-class LT5:
-
-    def __init__(self, config):
-        self.batch_size = config['batch_size']
-        self.tokenizer = T5Tokenizer.from_pretrained(config['model_weights'])
-        self.model = LayoutT5.from_pretrained(config['model_weights'])
-
-    def forward(self, question, context, answers, return_pred_answer=False):
-
-        input_text = ["question: {:s}  context: {:s}".format(q, c) for q, c in zip(question, context)]
-        tokens = self.tokenizer(input_text, return_tensors='pt', padding=True, truncation=True).to(self.model.device)
-
-        answers = [random.choice(answer) for answer in answers]
-        labels = self.tokenizer(answers, return_tensors='pt', padding=True)
-        labels.input_ids[labels.input_ids[:] == self.tokenizer.pad_token_id] = -100
-        labels = labels.input_ids.to(self.model.device)
-
-        outputs = self.model(input_ids=tokens.input_ids, attention_mask=tokens.attention_mask, labels=labels)
-        pred_answers = self.get_answer_from_model_output(outputs) if return_pred_answer else None
-
-        return outputs, pred_answers
-
-    def get_answer_from_model_output(self, output):
-        pred_answers = []
-        batched_pred_tokens = output.logits.argmax(dim=-1)
-        for pred_tokens in batched_pred_tokens:
-            pred_answer = self.tokenizer.decode(pred_tokens)
-            pred_answers.append(pred_answer.replace(self.tokenizer.eos_token, '').strip())
-
-        return pred_answers
-"""
-
-
 
 
 import random, warnings
 import numpy as np
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import torch
 import torch.nn as nn
@@ -600,25 +545,48 @@ class LT5(T5ForConditionalGeneration):
         self.spatial_embeddings = SpatialEmbeddings(config)
         self.emb_matcher = MLP(self.spatial_embeddings.config.hidden_size, 0, self.config.hidden_size, 1)
 
-    def _prepare_encoder_decoder_kwargs_for_generation(self, input_ids: torch.LongTensor, model_kwargs) -> Dict[str, Any]:
-        if "encoder_outputs" not in model_kwargs:
-            # retrieve encoder hidden states
-            textual_emb = self.shared(input_ids)  # read from default T5
-            spatial_emb = self.emb_matcher(self.spatial_embeddings(model_kwargs['bbox']))
-            inputs_embeds = textual_emb + spatial_emb
+    # def _prepare_encoder_decoder_kwargs_for_generation(self, input_ids: torch.LongTensor, model_kwargs) -> Dict[str, Any]:
+    #     if "encoder_outputs" not in model_kwargs:
+    #         # retrieve encoder hidden states
+    #         textual_emb = self.shared(input_ids)  # read from default T5
+    #         spatial_emb = self.emb_matcher(self.spatial_embeddings(model_kwargs['bbox']))
+    #         inputs_embeds = textual_emb + spatial_emb
+    #
+    #         # retrieve encoder hidden states
+    #         encoder = self.get_encoder()
+    #         encoder_kwargs = {argument: value for argument, value in model_kwargs.items()
+    #             if not (argument.startswith("decoder_") or argument.startswith("cross_attn")) and argument not in ['bbox']
+    #         }
+    #         model_kwargs["encoder_outputs"]: ModelOutput = encoder(input_ids=None, inputs_embeds=inputs_embeds, return_dict=True, **encoder_kwargs)
+    #
+    #         # encoder(input_ids=None,
+    #         #         attention_mask=model_kwargs['attention_mask'],
+    #         #         inputs_embeds=inputs_embeds, **encoder_kwargs)
+    #     return model_kwargs
 
-            # retrieve encoder hidden states
-            encoder = self.get_encoder()
-            encoder_kwargs = {argument: value for argument, value in model_kwargs.items()
-                if not (argument.startswith("decoder_") or argument.startswith("cross_attn")) and argument not in ['bbox']
-            }
-            model_kwargs["encoder_outputs"]: ModelOutput = encoder(input_ids=None, inputs_embeds=inputs_embeds, return_dict=True, **encoder_kwargs)
 
-            # encoder(input_ids=None,
-            #         attention_mask=model_kwargs['attention_mask'],
-            #         inputs_embeds=inputs_embeds, **encoder_kwargs)
+    def _prepare_encoder_decoder_kwargs_for_generation(self, inputs_tensor: torch.Tensor, model_kwargs, model_input_name: Optional[str] = None) -> Dict[str, Any]:
+        # 1. get encoder
+        encoder = self.get_encoder()
+
+        # 2. prepare encoder args and encoder kwargs from model kwargs
+        irrelevant_prefix = ["decoder_", "cross_attn", "use_cache"]
+        extra_kwargs_to_be_removed = ['bbox']
+        encoder_kwargs = {argument: value for argument, value in model_kwargs.items() if not any(argument.startswith(p) for p in irrelevant_prefix + extra_kwargs_to_be_removed)}
+
+        # 2.2 replace input ids by layout-aware input embeddings
+        textual_emb = self.shared(inputs_tensor)  # read from default T5
+        spatial_emb = self.emb_matcher(self.spatial_embeddings(model_kwargs['bbox']))
+        encoder_kwargs['inputs_embeds'] = textual_emb + spatial_emb
+
+        # 3. make sure that encoder returns `ModelOutput`
+        model_input_name = model_input_name if model_input_name is not None else self.main_input_name
+        encoder_kwargs["return_dict"] = True
+        # encoder_kwargs[model_input_name] = inputs_tensor
+        encoder_kwargs[model_input_name] = None  # Since we have the embeddings the input_ids must be None.
+        model_kwargs["encoder_outputs"]: ModelOutput = encoder(**encoder_kwargs)
+
         return model_kwargs
-
 
     def forward(
         self,

@@ -1,4 +1,4 @@
-import time, datetime
+import os, time, datetime
 from tqdm import tqdm
 
 import numpy as np
@@ -113,6 +113,7 @@ if __name__ == '__main__':
     }
 
     experiment_date = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    save_json("{:s}/results/{:}_{:}_{:}__{:}.json".format(config['save_dir'],
-                                                          config['model_name'], config['dataset_name'],
-                                                          config['page_retrieval'].lower(), experiment_date), save_data)
+    results_file = os.path.join(config['save_dir'], 'results', "{:}_{:}_{:}__{:}.json".format(config['model_name'], config['dataset_name'], config['page_retrieval'].lower(), experiment_date))
+
+    save_json(results_file, save_data)
+

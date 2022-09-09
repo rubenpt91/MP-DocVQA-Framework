@@ -83,8 +83,9 @@ class LayoutLMv2:
                 for batch_idx in range(len(batch['question_id'])):
                     images.append(self.get_concat_v_multi_resize([Image.open(img_path).convert("RGB") for img_path in batch['image_names'][batch_idx]]))  # Concatenate images vertically.
 
-            boxes = [(bbox * 1000).astype(int) for bbox in batch['boxes']]
-            encoding = self.processor(images, question, batch["words"], boxes=boxes, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
+            # boxes = [(bbox * 1000).astype(int) for bbox in batch['boxes']]
+            # encoding = self.processor(images, question, batch["words"], boxes=boxes, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
+            encoding = self.processor(images, question, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
 
             start_pos, end_pos = self.get_start_end_idx(encoding, context, answers)
             outputs = self.model(**encoding, start_positions=start_pos, end_positions=end_pos)

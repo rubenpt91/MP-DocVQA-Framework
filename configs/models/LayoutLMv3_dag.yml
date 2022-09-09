@@ -1,0 +1,11 @@
+save_dir: save/
+model_name: LayoutLMv3
+model_weights: microsoft/layoutlmv3-base  # 1e-4
+# model_weights: xhyi/layoutlmv3-large_docvqa_t13c11000
+device: cuda
+
+training_parameters:
+  lr: 1e-4
+  batch_size: 16
+  train_epochs: 10
+  warmup_iterations: 1000

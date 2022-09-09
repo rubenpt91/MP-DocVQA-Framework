@@ -23,7 +23,7 @@ class MPDocVQA(Dataset):
         self.get_raw_ocr_data = kwargs.get('get_raw_ocr_data', False)
 
     def __len__(self):
-        return 100 # len(self.imdb)
+        return len(self.imdb)
 
     def __getitem__(self, idx):
         record = self.imdb[idx]
