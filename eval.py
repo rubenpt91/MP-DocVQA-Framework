@@ -32,6 +32,7 @@ def evaluate(data_loader, model, evaluator, **kwargs):
     model.model.eval()
 
     for batch_idx, batch in enumerate(tqdm(data_loader)):
+        bs = len(batch['question_id'])
         with torch.no_grad():
             outputs, pred_answers, pred_answer_page = model.forward(batch, return_pred_answer=True)  # Longformer
             # outputs, pred_answers, answer_page = model.forward(questions, contexts, gt_answers, return_pred_answer=True)  # Longformer
@@ -39,8 +40,11 @@ def evaluate(data_loader, model, evaluator, **kwargs):
             # print(pred_answers)
 
         metric = evaluator.get_metrics(batch['answers'], pred_answers)
-        ret_metric = evaluator.get_retrieval_metric(batch['answer_page_idx'], pred_answer_page)
 
+        if 'answer_page_idx' in batch:
+            ret_metric = evaluator.get_retrieval_metric(batch['answer_page_idx'], pred_answer_page)
+        else:
+            ret_metric = [-1 for _ in range(bs)]
         # for sample_ix in range(len(batch['question_id'])):
         #     if metric['accuracy'][sample_ix] == 1 and batch['answer_page_idx'][sample_ix] != 0:
         #         pass
@@ -48,7 +52,7 @@ def evaluate(data_loader, model, evaluator, **kwargs):
         #         outputs, pred_answers, pred_answer_page = model.forward(batch, return_pred_answer=True)  # Longformer
 
         if return_scores_by_sample:
-            for batch_idx in range(len(batch['question_id'])):
+            for batch_idx in range(bs):
                 scores_by_samples[batch['question_id'][batch_idx]] = {
                     'accuracy': metric['accuracy'][batch_idx],
                     'anls': metric['anls'][batch_idx],

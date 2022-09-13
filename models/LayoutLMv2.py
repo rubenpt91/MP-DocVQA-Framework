@@ -15,10 +15,10 @@ class LayoutLMv2:
 
     def __init__(self, config):
         self.batch_size = config['batch_size']
-        self.processor = LayoutLMv2Processor.from_pretrained(config['model_weights'])  # Check that this do not fuck up the code.
-        # self.processor = LayoutLMv2Processor.from_pretrained(config['model_weights'], apply_ocr=False)  # Check that this do not fuck up the code.
+        # self.processor = LayoutLMv2Processor.from_pretrained(config['model_weights'])  # Check that this do not fuck up the code.
+        self.processor = LayoutLMv2Processor.from_pretrained(config['model_weights'], apply_ocr=False)  # Check that this do not fuck up the code.
         self.model = LayoutLMv2ForQuestionAnswering.from_pretrained(config['model_weights'])
-        self.page_retrieval = config['page_retrieval'].lower()
+        self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
         self.ignore_index = 9999  # 0
 
         # img = Image.open('/SSD2/MP-DocVQA/images/nkkh0227_p2.jpg')
@@ -30,11 +30,12 @@ class LayoutLMv2:
         context = batch['contexts']
         answers = batch['answers']
 
+        bs = len(question)
         if self.page_retrieval == 'logits':
             outputs = []
             pred_answers = []
             pred_answer_pages = []
-            for batch_idx in range(len(question)):
+            for batch_idx in range(bs):
                 images = [Image.open(img_path).convert("RGB") for img_path in batch['image_names'][batch_idx]]
                 boxes = [(bbox * 1000).astype(int) for bbox in batch['boxes'][batch_idx]]
                 document_encoding = self.processor(images, [question[batch_idx]] * len(images), batch["words"][batch_idx], boxes=boxes, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
@@ -68,7 +69,7 @@ class LayoutLMv2:
 
         else:
 
-            if self.page_retrieval == 'oracle':
+            if self.page_retrieval is None or self.page_retrieval == 'oracle':
                 images = [Image.open(img_path).convert("RGB") for img_path in batch['image_names']]
                 # encoding = self.processor(images, question, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
                 # outputs = self.model(**encoding)
@@ -80,12 +81,12 @@ class LayoutLMv2:
             elif self.page_retrieval == 'concat':
 
                 images = []
-                for batch_idx in range(len(batch['question_id'])):
+                for batch_idx in range(bs):
                     images.append(self.get_concat_v_multi_resize([Image.open(img_path).convert("RGB") for img_path in batch['image_names'][batch_idx]]))  # Concatenate images vertically.
 
-            # boxes = [(bbox * 1000).astype(int) for bbox in batch['boxes']]
-            # encoding = self.processor(images, question, batch["words"], boxes=boxes, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
-            encoding = self.processor(images, question, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
+            boxes = [(bbox * 1000).astype(int) for bbox in batch['boxes']]
+            encoding = self.processor(images, question, batch["words"], boxes=boxes, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
+            # encoding = self.processor(images, question, return_tensors="pt", padding=True, truncation=True).to(self.model.device)  # Apply OCR
 
             start_pos, end_pos = self.get_start_end_idx(encoding, context, answers)
             outputs = self.model(**encoding, start_positions=start_pos, end_positions=end_pos)
@@ -123,6 +124,9 @@ class LayoutLMv2:
 
             elif self.page_retrieval == 'concat':
                 pred_answer_pages = [batch['context_page_corresp'][batch_idx][pred_start_idx] if len(batch['context_page_corresp'][batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
+
+            elif self.page_retrieval is None:
+                pred_answer_pages = [-1 for _ in range(bs)]
 
         if random.randint(0, 1000) == 0:
             for question_id, gt_answer, pred_answer in zip(batch['question_id'], answers, pred_answers):

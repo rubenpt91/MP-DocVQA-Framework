@@ -1,7 +1,8 @@
 save_dir: save/
 model_name: LayoutLMv3
-model_weights: microsoft/layoutlmv3-base  # 1e-4
+# model_weights: microsoft/layoutlmv3-base  # 1e-4
 # model_weights: xhyi/layoutlmv3-large_docvqa_t13c11000
+model_weights: weights/layoutlmv3_oracle_mp-docvqa.ckpt
 device: cuda
 
 training_parameters:

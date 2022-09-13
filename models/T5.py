@@ -11,7 +11,7 @@ class T5:
         self.batch_size = config['batch_size']
         self.tokenizer = T5Tokenizer.from_pretrained(config['model_weights'])
         self.model = T5ForConditionalGeneration.from_pretrained(config['model_weights'])
-        self.page_retrieval = config['page_retrieval'].lower()
+        self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
 
     def forward(self, batch, return_pred_answer=False):
         question = batch['questions']

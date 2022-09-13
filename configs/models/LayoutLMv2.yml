@@ -1,7 +1,8 @@
 save_dir: save/
 model_name: LayoutLMv2
-model_weights: microsoft/layoutlmv2-base-uncased  # 1e-4
+# model_weights: microsoft/layoutlmv2-base-uncased  # 1e-4
 # model_weights: tiennvcs/layoutlmv2-base-uncased-finetuned-docvqa  # 5e-5
+model_weights: weights/layoutlmv2_oracle_mp-docvqa.ckpt
 device: cuda
 
 training_parameters:

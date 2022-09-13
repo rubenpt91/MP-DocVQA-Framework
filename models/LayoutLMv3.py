@@ -16,7 +16,7 @@ class LayoutLMv3:
         self.batch_size = config['batch_size']
         self.processor = LayoutLMv3Processor.from_pretrained(config['model_weights'], apply_ocr=False)  # Check that this do not fuck up the code.
         self.model = LayoutLMv3ForQuestionAnswering.from_pretrained(config['model_weights'])
-        self.page_retrieval = config['page_retrieval'].lower()
+        self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
         self.ignore_index = 9999  # 0
 
         # img = Image.open('/SSD2/MP-DocVQA/images/nkkh0227_p2.jpg')

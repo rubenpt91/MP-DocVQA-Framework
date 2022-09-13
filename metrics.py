@@ -31,14 +31,9 @@ class Evaluator:
 
         return {'accuracy': batch_accuracy, 'anls': batch_anls}
 
+
     def get_retrieval_metric(self, gt_answer_page, pred_answer_page):
-
-        if pred_answer_page is None:
-            retrieval_precision = [0 for gt in gt_answer_page]
-
-        else:
-            retrieval_precision = [1 if gt == pred else 0 for gt, pred in zip(gt_answer_page, pred_answer_page)]
-
+        retrieval_precision = [1 if gt == pred else 0 for gt, pred in zip(gt_answer_page, pred_answer_page)]
         return retrieval_precision
 
 

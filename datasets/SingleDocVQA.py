@@ -4,21 +4,20 @@ import random
 
 import numpy as np
 from torch.utils.data import Dataset
-from transformers import LongformerTokenizerFast
-
-
-from torch.utils.data import DataLoader
-
 
 
 class SingleDocVQA(Dataset):
 
-    def __init__(self, imbd_dir, split):
+    def __init__(self, imbd_dir, images_dir, split, kwargs):
         data = np.load(os.path.join(imbd_dir, "new_imdb_{:s}.npy".format(split)), allow_pickle=True)
         self.header = data[0]
         self.imdb = data[1:]
 
         self.max_answers = 2
+        self.images_dir = images_dir
+
+        self.use_images = kwargs.get('use_images', False)
+        self.get_raw_ocr_data = kwargs.get('get_raw_ocr_data', False)
 
     def __len__(self):
         return len(self.imdb)
@@ -29,6 +28,13 @@ class SingleDocVQA(Dataset):
         context = ' '.join([word.lower() for word in record['ocr_tokens']])
         answers = list(set(answer.lower() for answer in record['answers']))
 
+        if self.use_images:
+            image_names = os.path.join(self.images_dir, "{:s}.png".format(record['image_name']))
+
+        if self.get_raw_ocr_data:
+            words = [word.lower() for word in record['ocr_tokens']]
+            boxes = np.array([bbox for bbox in record['ocr_normalized_boxes']])
+
         start_idxs, end_idxs = self._get_start_end_idx(context, answers)
 
         sample_info = {'question_id': record['question_id'],
@@ -38,6 +44,13 @@ class SingleDocVQA(Dataset):
                        'start_indxs': start_idxs,
                        'end_indxs': end_idxs
                        }
+
+        if self.use_images:
+            sample_info['image_names'] = image_names
+
+        if self.get_raw_ocr_data:
+            sample_info['words'] = words
+            sample_info['boxes'] = boxes
 
         return sample_info
 

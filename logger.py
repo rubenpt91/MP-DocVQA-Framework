@@ -38,13 +38,6 @@ class Logger:
         total_params = sum(p.numel() for p in model.model.parameters())
         trainable_params = sum(p.numel() for p in model.model.parameters() if p.requires_grad)
 
-        """
-        self.logger.log({
-            'Model Params': int(total_params / 1e6),  # In millions
-            'Model Trainable Params': int(trainable_params / 1e6)  # In millions
-        }, step=0)
-        """
-
         self.logger.config.update({
             'Model Params': int(total_params / 1e6),  # In millions
             'Model Trainable Params': int(trainable_params / 1e6)  # In millions

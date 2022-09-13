@@ -11,7 +11,7 @@ class BertQA:
         self.batch_size = config['batch_size']
         self.model = AutoModelForQuestionAnswering.from_pretrained(config['model_weights'])
         self.tokenizer = AutoTokenizer.from_pretrained(config['model_weights'])
-        self.page_retrieval = config['page_retrieval'].lower()
+        self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
         self.ignore_index = 9999  # 0
 
     def forward(self, batch, return_pred_answer=False):
