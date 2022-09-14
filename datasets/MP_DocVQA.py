@@ -14,7 +14,7 @@ class MPDocVQA(Dataset):
         self.imdb = data[1:]
 
         self.page_retrieval = page_retrieval.lower()
-        assert(self.page_retrieval in ['oracle', 'concat', 'logits'])
+        assert(self.page_retrieval in ['oracle', 'concat', 'logits', 'custom'])
 
         self.max_answers = 2
         self.images_dir = images_dir
@@ -29,6 +29,7 @@ class MPDocVQA(Dataset):
         record = self.imdb[idx]
         question = record['question']
         answer_page_idx = record['answer_page_idx']
+        num_pages = record['imdb_doc_pages']
 
         if self.page_retrieval == 'oracle':
             context = ' '.join([word.lower() for word in record['ocr_tokens'][answer_page_idx]])
@@ -59,8 +60,6 @@ class MPDocVQA(Dataset):
                 image_names = [os.path.join(self.images_dir, "{:s}.jpg".format(image_name)) for image_name in record['image_name']]
 
             if self.get_raw_ocr_data:
-                num_pages = record['imdb_doc_pages']
-
                 # for p in range(num_pages):
                 #     for bbox in record['ocr_normalized_boxes'][p]:
                 #         assert (bbox[0] <= bbox[2] and bbox[1] <= bbox[3])
@@ -84,7 +83,7 @@ class MPDocVQA(Dataset):
                 # boxes = record['ocr_normalized_boxes']
                 boxes = np.array(boxes)
 
-        elif self.page_retrieval == 'logits':
+        elif self.page_retrieval in ['logits', 'custom']:
             context = []
             for page_ix in range(record['imdb_doc_pages']):
                 context.append(' '.join([word.lower() for word in record['ocr_tokens'][page_ix]]))
@@ -95,8 +94,6 @@ class MPDocVQA(Dataset):
                 image_names = [os.path.join(self.images_dir, "{:s}.jpg".format(image_name)) for image_name in record['image_name']]
 
             if self.get_raw_ocr_data:
-                num_pages = record['imdb_doc_pages']
-
                 words = []
                 boxes = record['ocr_normalized_boxes']
                 for p in range(num_pages):
@@ -115,8 +112,8 @@ class MPDocVQA(Dataset):
                        'contexts': context,
                        'context_page_corresp': context_page_corresp,
                        'answers': answers,
-                       'start_indxs': start_idxs,
-                       'end_indxs': end_idxs,
+                       # 'start_indxs': start_idxs,
+                       # 'end_indxs': end_idxs,
                        'answer_page_idx': record['answer_page_idx']
                        }
 
@@ -126,7 +123,11 @@ class MPDocVQA(Dataset):
         if self.get_raw_ocr_data:
             sample_info['words'] = words
             sample_info['boxes'] = boxes
+            sample_info['num_pages'] = num_pages
 
+        else:
+            sample_info['start_indxs'] = start_idxs
+            sample_info['end_indxs'] = end_idxs
         return sample_info
 
     def _get_start_end_idx(self, context, answers):

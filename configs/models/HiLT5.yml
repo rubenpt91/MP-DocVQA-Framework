@@ -1,0 +1,13 @@
+save_dir: save/
+model_name: Hi-LT5
+# model_weights: t5-base
+# model_weights: weights/t5_oracle_mp-docvqa__best.ckpt
+model_weights: weights/lt5_oracle_mp-docvqa__best.ckpt
+page_tokens: 3
+device: cuda
+
+training_parameters:
+  lr: 2e-4  # 2e-4
+  batch_size: 3
+  train_epochs: 10
+  warmup_iterations: 1000

@@ -1,4 +1,5 @@
 dataset_name: MP-DocVQA
 imdb_dir: /data/users/rperez/imdb/collection  # /imdb/collection/imdb_train.npy
 images_dir: /data/users/rperez/MP-DocVQA/images/
-page_retrieval: Oracle  # Oracle / Concat / Logits
+page_retrieval: Custom  # Oracle / Concat / Logits / Custom (for Hi-LT5)
+max_pages: 20

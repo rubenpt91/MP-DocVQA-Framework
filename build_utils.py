@@ -47,7 +47,10 @@ def build_model(config):
     elif config['model_name'].lower() == 'lt5':
         from models.LT5 import Proxy_LT5 as LT5
         model = LT5(config)
-        # raise NotImplementedError("Currently LT5 is not implemented in this framework.")
+
+    elif config['model_name'].lower() in ['hilt5', 'hi-lt5']:
+        from models.HiLT5 import Proxy_HiLT5 as HiLT5
+        model = HiLT5(config)
 
     else:
         raise ValueError("Value '{:s}' for model selection not expected. Please choose one of {:}".format(config['model_name'], ', '.join(available_models)))
@@ -73,7 +76,7 @@ def build_dataset(config, split):
         dataset_kwargs['use_images'] = True
         dataset_kwargs['get_raw_ocr_data'] = True
 
-    elif config['model_name'].lower() == 'lt5':
+    elif config['model_name'].lower() in ['lt5', 'hilt5', 'hi-lt5']:
         dataset_kwargs['get_raw_ocr_data'] = True
 
     # Build dataset
