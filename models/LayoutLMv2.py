@@ -69,7 +69,7 @@ class LayoutLMv2:
 
         else:
 
-            if self.page_retrieval is None or self.page_retrieval == 'oracle':
+            if self.page_retrieval in ['oracle', None]:
                 images = [Image.open(img_path).convert("RGB") for img_path in batch['image_names']]
                 # encoding = self.processor(images, question, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
                 # outputs = self.model(**encoding)

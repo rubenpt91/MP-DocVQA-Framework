@@ -28,11 +28,13 @@ class LayoutLMv3:
         context = batch['contexts']
         answers = batch['answers']
 
+        bs = len(batch['question_id'])
         if self.page_retrieval == 'logits':
             outputs = []
             pred_answers = []
             pred_answer_pages = []
-            for batch_idx in range(len(question)):
+
+            for batch_idx in range(bs):
                 images = [Image.open(img_path).convert("RGB") for img_path in batch['image_names'][batch_idx]]
                 boxes = [(bbox * 1000).astype(int) for bbox in batch['boxes'][batch_idx]]
                 document_encoding = self.processor(images, [question[batch_idx]] * len(images), batch["words"][batch_idx], boxes=boxes, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
@@ -66,13 +68,13 @@ class LayoutLMv3:
 
         else:
 
-            if self.page_retrieval == 'oracle':
+            if self.page_retrieval in ['oracle', None]:
                 images = [Image.open(img_path).convert("RGB") for img_path in batch['image_names']]
 
             elif self.page_retrieval == 'concat':
 
                 images = []
-                for batch_idx in range(len(batch['question_id'])):
+                for batch_idx in range(bs):
                     images.append(self.get_concat_v_multi_resize([Image.open(img_path).convert("RGB") for img_path in batch['image_names'][batch_idx]]))  # Concatenate images vertically.
 
             boxes = [(bbox * 1000).astype(int) for bbox in batch['boxes']]
@@ -82,9 +84,9 @@ class LayoutLMv3:
             outputs = self.model(**encoding, start_positions=start_pos, end_positions=end_pos)
             pred_answers = self.get_answer_from_model_output(encoding.input_ids, outputs) if return_pred_answer else None
 
-            from transformers import LayoutLMv3Tokenizer, LayoutLMv3FeatureExtractor
-            x = LayoutLMv3Processor.from_pretrained('microsoft/layoutlmv3-base', apply_ocr=True)
-            encoding = x(images, question, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
+            # from transformers import LayoutLMv3Tokenizer, LayoutLMv3FeatureExtractor
+            # x = LayoutLMv3Processor.from_pretrained('microsoft/layoutlmv3-base', apply_ocr=True)
+            # encoding = x(images, question, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
 
             """ DEBUG
             # print(pred_answers)
@@ -118,6 +120,9 @@ class LayoutLMv3:
 
             elif self.page_retrieval == 'concat':
                 pred_answer_pages = [batch['context_page_corresp'][batch_idx][pred_start_idx] if len(batch['context_page_corresp'][batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
+
+            elif self.page_retrieval is None:
+                pred_answer_pages = [-1 for _ in range(bs)]
 
         if random.randint(0, 1000) == 0:
             for question_id, gt_answer, pred_answer in zip(batch['question_id'], answers, pred_answers):

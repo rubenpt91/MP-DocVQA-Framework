@@ -1,2 +1,3 @@
 dataset_name: SingleDocVQA
 imdb_dir: /data/users/rperez/imdb/singledocvqa/  # /imdb/collection/imdb_train.npy
+images_dir: /data/users/rperez/SingleDocVQA/images/
