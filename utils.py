@@ -18,6 +18,21 @@ def save_json(path, data):
         json.dump(data, f)
 
 
+def check_config(config):
+    model_name = config['model_name'].lower()
+    page_retrieval = config.get('page_retrieval', '').lower()
+    if model_name not in ['hilt5', 'hi-lt5'] and page_retrieval == 'custom':
+        raise ValueError("'Custom' retrieval is not allowed for {:}".format(model_name))
+
+    elif model_name in ['hilt5', 'hi-lt5'] and page_retrieval in ['concat', 'logits']:
+        raise ValueError("Hierarchical model {:} can't run by {:} retrieval type. Only 'oracle' and 'custom' are allowed.".format(model_name, page_retrieval))
+
+    if page_retrieval in ['concat', 'logits'] and config.get('max_pages') is not None:
+        print("WARNING - Max pages ({:}) value is ignored for {:} retrieval setting.".format(config.get('max_pages'), page_retrieval))
+
+    return True
+
+
 def load_config(args):
     model_config_path = "configs/models/{:}.yml".format(args.model)
     dataset_config_path = "configs/datasets/{:}.yml".format(args.dataset)
@@ -33,13 +48,7 @@ def load_config(args):
     config.pop('model')
     config.pop('dataset')
 
-    model_name = config['model_name'].lower()
-    page_retrieval = config.get('page_retrieval', '').lower()
-    if model_name not in ['hilt5', 'hi-lt5'] and page_retrieval == 'custom':
-        raise ValueError("'Custom' retrieval is not allowed for {:}".format(model_name))
-
-    elif model_name in ['hilt5', 'hi-lt5'] and page_retrieval in ['concat', 'logits']:
-        raise ValueError("Hierarchical model {:} can't run by {:} retrieval type. Only 'oracle' and 'custom' are allowed.".format(model_name, page_retrieval))
+    check_config(config)
 
     return config
 

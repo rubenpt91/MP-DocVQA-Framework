@@ -21,6 +21,7 @@ class MPDocVQA(Dataset):
 
         self.use_images = kwargs.get('use_images', False)
         self.get_raw_ocr_data = kwargs.get('get_raw_ocr_data', False)
+        self.max_pages = kwargs.get('max_pages', 1)
 
     def __len__(self):
         return len(self.imdb)
@@ -28,6 +29,7 @@ class MPDocVQA(Dataset):
     def __getitem__(self, idx):
         record = self.imdb[idx]
         question = record['question']
+        answers = list(set(answer.lower() for answer in record['answers']))
         answer_page_idx = record['answer_page_idx']
         num_pages = record['imdb_doc_pages']
 
@@ -44,14 +46,11 @@ class MPDocVQA(Dataset):
 
         elif self.page_retrieval == 'concat':
             context = ""
-            # context_page_corresp = ""
             context_page_corresp = []
             for page_ix in range(record['imdb_doc_pages']):
                 page_context = " ".join([word.lower() for word in record['ocr_tokens'][page_ix]])
                 context += " " + page_context
-                # context_page_corresp += " " + ''.join([str(page_ix)]*len(page_context))
                 context_page_corresp.extend([-1] + [page_ix]*len(page_context))
-                # context_page_corresp += " " + ' '.join([''.join([str(page_ix)]*len(word)) for word in record['ocr_tokens'][page_ix]])
 
             context = context.strip()
             context_page_corresp = context_page_corresp[1:]
@@ -60,10 +59,6 @@ class MPDocVQA(Dataset):
                 image_names = [os.path.join(self.images_dir, "{:s}.jpg".format(image_name)) for image_name in record['image_name']]
 
             if self.get_raw_ocr_data:
-                # for p in range(num_pages):
-                #     for bbox in record['ocr_normalized_boxes'][p]:
-                #         assert (bbox[0] <= bbox[2] and bbox[1] <= bbox[3])
-
                 words, boxes = [], []
                 for p in range(num_pages):
                     words.extend([word.lower() for word in record['ocr_tokens'][p]])
@@ -72,18 +67,11 @@ class MPDocVQA(Dataset):
                     mod_boxes[:, 1] = mod_boxes[:, 1]/num_pages + p/num_pages
                     mod_boxes[:, 3] = mod_boxes[:, 3]/num_pages + p/num_pages
 
-                    # for bbox in mod_boxes:
-                    #     assert (bbox[0] <= bbox[2] and bbox[1] <= bbox[3])
+                    boxes.extend(mod_boxes)  # bbox in l,t,r,b
 
-                    # (record['ocr_normalized_boxes'][p] / num_pages) + p / num_pages  # (Wrong) - This would change left and right also.
-                    boxes.extend(mod_boxes)  # bbox in l,t,r,b --> It is correct to move the whole bounding box. It will be similar as if the pages were displayed in diagonal.
-
-
-                    # words.append([word.lower() for word in record['ocr_tokens'][p]])
-                # boxes = record['ocr_normalized_boxes']
                 boxes = np.array(boxes)
 
-        elif self.page_retrieval in ['logits', 'custom']:
+        elif self.page_retrieval == 'logits':
             context = []
             for page_ix in range(record['imdb_doc_pages']):
                 context.append(' '.join([word.lower() for word in record['ocr_tokens'][page_ix]]))
@@ -99,7 +87,29 @@ class MPDocVQA(Dataset):
                 for p in range(num_pages):
                     words.append([word.lower() for word in record['ocr_tokens'][p]])
 
-        answers = list(set(answer.lower() for answer in record['answers']))
+        elif self.page_retrieval == 'custom':
+            first_page, last_page = self.get_pages(record)
+            num_pages = len(range(first_page, last_page))
+
+            words = []
+            boxes = []
+            context = []
+            image_names = []
+
+            try:
+                for page_ix in range(first_page, last_page):
+                    words.append([word.lower() for word in record['ocr_tokens'][page_ix]])
+                    boxes.append(record['ocr_normalized_boxes'][page_ix])
+                    context.append(' '.join([word.lower() for word in record['ocr_tokens'][page_ix]]))
+                    image_names.append(os.path.join(self.images_dir, "{:s}.jpg".format(record['image_name'][page_ix])))
+            except IndexError:
+                for page_ix in range(first_page, last_page):
+                    words.append([word.lower() for word in record['ocr_tokens'][page_ix]])
+                    boxes.append(record['ocr_normalized_boxes'][page_ix])
+                    context.append(' '.join([word.lower() for word in record['ocr_tokens'][page_ix]]))
+                image_names.append(os.path.join(self.images_dir, "{:s}.jpg".format(record['image_name'][page_ix])))
+
+            context_page_corresp = None
 
         if self.page_retrieval == 'oracle' or self.page_retrieval == 'concat':
             start_idxs, end_idxs = self._get_start_end_idx(context, answers)
@@ -110,10 +120,8 @@ class MPDocVQA(Dataset):
         sample_info = {'question_id': record['question_id'],
                        'questions': question,
                        'contexts': context,
-                       'context_page_corresp': context_page_corresp,
+                       # 'context_page_corresp': context_page_corresp,
                        'answers': answers,
-                       # 'start_indxs': start_idxs,
-                       # 'end_indxs': end_idxs,
                        'answer_page_idx': record['answer_page_idx']
                        }
 
@@ -125,7 +133,8 @@ class MPDocVQA(Dataset):
             sample_info['boxes'] = boxes
             sample_info['num_pages'] = num_pages
 
-        else:
+        else:  # Information for extractive models
+            sample_info['context_page_corresp'] = context_page_corresp
             sample_info['start_indxs'] = start_idxs
             sample_info['end_indxs'] = end_idxs
         return sample_info
@@ -146,6 +155,36 @@ class MPDocVQA(Dataset):
             start_idx, end_idx = 0, 0  # If the indices are out of the sequence length they are ignored. Therefore, we set them as a very big number.
 
         return start_idx, end_idx
+
+    def get_pages(self, sample_info):
+        # TODO implement margins
+        answer_page = sample_info['answer_page_idx']
+        document_pages = sample_info['imdb_doc_pages']
+        if document_pages <= self.max_pages:
+            first_page, last_page = 0, document_pages
+
+        else:
+            first_page_lower_bound = max(0, answer_page-self.max_pages+1)
+            first_page_upper_bound = answer_page
+            first_page = random.randint(first_page_lower_bound, first_page_upper_bound)
+            last_page = first_page + self.max_pages
+
+            if last_page > document_pages:
+                last_page = document_pages
+                first_page = last_page-self.max_pages
+
+            try:
+                assert(answer_page in range(first_page, last_page))  # answer page is in selected range.
+                assert(last_page-first_page == self.max_pages)  # length of selected range is correct.
+            except:
+                assert (answer_page in range(first_page, last_page))  # answer page is in selected range.
+                assert (last_page - first_page == self.max_pages)  # length of selected range is correct.
+        # print("[{:d} <= {:d} < {:d}][{:d} + {:d}]".format(first_page, answer_page, last_page, len(range(first_page, last_page)), padding_pages))
+        assert(answer_page in range(first_page, last_page))
+        assert(first_page >= 0)
+        assert(last_page <= document_pages)
+
+        return first_page, last_page
 
 
 def singledocvqa_collate_fn(batch):

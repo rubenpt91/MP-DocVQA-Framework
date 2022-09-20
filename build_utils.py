@@ -76,8 +76,12 @@ def build_dataset(config, split):
         dataset_kwargs['use_images'] = True
         dataset_kwargs['get_raw_ocr_data'] = True
 
-    elif config['model_name'].lower() in ['lt5', 'hilt5', 'hi-lt5']:
+    elif config['model_name'].lower() == 'lt5':
         dataset_kwargs['get_raw_ocr_data'] = True
+
+    elif config['model_name'].lower() in ['hilt5', 'hi-lt5']:
+        dataset_kwargs['get_raw_ocr_data'] = True
+        dataset_kwargs['max_pages'] = config.get('max_pages', 1)
 
     # Build dataset
     if config['dataset_name'] == 'SQuAD':
