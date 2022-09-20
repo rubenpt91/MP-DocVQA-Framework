@@ -3,13 +3,15 @@ import argparse
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Baselines for DocCVQAv2')
+    parser = argparse.ArgumentParser(description='Baselines for MP-DocVQA')
 
-    # parser.add_argument('-c', '--config', type=str, required=True, help='Path to yml file with experiment configuration.')
+    # Required
     parser.add_argument('-m', '--model', type=str, required=True, help='Path to yml file with model configuration.')
     parser.add_argument('-d', '--dataset', type=str, required=True, help='Path to yml file with dataset configuration.')
-    parser.add_argument('--eval_start', type=bool, required=False, default=True, help='Whether to evaluate the model before training or not.')
 
+    # Optional
+    parser.add_argument('--eval_start', action='store_true', default=True, help='Whether to evaluate the model before training or not.')
+    parser.add_argument('--no-eval_start', dest='eval_start', action='store_false')
     return parser.parse_args()
 
 
@@ -40,7 +42,7 @@ def load_config(args):
     dataset_config = parse_config(yaml.safe_load(open(dataset_config_path, "r")), args)
     training_config = model_config.pop('training_parameters')
 
-    # Append and overwrite config values from argumments.
+    # Append and overwrite config values from arguments.
     # config = {'dataset_params': dataset_config, 'model_params': model_config, 'training_params': training_config}
     config = {**dataset_config, **model_config, **training_config}
 
