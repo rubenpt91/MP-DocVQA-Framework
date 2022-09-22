@@ -1,6 +1,6 @@
 import random
 
-import yaml, json
+import os, yaml, json
 import argparse
 
 import numpy as np
@@ -30,11 +30,23 @@ def save_json(path, data):
         json.dump(data, f)
 
 
+"""
 def seed_everything(seed):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
+"""
+
+
+def seed_everything(seed):
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
 
 
 def check_config(config):
