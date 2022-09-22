@@ -11,3 +11,4 @@ training_parameters:
   batch_size: 3
   train_epochs: 10
   warmup_iterations: 1000
+  seed: 42

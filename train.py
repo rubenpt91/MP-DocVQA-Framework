@@ -11,7 +11,7 @@ from models.Longformer import Longformer
 from eval import evaluate
 from metrics import Evaluator
 from build_utils import build_model, build_optimizer, build_dataset
-from utils import parse_args, load_config
+from utils import parse_args, load_config, seed_everything
 from logger import Logger
 from checkpoint import save_model
 
@@ -57,6 +57,7 @@ def train(model, **kwargs):
     epochs = kwargs['train_epochs']
     # device = kwargs['device']
     batch_size = kwargs['batch_size']
+    seed_everything(kwargs['seed'])
 
     evaluator = Evaluator(case_sensitive=False)
     logger = Logger(config=kwargs)

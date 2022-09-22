@@ -1,5 +1,10 @@
+import random
+
 import yaml, json
 import argparse
+
+import numpy as np
+import torch
 
 
 def parse_args():
@@ -12,12 +17,24 @@ def parse_args():
     # Optional
     parser.add_argument('--eval_start', action='store_true', default=True, help='Whether to evaluate the model before training or not.')
     parser.add_argument('--no-eval_start', dest='eval_start', action='store_false')
+
+    # Overwrite config parameters
+    parser.add_argument('-bs', '--batch-size', type=int, help='DataLoader batch size.')
+    parser.add_argument('--seed', type=int, help='Seed to allow reproducibility.')
+
     return parser.parse_args()
 
 
 def save_json(path, data):
     with open(path, 'w+') as f:
         json.dump(data, f)
+
+
+def seed_everything(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
 
 
 def check_config(config):
@@ -49,6 +66,11 @@ def load_config(args):
     config = {k: v for k, v in args._get_kwargs()} | config
     config.pop('model')
     config.pop('dataset')
+
+    # Set default seed
+    if 'seed' not in config:
+        print("Seed not specified. Setting default seed to '{:d}'".format(42))
+        config['seed'] = 42
 
     check_config(config)
 

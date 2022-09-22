@@ -19,7 +19,7 @@ class Logger:
 
         tags = [config['model_name'], dataset, machine]
         config = {'Model': config['model_name'], 'Weights': config['model_weights'], 'Dataset': dataset, 'Page retrieval': page_retrieval,
-                  'Batch size': config['batch_size'], 'lr': config['lr']}
+                  'Batch size': config['batch_size'], 'lr': config['lr'], 'seed': config['seed']}
 
         self.logger = wb.init(project="DocCVQA_Baselines", name=self.experiment_name, dir=self.log_folder, tags=tags, config=config)
         self._print_config(config)
