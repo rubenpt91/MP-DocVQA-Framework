@@ -52,6 +52,12 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
     # return total_accuracies, total_anls, answers
 
 
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2 ** 32
+    np.random.seed(worker_seed)
+    np.seed(worker_seed)
+
+
 def train(model, **kwargs):
 
     epochs = kwargs['train_epochs']
@@ -65,8 +71,16 @@ def train(model, **kwargs):
 
     train_dataset = build_dataset(config, 'train')
     val_dataset   = build_dataset(config, 'val')
-    train_data_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, collate_fn=singledocvqa_collate_fn)
-    val_data_loader   = DataLoader(val_dataset, batch_size=config['batch_size'],  shuffle=False, collate_fn=singledocvqa_collate_fn)
+
+
+
+    g = torch.Generator()
+    g.manual_seed(kwargs['seed'])
+
+    train_data_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, collate_fn=singledocvqa_collate_fn, worker_init_fn=seed_worker, generator=g)
+    val_data_loader   = DataLoader(val_dataset, batch_size=config['batch_size'],  shuffle=False, collate_fn=singledocvqa_collate_fn, worker_init_fn=seed_worker, generator=g)
+
+
 
     logger.len_dataset = len(train_data_loader)
     optimizer, lr_scheduler = build_optimizer(model, length_train_loader=len(train_data_loader), config=kwargs)
