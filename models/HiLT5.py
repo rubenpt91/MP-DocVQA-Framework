@@ -101,7 +101,10 @@ class RetrievalModule(nn.Module):
         self.retrieval_loss_weight = config.page_retrieval_config['loss_weight']
 
     def forward(self, document_embeddings, answer_page_idx):
-        ret_logits = self.page_retrieval(document_embeddings.view([len(document_embeddings), -1]))  # 10*2*512
+        document_embeddings = document_embeddings.view([len(document_embeddings), -1])
+        document_embeddings = F.pad(document_embeddings, (0, self.page_retrieval.in_features-document_embeddings.shape[-1]), "constant", 0)  # In case is the last batch
+
+        ret_logits = self.page_retrieval(document_embeddings)  # 10*2*512
         ret_loss = self.retrieval_criterion(ret_logits, answer_page_idx) * self.retrieval_loss_weight
 
         return ret_loss, ret_logits
