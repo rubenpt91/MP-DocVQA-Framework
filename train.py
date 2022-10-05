@@ -23,6 +23,7 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
         gt_answers = batch['answers']
         # outputs, pred_answers = model.forward(questions, contexts, gt_answers, start_indxs, end_indxs, return_pred_answer=True)
         outputs, pred_answers, pred_answer_page = model.forward(batch, return_pred_answer=True)
+        loss = outputs.loss + outputs.ret_loss if hasattr(outputs, 'ret_loss') else outputs.loss
 
         outputs.loss.backward()
         optimizer.step()
@@ -42,6 +43,9 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
             'lr': optimizer.param_groups[0]['lr']
         }
 
+        if hasattr(outputs, 'ret_loss'):
+            log_dict['Train/Batch retrieval loss'] = outputs.ret_loss.item()
+
         if 'answer_page_idx' in batch:
             ret_metric = evaluator.get_retrieval_metric(batch.get('answer_page_idx', None), pred_answer_page)
             batch_ret_prec = np.mean(ret_metric)
@@ -52,10 +56,10 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
     # return total_accuracies, total_anls, answers
 
 
-def seed_worker(worker_id):
-    worker_seed = torch.initial_seed() % 2 ** 32
-    np.random.seed(worker_seed)
-    np.seed(worker_seed)
+# def seed_worker(worker_id):
+#     worker_seed = torch.initial_seed() % 2 ** 32
+#     np.random.seed(worker_seed)
+#     np.seed(worker_seed)
 
 
 def train(model, **kwargs):
@@ -72,15 +76,13 @@ def train(model, **kwargs):
     train_dataset = build_dataset(config, 'train')
     val_dataset   = build_dataset(config, 'val')
 
+    # g = torch.Generator()
+    # g.manual_seed(kwargs['seed'])
 
-
-    g = torch.Generator()
-    g.manual_seed(kwargs['seed'])
-
-    train_data_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, collate_fn=singledocvqa_collate_fn, worker_init_fn=seed_worker, generator=g)
-    val_data_loader   = DataLoader(val_dataset, batch_size=config['batch_size'],  shuffle=False, collate_fn=singledocvqa_collate_fn, worker_init_fn=seed_worker, generator=g)
-
-
+    train_data_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, collate_fn=singledocvqa_collate_fn)
+    val_data_loader   = DataLoader(val_dataset, batch_size=config['batch_size'],  shuffle=False, collate_fn=singledocvqa_collate_fn)
+    # train_data_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, collate_fn=singledocvqa_collate_fn, worker_init_fn=seed_worker, generator=g)
+    # val_data_loader   = DataLoader(val_dataset, batch_size=config['batch_size'],  shuffle=False, collate_fn=singledocvqa_collate_fn, worker_init_fn=seed_worker, generator=g)
 
     logger.len_dataset = len(train_data_loader)
     optimizer, lr_scheduler = build_optimizer(model, length_train_loader=len(train_data_loader), config=kwargs)

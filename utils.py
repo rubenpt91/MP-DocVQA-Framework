@@ -75,7 +75,7 @@ def load_config(args):
     # config = {'dataset_params': dataset_config, 'model_params': model_config, 'training_params': training_config}
     config = {**dataset_config, **model_config, **training_config}
 
-    config = {k: v for k, v in args._get_kwargs()} | config
+    config = config | {k: v for k, v in args._get_kwargs() if v is not None}
     config.pop('model')
     config.pop('dataset')
 

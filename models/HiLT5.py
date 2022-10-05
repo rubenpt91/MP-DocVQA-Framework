@@ -87,6 +87,26 @@ class MLP(nn.Module):
         return x
 
 
+class RetrievalModule(nn.Module):
+
+    def __init__(self, config):
+        super(RetrievalModule, self).__init__()
+
+        self.page_retrieval = nn.Linear(config.max_doc_pages * config.page_tokens * config.hidden_size, config.max_doc_pages)
+        # TODO Check if BinaryCrossEntropy allows to extend to longer sequences.
+
+        if config.page_retrieval_config['loss'].lower() in ['ce', 'crossentropy', 'crossentropyloss']:
+            self.retrieval_criterion = CrossEntropyLoss()
+
+        self.retrieval_loss_weight = config.page_retrieval_config['loss_weight']
+
+    def forward(self, document_embeddings, answer_page_idx):
+        ret_logits = self.page_retrieval(document_embeddings.view([len(document_embeddings), -1]))  # 10*2*512
+        ret_loss = self.retrieval_criterion(ret_logits, answer_page_idx) * self.retrieval_loss_weight
+
+        return ret_loss, ret_logits
+
+
 class HiLT5(T5ForConditionalGeneration):
 
     def __init__(self, config):
@@ -94,6 +114,7 @@ class HiLT5(T5ForConditionalGeneration):
         self.config = config
         self.spatial_embeddings = SpatialEmbeddings(config)
         self.emb_matcher = MLP(self.spatial_embeddings.config.hidden_size, 0, self.config.hidden_size, 1)
+        self.retrieval_module = RetrievalModule(config)
 
         self.page_tokens = config.page_tokens
         self.max_doc_pages = config.max_doc_pages
@@ -179,6 +200,7 @@ class HiLT5(T5ForConditionalGeneration):
         decoder_inputs_embeds=None,
         labels=None,
         num_pages=None,
+        answer_page_idx=None,
         use_cache=None,
         output_attentions=None,
         output_hidden_states=None,
@@ -265,7 +287,6 @@ class HiLT5(T5ForConditionalGeneration):
             # TODO - Create the Multipage mask.
 
             """  ==== NEW ==== """
-            # Without question in decoder.
             document_embeddings = hidden_states
 
             attention_mask = torch.zeros([hidden_states.shape[0], self.page_tokens * max(num_pages)])
@@ -333,17 +354,19 @@ class HiLT5(T5ForConditionalGeneration):
 
         lm_logits = self.lm_head(sequence_output)
 
-        loss = None
+        loss, ret_loss, ret_logits = None, None, None
         if labels is not None:
             loss_fct = CrossEntropyLoss(ignore_index=-100)
             loss = loss_fct(lm_logits.view(-1, lm_logits.size(-1)), labels.view(-1))
             # TODO(thom): Add z_loss https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/layers.py#L666
 
+            ret_loss, ret_logits = self.retrieval_module(document_embeddings, answer_page_idx)
+
         if not return_dict:
             output = (lm_logits,) + decoder_outputs[1:] + encoder_outputs
             return ((loss,) + output) if loss is not None else output
 
-        return Seq2SeqLMOutput(
+        model_output = Seq2SeqLMOutput(
             loss=loss,
             logits=lm_logits,
             past_key_values=decoder_outputs.past_key_values,
@@ -354,6 +377,11 @@ class HiLT5(T5ForConditionalGeneration):
             encoder_hidden_states=encoder_outputs.hidden_states,
             encoder_attentions=encoder_outputs.attentions,
         )
+
+        model_output.ret_logits = ret_logits
+        model_output.ret_loss = ret_loss
+
+        return model_output
 
 
 class Proxy_HiLT5:
@@ -367,6 +395,7 @@ class Proxy_HiLT5:
         config_x = LayoutT5Config.from_pretrained(config['model_weights'])
         config_x.page_tokens = self.page_tokens
         config_x.max_doc_pages = self.max_doc_pages
+        config_x.page_retrieval_config = config['retrieval_module']
         self.tokenizer = T5Tokenizer.from_pretrained(config['model_weights'])
         self.tokenizer.add_tokens("[PAGE]")  # Single representation
         # [self.tokenizer.add_tokens("[PAGE_{:d}]".format(p)) for p in range(self.num_doc_cls_tokens)]  # Different representation
@@ -378,6 +407,7 @@ class Proxy_HiLT5:
         context = batch['contexts']
         answers = batch['answers']
         num_pages = batch['num_pages']
+        answer_page_idx = torch.LongTensor(batch['answer_page_idx']).to(self.model.device)
 
         page_token_box = [0, 0, 1000, 1000]
         question_box = [0, 0, 1000, 1000]
@@ -386,47 +416,9 @@ class Proxy_HiLT5:
 
         bs = len(context)
         if self.page_retrieval == 'logits':
-            pass
-            # outputs = []
-            # pred_answers = []
-            # pred_answer_pages = []
-            # for batch_idx in range(bs):
-            #     input_text = ["{:}: question: {:s}  context: {:s}".format("[PAGE]", q, c) for q, c in zip([question[batch_idx]]*len(context[batch_idx]), context[batch_idx])]
-            #     tokens = self.tokenizer(input_text, return_tensors='pt', padding=True, truncation=True).to(self.model.device)
-            #     boxes = torch.zeros([tokens.input_ids.shape[0], tokens.input_ids.shape[1], 4], dtype=torch.long)
-            #     boxes[:] = torch.tensor(padding_box)
-            #
-            #     question_boxes = torch.tensor([question_box] * len(self.tokenizer("question: {:s}  context: ".format(question[batch_idx])).input_ids[:-1]))
-            #     for page_idx in range(tokens.input_ids.shape[0]):
-            #         if len(batch['words'][batch_idx][page_idx]) >= 1:
-            #             context_boxes = torch.tensor(np.array([box for word, word_box in zip(batch['words'][batch_idx][page_idx], batch['boxes'][batch_idx][page_idx]) for box in [word_box] * len(self.tokenizer(word).input_ids[:-1])]))
-            #             context_boxes = context_boxes[:self.tokenizer.model_max_length - len(question_boxes) - 1]  # Remove boxes out of model max length.
-            #         else:
-            #             context_boxes = torch.tensor(padding_box)
-            #
-            #         boxes[page_idx, :len(question_boxes)] = question_boxes
-            #         boxes[page_idx, len(question_boxes): len(question_boxes) + len(context_boxes)] = context_boxes * 1000
-            #         boxes[page_idx, len(question_boxes) + len(context_boxes)] = torch.tensor(eos_box)
-            #
-            #     boxes = boxes.to(self.model.device)
-            #
-            #     max_logits = -999999
-            #     answer_page = None
-            #     best_answer = None
-            #     pred_answer, logits = self.get_answer_from_model_output(tokens, boxes)
-            #     for p_ix in range(len(input_text)):
-            #         if logits[p_ix] > max_logits:
-            #             max_logits = logits[p_ix]
-            #             answer_page = p_ix
-            #             best_answer = pred_answer[p_ix]
-            #
-            #     outputs.append(None)  # outputs.append(document_outputs)  # During inference outputs are not used.
-            #     # pred_answers.append(self.get_answer_from_model_output(document_outputs)[0] if return_pred_answer else None)
-            #     pred_answers.append(best_answer)
-            #     pred_answer_pages.append(answer_page)
+            raise ValueError("Logits set-up not available for Hi-LT5")
 
         else:
-
             input_ids, attention_mask = [], []
             longest_sequence = 0
 
@@ -489,7 +481,7 @@ class Proxy_HiLT5:
             labels.input_ids[labels.input_ids[:] == self.tokenizer.pad_token_id] = -100
             labels = labels.input_ids.to(self.model.device)
 
-            outputs = self.model(input_ids=all_input_ids, bbox=all_boxes, attention_mask=all_attention_masks, labels=labels, num_pages=num_pages)
+            outputs = self.model(input_ids=all_input_ids, bbox=all_boxes, attention_mask=all_attention_masks, labels=labels, num_pages=num_pages, answer_page_idx=answer_page_idx)
             # outputs = self.model(input_ids=tokens.input_ids, bbox=boxes, attention_mask=tokens.attention_mask, labels=labels, num_pages=batch['num_pages'])
             # pred_answers = self.get_answer_from_model_output(outputs) if return_pred_answer else None
             pred_answers, logits = self.get_answer_from_model_output(all_input_ids, all_boxes, all_attention_masks, num_pages) if return_pred_answer else None
@@ -498,7 +490,8 @@ class Proxy_HiLT5:
                 pred_answer_pages = batch['answer_page_idx']
 
             else:
-                pred_answer_pages = [-1 for _ in range(bs)]
+                # TODO change it from generation
+                pred_answer_pages = outputs.ret_logits.argmax(dim=-1)
 
         return outputs, pred_answers, pred_answer_pages
 

@@ -89,6 +89,7 @@ class MPDocVQA(Dataset):
 
         elif self.page_retrieval == 'custom':
             first_page, last_page = self.get_pages(record)
+            answer_page_idx = answer_page_idx - first_page
             num_pages = len(range(first_page, last_page))
 
             words = []
@@ -115,14 +116,14 @@ class MPDocVQA(Dataset):
             start_idxs, end_idxs = self._get_start_end_idx(context, answers)
 
         elif self.page_retrieval == 'logits':
-            start_idxs, end_idxs = self._get_start_end_idx(context[record['answer_page_idx']], answers)
+            start_idxs, end_idxs = self._get_start_end_idx(context[answer_page_idx], answers)
 
         sample_info = {'question_id': record['question_id'],
                        'questions': question,
                        'contexts': context,
                        # 'context_page_corresp': context_page_corresp,
                        'answers': answers,
-                       'answer_page_idx': record['answer_page_idx']
+                       'answer_page_idx': answer_page_idx
                        }
 
         if self.use_images:

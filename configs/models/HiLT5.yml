@@ -6,6 +6,10 @@ model_weights: weights/lt5_oracle_mp-docvqa__best.ckpt
 page_tokens: 3
 device: cuda
 
+retrieval_module:
+  loss: CrossEntropy
+  loss_weight: 0.25
+
 training_parameters:
   lr: 2e-4  # 2e-4
   batch_size: 3

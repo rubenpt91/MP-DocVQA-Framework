@@ -31,11 +31,9 @@ class Evaluator:
 
         return {'accuracy': batch_accuracy, 'anls': batch_anls}
 
-
     def get_retrieval_metric(self, gt_answer_page, pred_answer_page):
         retrieval_precision = [1 if gt == pred else 0 for gt, pred in zip(gt_answer_page, pred_answer_page)]
         return retrieval_precision
-
 
     def update_global_metrics(self, accuracy, anls, current_epoch):
         if accuracy > self.best_accuracy:

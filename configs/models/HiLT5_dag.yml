@@ -6,6 +6,10 @@ model_weights: t5-base
 page_tokens: 10
 device: cuda
 
+retrieval_module:
+  loss: CrossEntropy
+  loss_weight: 0.25
+
 training_parameters:
   lr: 2e-4  # 2e-4
   batch_size: 16
