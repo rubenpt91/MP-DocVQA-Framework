@@ -2,8 +2,9 @@ save_dir: save/
 model_name: Hi-LT5
 # model_weights: t5-base
 # model_weights: weights/t5_oracle_mp-docvqa__best.ckpt
-model_weights: weights/lt5_oracle_mp-docvqa__best.ckpt
-page_tokens: 3
+# model_weights: weights/lt5_oracle_mp-docvqa__best.ckpt
+model_weights: weights/hilt5_custom_mp-docvqa__best.ckpt
+page_tokens: 10
 device: cuda
 
 retrieval_module:

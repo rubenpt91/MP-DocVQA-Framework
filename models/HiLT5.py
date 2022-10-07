@@ -101,10 +101,7 @@ class RetrievalModule(nn.Module):
         self.retrieval_loss_weight = config.page_retrieval_config['loss_weight']
 
     def forward(self, document_embeddings, answer_page_idx):
-        document_embeddings = document_embeddings.view([len(document_embeddings), -1])
-        document_embeddings = F.pad(document_embeddings, (0, self.page_retrieval.in_features-document_embeddings.shape[-1]), "constant", 0)  # In case is the last batch
-
-        ret_logits = self.page_retrieval(document_embeddings)  # 10*2*512
+        ret_logits = self.page_retrieval(document_embeddings.view([len(document_embeddings), -1]))  # 10*2*512
         ret_loss = self.retrieval_criterion(ret_logits, answer_page_idx) * self.retrieval_loss_weight
 
         return ret_loss, ret_logits
@@ -402,8 +399,9 @@ class Proxy_HiLT5:
         self.tokenizer = T5Tokenizer.from_pretrained(config['model_weights'])
         self.tokenizer.add_tokens("[PAGE]")  # Single representation
         # [self.tokenizer.add_tokens("[PAGE_{:d}]".format(p)) for p in range(self.num_doc_cls_tokens)]  # Different representation
-        self.model = HiLT5.from_pretrained(config['model_weights'], config=config_x)
 
+        # Whenever the number of [PAGE] tokens or Max pages per document changes, the architecture also changes and therefore, it needs to be fine-tuned.
+        self.model = HiLT5.from_pretrained(config['model_weights'], config=config_x, ignore_mismatched_sizes=True)
 
     def forward(self, batch, return_pred_answer=False):
         question = batch['questions']
@@ -418,8 +416,11 @@ class Proxy_HiLT5:
         eos_box = [0, 0, 0, 0]
 
         bs = len(context)
-        if self.page_retrieval == 'logits':
-            raise ValueError("Logits set-up not available for Hi-LT5")
+        if self.page_retrieval == 'oracle':
+            raise ValueError("Oracle set-up not available for Hi-LT5. Instead, specify 'max_pages: 1' in dataset config with 'page_retrieval: custom'.")
+
+        elif self.page_retrieval in ['logits', 'concat']:
+            raise ValueError("{:s} set-up not available for Hi-LT5".format(self.page_retrieval.capitalize()))
 
         else:
             input_ids, attention_mask = [], []
@@ -439,13 +440,8 @@ class Proxy_HiLT5:
                 all_input_ids[batch_idx, :num_pages[batch_idx], :input_ids[batch_idx].shape[-1]] = input_ids[batch_idx]
                 all_attention_masks[batch_idx, :num_pages[batch_idx], :attention_mask[batch_idx].shape[-1]] = attention_mask[batch_idx]
 
-            # boxes = []
             all_boxes = torch.zeros([bs, max(num_pages), longest_sequence, 4], dtype=torch.long)
             for batch_idx in range(bs):
-                # document_boxes = torch.zeros([bs, num_pages[batch_idx], longest_sequence, 4], dtype=torch.long)
-                # document_boxes = torch.zeros([num_pages[batch_idx], longest_sequence, 4], dtype=torch.long)
-                # document_boxes[:] = torch.tensor(padding_box)
-
                 question_boxes = torch.tensor([question_box] * len(self.tokenizer("question: {:s}  context: ".format(question[batch_idx])).input_ids[:-1]))
 
                 for page_idx in range(num_pages[batch_idx]):
@@ -455,29 +451,15 @@ class Proxy_HiLT5:
                     else:
                         context_boxes = torch.tensor(padding_box)
 
-                    """
-                    document_boxes[page_idx, :self.page_tokens] = torch.tensor(page_token_box)
-                    document_boxes[page_idx, self.page_tokens: self.page_tokens+len(question_boxes)] = question_boxes
-                    document_boxes[page_idx, self.page_tokens + len(question_boxes): self.page_tokens+len(question_boxes)+len(context_boxes)] = context_boxes*1000
-
-                    document_boxes[page_idx, self.page_tokens + len(question_boxes) + len(context_boxes)] = torch.tensor(eos_box)
-                    """
-
                     all_boxes[batch_idx, page_idx, :self.page_tokens] = torch.tensor(page_token_box)
                     all_boxes[batch_idx, page_idx, self.page_tokens: self.page_tokens + len(question_boxes)] = question_boxes
                     all_boxes[batch_idx, page_idx, self.page_tokens + len(question_boxes): self.page_tokens + len(question_boxes) + len(context_boxes)] = context_boxes * 1000
 
                     all_boxes[batch_idx, page_idx, self.page_tokens + len(question_boxes) + len(context_boxes)] = torch.tensor(eos_box)
 
-                # document_boxes = document_boxes.to(self.model.device)
-                # boxes.append(document_boxes)
-
             all_input_ids = all_input_ids.to(self.model.device)
             all_boxes = all_boxes.to(self.model.device)
             all_attention_masks = all_attention_masks.to(self.model.device)
-            # batch_idx = 0
-            # page_idx = 0
-            # print(len(input_ids[batch_idx][page_idx]), len(attention_mask[batch_idx][page_idx]), len(boxes[batch_idx][page_idx]))
 
             answers = [random.choice(answer) for answer in answers]
             labels = self.tokenizer(answers, return_tensors='pt', padding=True)
@@ -485,37 +467,19 @@ class Proxy_HiLT5:
             labels = labels.input_ids.to(self.model.device)
 
             outputs = self.model(input_ids=all_input_ids, bbox=all_boxes, attention_mask=all_attention_masks, labels=labels, num_pages=num_pages, answer_page_idx=answer_page_idx)
-            # outputs = self.model(input_ids=tokens.input_ids, bbox=boxes, attention_mask=tokens.attention_mask, labels=labels, num_pages=batch['num_pages'])
-            # pred_answers = self.get_answer_from_model_output(outputs) if return_pred_answer else None
-            pred_answers, logits = self.get_answer_from_model_output(all_input_ids, all_boxes, all_attention_masks, num_pages) if return_pred_answer else None
+            pred_answers = self.get_answer_from_model_output(all_input_ids, all_boxes, all_attention_masks, num_pages) if return_pred_answer else None
 
             if self.page_retrieval == 'oracle':
                 pred_answer_pages = batch['answer_page_idx']
 
             else:
                 # TODO change it from generation
-                pred_answer_pages = outputs.ret_logits.argmax(dim=-1)
+                pred_answer_pages = outputs.ret_logits.argmax(dim=-1).tolist()
 
         return outputs, pred_answers, pred_answer_pages
 
     def get_answer_from_model_output(self, input_ids, boxes, attention_mask, num_pages):
-        bs = input_ids.shape[0]
         output = self.model.generate(input_ids=input_ids, bbox=boxes, attention_mask=attention_mask, num_pages=num_pages, output_scores=True, return_dict_in_generate=True)
         pred_answers = self.tokenizer.batch_decode(output['sequences'], skip_special_tokens=True)
 
-        """
-        logits = np.zeros(len(output['scores'][0]))
-        for seq_ix in range(len(output['scores'])):
-            seq_logits = output['scores'][seq_ix].max(dim=-1)
-            for batch_ix, token_id in enumerate(seq_logits.indices):
-                logits[batch_ix] += seq_logits.values[batch_ix] if token_id not in [self.tokenizer.pad_token_id] else 0
-        """
-
-        all_logits = torch.stack(output.scores)
-        best_logits = np.zeros(len(output['scores'][0]))
-        for seq_ix in range(len(output['scores'])):
-            for batch_ix in range(bs):
-                token_id = output.sequences[batch_ix, seq_ix+1]
-                best_logits[batch_ix] += all_logits[seq_ix, batch_ix, token_id] if token_id not in self.tokenizer.all_special_ids else 0
-
-        return pred_answers, best_logits
+        return pred_answers
