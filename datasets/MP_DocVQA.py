@@ -1,6 +1,7 @@
 
 import os
 import random
+from PIL import Image
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -128,6 +129,8 @@ class MPDocVQA(Dataset):
 
         if self.use_images:
             sample_info['image_names'] = image_names
+            sample_info['images'] = [Image.open(img_path).convert("RGB") for img_path in image_names]
+            sample_info['images'] += [Image.new('RGB', (0, 0)) for i in range(self.max_pages - len(image_names))]  # Pad with 0x0 images.
 
         if self.get_raw_ocr_data:
             sample_info['words'] = words

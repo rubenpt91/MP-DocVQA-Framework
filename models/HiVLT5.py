@@ -10,9 +10,15 @@ from torch.nn import CrossEntropyLoss
 from torch.nn import LayerNorm as BertLayerNorm
 
 from transformers import T5Config, T5Tokenizer, T5ForConditionalGeneration
+from transformers import ViTModel, ViTFeatureExtractor
+
 from transformers.modeling_outputs import Seq2SeqLMOutput, ModelOutput, BaseModelOutput
 
+from models.HiLT5 import SpatialEmbeddings, MLP, RetrievalModule
 import transformers.models.t5.modeling_t5
+
+
+from PIL import Image
 
 
 class LayoutT5Config(T5Config):
@@ -23,106 +29,43 @@ class LayoutT5Config(T5Config):
         self.layer_norm_eps = 1e-12
 
 
-class SpatialEmbeddings(nn.Module):
-    """
-    Spatial embedding by summing x, y, w, h projected by nn.Embedding to hidden size.
-    """
+class VisualEmbeddings(nn.Module):
 
-    def __init__(self, config):
-        super(SpatialEmbeddings, self).__init__()
+    def __init__(self, config, finetune=False):
+        super(VisualEmbeddings, self).__init__()
 
-        self.x_position_embeddings = nn.Embedding(
-            config.max_2d_position_embeddings, config.hidden_size
-        )
-        self.y_position_embeddings = nn.Embedding(
-            config.max_2d_position_embeddings, config.hidden_size
-        )
-        self.h_position_embeddings = nn.Embedding(
-            config.max_2d_position_embeddings, config.hidden_size
-        )
-        self.w_position_embeddings = nn.Embedding(
-            config.max_2d_position_embeddings, config.hidden_size
-        )
+        self.feature_extractor = ViTFeatureExtractor.from_pretrained(config.visual_module_config['model_weights'])
+        self.image_model = ViTModel.from_pretrained(config.visual_module_config['model_weights'])
 
-        self.LayerNorm = BertLayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        if not finetune:
+            self.freeze()
 
-        self.config = config
+    def freeze(self):
+        for p in self.image_model.parameters():
+            p.requires_grad = False
 
-    def forward(self, bbox):
-        left_position_embeddings = self.x_position_embeddings(bbox[:, :, 0])
-        upper_position_embeddings = self.y_position_embeddings(bbox[:, :, 1])
-        right_position_embeddings = self.x_position_embeddings(bbox[:, :, 2])
-        lower_position_embeddings = self.y_position_embeddings(bbox[:, :, 3])
+    def forward(self, images, page_idx_mask):
+        inputs = self.feature_extractor(images=images, return_tensors="pt")
+        vis_embeddings = self.image_model(inputs.pixel_values.to(self.image_model.device))
+        vis_embeddings = vis_embeddings.last_hidden_state  # BS; 16x16 + CLS; 768 (hidden size)
 
-        h_position_embeddings = self.h_position_embeddings(bbox[:, :, 3] - bbox[:, :, 1])  # TODO Remove width and height to test how much important are they.
-        w_position_embeddings = self.w_position_embeddings(bbox[:, :, 2] - bbox[:, :, 0])  # TODO Remove width and height to test how much important are they.
+        vis_attention_mask = torch.zeros(vis_embeddings.shape[:2]).to(self.image_model.device)
+        vis_attention_mask[page_idx_mask] = 1
 
-        embeddings = (
-                left_position_embeddings
-                + upper_position_embeddings
-                + right_position_embeddings
-                + lower_position_embeddings
-                + h_position_embeddings
-                + w_position_embeddings
-        )
-
-        embeddings = self.LayerNorm(embeddings)
-        embeddings = self.dropout(embeddings)
-        return embeddings
+        return vis_embeddings, vis_attention_mask
 
 
-class MLP(nn.Module):
-    """ Very simple multi-layer perceptron (also called FFN)"""
-
-    def __init__(self, input_dim, hidden_dim, output_dim, num_layers):
-        super().__init__()
-        self.num_layers = num_layers
-        h = [hidden_dim] * (num_layers - 1)
-        self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
-
-    def forward(self, x):
-        for i, layer in enumerate(self.layers):
-            x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
-        return x
-
-
-class RetrievalModule(nn.Module):
-
-    def __init__(self, config):
-        super(RetrievalModule, self).__init__()
-
-        self.page_retrieval = nn.Linear(config.max_doc_pages * config.page_tokens * config.hidden_size, config.max_doc_pages)
-        # TODO Check if BinaryCrossEntropy allows to extend to longer sequences.
-
-        if config.page_retrieval_config['loss'].lower() in ['ce', 'crossentropy', 'crossentropyloss']:
-            self.retrieval_criterion = CrossEntropyLoss()
-
-        self.retrieval_loss_weight = config.page_retrieval_config['loss_weight']
-
-    # def forward(self, document_embeddings, answer_page_idx):
-    #     ret_logits = self.page_retrieval(document_embeddings.view([len(document_embeddings), -1]))  # 10*2*512
-    #     ret_loss = self.retrieval_criterion(ret_logits, answer_page_idx) * self.retrieval_loss_weight
-    #
-    #     return ret_loss, ret_logits
-
-    def forward(self, document_embeddings, answer_page_idx):
-        document_embeddings = document_embeddings.view([len(document_embeddings), -1])
-        document_embeddings = F.pad(document_embeddings, (0, self.page_retrieval.in_features-document_embeddings.shape[-1]), "constant", 0)  # In case is the last batch
-
-        ret_logits = self.page_retrieval(document_embeddings)  # 10*2*512
-        ret_loss = self.retrieval_criterion(ret_logits, answer_page_idx) * self.retrieval_loss_weight
-
-        return ret_loss, ret_logits
-
-
-class HiLT5(T5ForConditionalGeneration):
+class HiVLT5(T5ForConditionalGeneration):
 
     def __init__(self, config):
         super().__init__(config)
         self.config = config
         self.spatial_embeddings = SpatialEmbeddings(config)
         self.emb_matcher = MLP(self.spatial_embeddings.config.hidden_size, 0, self.config.hidden_size, 1)
+
+        self.visual_embeddings = VisualEmbeddings(config, finetune=False)
+        # self.emb_matcher_img = MLP(self.visual_embeddings.image_model.config.hidden_size, 0, self.config.hidden_size, 1)  # Only if added?
+
         self.retrieval_module = RetrievalModule(config)
 
         self.page_tokens = config.page_tokens
@@ -134,19 +77,30 @@ class HiLT5(T5ForConditionalGeneration):
 
         # 2. prepare encoder args and encoder kwargs from model kwargs
         irrelevant_prefix = ["decoder_", "cross_attn", "use_cache"]
-        extra_kwargs_to_be_removed = ['bbox', 'attention_mask', 'num_pages']
+        extra_kwargs_to_be_removed = ['bbox', 'images', 'attention_mask', 'num_pages']
         encoder_kwargs = {argument: value for argument, value in model_kwargs.items() if not any(argument.startswith(p) for p in irrelevant_prefix + extra_kwargs_to_be_removed)}
 
         # 2.2 replace input ids by the hierarchical layout-aware input embeddings
+        bbox = model_kwargs['bbox']
+        images = model_kwargs['images']
+        num_pages = model_kwargs['num_pages']
+        attention_mask = model_kwargs['attention_mask']
+
         page_embeddings = []
         for p_idx in range(max(model_kwargs['num_pages'])):
             textual_emb = self.shared(inputs_tensor[:, p_idx])  # read from default T5
-            spatial_emb = self.emb_matcher(self.spatial_embeddings(model_kwargs['bbox'][:, p_idx]))
+            spatial_emb = self.emb_matcher(self.spatial_embeddings(bbox[:, p_idx]))
             inputs_embeds = textual_emb + spatial_emb
+
+            page_idx_mask = [batch_idx for batch_idx in range(len(num_pages)) if num_pages[batch_idx] >= p_idx + 1]
+            visual_emb, vis_mask = self.visual_embeddings([doc_images[p_idx] for doc_images in images], page_idx_mask=page_idx_mask)
+
+            inputs_embeds = torch.cat((inputs_embeds, visual_emb), dim=1)
+            inputs_mask = torch.cat((attention_mask[:, p_idx], vis_mask), dim=1)
 
             encoder_outputs = encoder(
                 input_ids=None,
-                attention_mask=model_kwargs['attention_mask'][:, p_idx],
+                attention_mask=inputs_mask,
                 inputs_embeds=inputs_embeds,
                 **encoder_kwargs
             )
@@ -197,6 +151,7 @@ class HiLT5(T5ForConditionalGeneration):
         self,
         input_ids=None,
         bbox=None,
+        images=None,
         attention_mask=None,
         decoder_input_ids=None,
         decoder_attention_mask=None,
@@ -262,9 +217,16 @@ class HiLT5(T5ForConditionalGeneration):
                 textual_emb = self.shared(input_ids[:, page_idx])  # read from default T5
                 spatial_emb = self.emb_matcher(self.spatial_embeddings(bbox[:, page_idx]))
                 inputs_embeds = textual_emb + spatial_emb
+
+                page_idx_mask = [batch_idx for batch_idx in range(len(num_pages)) if num_pages[batch_idx] >= page_idx+1]
+                visual_emb, vis_mask = self.visual_embeddings([doc_images[page_idx] for doc_images in images], page_idx_mask=page_idx_mask)
+                # TODO add spatial information of patches?
+
+                inputs_embeds = torch.cat((inputs_embeds, visual_emb), dim=1)
+                inputs_mask = torch.cat((attention_mask[:, page_idx], vis_mask), dim=1)
                 encoder_outputs = self.encoder(
                     input_ids=None,  # Input IDs must be None because input embeds is provided.
-                    attention_mask=attention_mask[:, page_idx],
+                    attention_mask=inputs_mask,
                     inputs_embeds=inputs_embeds,
                     head_mask=head_mask,
                     output_attentions=output_attentions,
@@ -393,7 +355,7 @@ class HiLT5(T5ForConditionalGeneration):
         return model_output
 
 
-class Proxy_HiLT5:
+class Proxy_HiVLT5:
 
     def __init__(self, config):
         self.batch_size = config['batch_size']
@@ -405,12 +367,13 @@ class Proxy_HiLT5:
         config_x.page_tokens = self.page_tokens
         config_x.max_doc_pages = self.max_doc_pages
         config_x.page_retrieval_config = config['retrieval_module']
+        config_x.visual_module_config = config['visual_module']
         self.tokenizer = T5Tokenizer.from_pretrained(config['model_weights'])
         self.tokenizer.add_tokens("[PAGE]")  # Single representation
         # [self.tokenizer.add_tokens("[PAGE_{:d}]".format(p)) for p in range(self.num_doc_cls_tokens)]  # Different representation
 
         # Whenever the number of [PAGE] tokens or Max pages per document changes, the architecture also changes and therefore, it needs to be fine-tuned.
-        self.model = HiLT5.from_pretrained(config['model_weights'], config=config_x, ignore_mismatched_sizes=True)
+        self.model = HiVLT5.from_pretrained(config['model_weights'], config=config_x, ignore_mismatched_sizes=True)
 
     def forward(self, batch, return_pred_answer=False):
         question = batch['questions']
@@ -450,9 +413,10 @@ class Proxy_HiLT5:
                 all_attention_masks[batch_idx, :num_pages[batch_idx], :attention_mask[batch_idx].shape[-1]] = attention_mask[batch_idx]
 
             all_boxes = torch.zeros([bs, max(num_pages), longest_sequence, 4], dtype=torch.long)
+            # images = []
             for batch_idx in range(bs):
                 question_boxes = torch.tensor([question_box] * len(self.tokenizer("question: {:s}  context: ".format(question[batch_idx])).input_ids[:-1]))
-
+                # images.append([Image.open(img_path).convert("RGB") for img_path in batch['image_names'][batch_idx]])  # TODO - Move to DataLoader
                 for page_idx in range(num_pages[batch_idx]):
                     if len(batch['words'][batch_idx][page_idx]) >= 1:
                         context_boxes = torch.tensor(np.array([box for word, word_box in zip(batch['words'][batch_idx][page_idx], batch['boxes'][batch_idx][page_idx]) for box in [word_box]*len(self.tokenizer(word).input_ids[:-1])]))
@@ -475,8 +439,8 @@ class Proxy_HiLT5:
             labels.input_ids[labels.input_ids[:] == self.tokenizer.pad_token_id] = -100
             labels = labels.input_ids.to(self.model.device)
 
-            outputs = self.model(input_ids=all_input_ids, bbox=all_boxes, attention_mask=all_attention_masks, labels=labels, num_pages=num_pages, answer_page_idx=answer_page_idx)
-            pred_answers = self.get_answer_from_model_output(all_input_ids, all_boxes, all_attention_masks, num_pages) if return_pred_answer else None
+            outputs = self.model(input_ids=all_input_ids, bbox=all_boxes, images=batch['images'], attention_mask=all_attention_masks, labels=labels, num_pages=num_pages, answer_page_idx=answer_page_idx)
+            pred_answers = self.get_answer_from_model_output(all_input_ids, all_boxes, batch['images'], all_attention_masks, num_pages) if return_pred_answer else None
 
             if self.page_retrieval == 'oracle':
                 pred_answer_pages = batch['answer_page_idx']
@@ -487,8 +451,8 @@ class Proxy_HiLT5:
 
         return outputs, pred_answers, pred_answer_pages
 
-    def get_answer_from_model_output(self, input_ids, boxes, attention_mask, num_pages):
-        output = self.model.generate(input_ids=input_ids, bbox=boxes, attention_mask=attention_mask, num_pages=num_pages, output_scores=True, return_dict_in_generate=True)
+    def get_answer_from_model_output(self, input_ids, boxes, images, attention_mask, num_pages):
+        output = self.model.generate(input_ids=input_ids, bbox=boxes, images=images, attention_mask=attention_mask, num_pages=num_pages, output_scores=True, return_dict_in_generate=True)
         pred_answers = self.tokenizer.batch_decode(output['sequences'], skip_special_tokens=True)
 
         return pred_answers

@@ -18,7 +18,7 @@ def build_optimizer(model, length_train_loader, config):
 
 def build_model(config):
 
-    available_models = ['BertQA', 'LayoutLMv2', 'LayoutLMv3', 'Longformer', 'BigBird', 'T5', 'LT5']
+    available_models = ['BertQA', 'LayoutLMv2', 'LayoutLMv3', 'Longformer', 'BigBird', 'T5', 'LT5', 'Hi-LT5', 'Hi-VLT5']
     if config['model_name'].lower() == 'bert' or config['model_name'].lower() == 'bertqa':
         from models.BertQA import BertQA
         model = BertQA(config)
@@ -52,6 +52,10 @@ def build_model(config):
         from models.HiLT5 import Proxy_HiLT5 as HiLT5
         model = HiLT5(config)
 
+    elif config['model_name'].lower() in ['hivlt5', 'hi-vlt5']:
+        from models.HiVLT5 import Proxy_HiVLT5 as HiVLT5
+        model = HiVLT5(config)
+
     else:
         raise ValueError("Value '{:s}' for model selection not expected. Please choose one of {:}".format(config['model_name'], ', '.join(available_models)))
 
@@ -72,15 +76,14 @@ def build_dataset(config, split):
 
     # Specify special params for data processing depending on the model used.
     dataset_kwargs = {}
-    if config['model_name'].lower() in ['layoutlmv2', 'layoutlmv3']:
+
+    if config['model_name'].lower() in ['layoutlmv2', 'layoutlmv3', 'lt5', 'hilt5', 'hi-lt5', 'hivlt5', 'hi-vlt5']:
+        dataset_kwargs['get_raw_ocr_data'] = True
+
+    if config['model_name'].lower() in ['layoutlmv2', 'layoutlmv3', 'hivlt5', 'hi-vlt5']:
         dataset_kwargs['use_images'] = True
-        dataset_kwargs['get_raw_ocr_data'] = True
 
-    elif config['model_name'].lower() == 'lt5':
-        dataset_kwargs['get_raw_ocr_data'] = True
-
-    elif config['model_name'].lower() in ['hilt5', 'hi-lt5']:
-        dataset_kwargs['get_raw_ocr_data'] = True
+    if config['model_name'].lower() in ['hilt5', 'hi-lt5', 'hivlt5', 'hi-vlt5']:
         dataset_kwargs['max_pages'] = config.get('max_pages', 1)
 
     # Build dataset
