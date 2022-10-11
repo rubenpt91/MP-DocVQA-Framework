@@ -108,9 +108,16 @@ class RetrievalModule(nn.Module):
 
     def forward(self, document_embeddings, answer_page_idx):
         document_embeddings = document_embeddings.view([len(document_embeddings), -1])
-        document_embeddings = F.pad(document_embeddings, (0, self.page_retrieval.in_features-document_embeddings.shape[-1]), "constant", 0)  # In case is the last batch
+        # document_embeddings = F.pad(document_embeddings, (0, self.page_retrieval.in_features-document_embeddings.shape[-1]), "constant", 0)  # In case is the last batch
 
-        ret_logits = self.page_retrieval(document_embeddings)  # 10*2*512
+        try:
+            ret_logits = self.page_retrieval(document_embeddings)  # 10*2*512
+
+        except:
+            pad_document_embeddings = torch.zeros([len(document_embeddings), self.page_retrieval.in_features], dtype=document_embeddings.dtype, device=document_embeddings.device)
+            pad_document_embeddings[:, :document_embeddings.shape[-1]] = document_embeddings
+            ret_logits = self.page_retrieval(pad_document_embeddings.to())  # 10*2*512
+
         ret_loss = self.retrieval_criterion(ret_logits, answer_page_idx) * self.retrieval_loss_weight
 
         return ret_loss, ret_logits
@@ -369,7 +376,10 @@ class HiLT5(T5ForConditionalGeneration):
             loss = loss_fct(lm_logits.view(-1, lm_logits.size(-1)), labels.view(-1))
             # TODO(thom): Add z_loss https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/layers.py#L666
 
-            ret_loss, ret_logits = self.retrieval_module(document_embeddings, answer_page_idx)
+            try:
+                ret_loss, ret_logits = self.retrieval_module(document_embeddings, answer_page_idx)
+            except:
+                ret_loss, ret_logits = self.retrieval_module(document_embeddings, answer_page_idx)
 
         if not return_dict:
             output = (lm_logits,) + decoder_outputs[1:] + encoder_outputs

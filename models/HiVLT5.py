@@ -47,7 +47,7 @@ class VisualEmbeddings(nn.Module):
     def forward(self, images, page_idx_mask):
         inputs = self.feature_extractor(images=images, return_tensors="pt")
         vis_embeddings = self.image_model(inputs.pixel_values.to(self.image_model.device))
-        vis_embeddings = vis_embeddings.last_hidden_state  # BS; 16x16 + CLS; 768 (hidden size)
+        vis_embeddings = vis_embeddings.last_hidden_state  # BS; 14x14+CLS (197); 768 (hidden size)
 
         vis_attention_mask = torch.zeros(vis_embeddings.shape[:2]).to(self.image_model.device)
         vis_attention_mask[page_idx_mask] = 1
