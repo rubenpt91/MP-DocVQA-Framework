@@ -15,13 +15,15 @@ def parse_args():
     parser.add_argument('-d', '--dataset', type=str, required=True, help='Path to yml file with dataset configuration.')
 
     # Optional
-    parser.add_argument('--eval_start', action='store_true', default=True, help='Whether to evaluate the model before training or not.')
-    parser.add_argument('--no-eval_start', dest='eval_start', action='store_false')
+    parser.add_argument('--eval-start', action='store_true', default=True, help='Whether to evaluate the model before training or not.')
+    parser.add_argument('--no-eval-start', dest='eval_start', action='store_false')
 
     # Overwrite config parameters
     parser.add_argument('-bs', '--batch-size', type=int, help='DataLoader batch size.')
     parser.add_argument('--seed', type=int, help='Seed to allow reproducibility.')
-    parser.add_argument('--data-parallel', help='Boolean to indicate to parallelize the execution.')
+
+    parser.add_argument('--data-parallel', action='store_true', help='Boolean to indicate to parallelize the execution.')
+    parser.add_argument('--no-data-parallel', action='store_false', dest='data_parallel', help='Boolean to indicate to parallelize the execution.')
     return parser.parse_args()
 
 
