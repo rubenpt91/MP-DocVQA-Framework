@@ -375,6 +375,9 @@ class Proxy_HiVLT5:
         # Whenever the number of [PAGE] tokens or Max pages per document changes, the architecture also changes and therefore, it needs to be fine-tuned.
         self.model = HiVLT5.from_pretrained(config['model_weights'], config=config_x, ignore_mismatched_sizes=True)
 
+    def parallelize(self):
+        self.model = nn.DataParallel(self.model)
+
     def forward(self, batch, return_pred_answer=False):
         question = batch['questions']
         context = batch['contexts']

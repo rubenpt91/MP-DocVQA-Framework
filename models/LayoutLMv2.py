@@ -1,7 +1,8 @@
-import re, random
+import random
 import numpy as np
 
 import torch
+import torch.nn as nn
 from transformers import LayoutLMv2Processor, LayoutLMv2ForQuestionAnswering
 from PIL import Image
 import cv2
@@ -23,6 +24,9 @@ class LayoutLMv2:
 
         # img = Image.open('/SSD2/MP-DocVQA/images/nkkh0227_p2.jpg')
         # self.processor(img, 'question', ['words'], boxes=[[1, 2, 3, 4]])
+
+    def parallelize(self):
+        self.model = nn.DataParallel(self.model)
 
     def forward(self, batch, return_pred_answer=False):
 

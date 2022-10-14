@@ -1,5 +1,6 @@
 import random
 import torch
+import torch.nn as nn
 import numpy as np
 from numpy.ma.core import outer
 from transformers import T5Tokenizer, T5ForConditionalGeneration
@@ -12,6 +13,9 @@ class T5:
         self.tokenizer = T5Tokenizer.from_pretrained(config['model_weights'])
         self.model = T5ForConditionalGeneration.from_pretrained(config['model_weights'])
         self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
+
+    def parallelize(self):
+        self.model = nn.DataParallel(self.model)
 
     def forward(self, batch, return_pred_answer=False):
         question = batch['questions']

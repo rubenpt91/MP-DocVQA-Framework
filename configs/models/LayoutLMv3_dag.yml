@@ -4,6 +4,7 @@ model_weights: microsoft/layoutlmv3-base  # 1e-4
 # model_weights: xhyi/layoutlmv3-large_docvqa_t13c11000
 # model_weights: save/checkpoints/layoutlmv3_oracle_mp-docvqa/best.ckpt/
 device: cuda
+data_parallel: True
 
 training_parameters:
   lr: 1e-4

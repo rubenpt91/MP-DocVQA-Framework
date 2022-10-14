@@ -5,6 +5,7 @@ model_weights: t5-base
 # model_weights: weights/lt5_oracle_mp-docvqa__best.ckpt
 page_tokens: 10
 device: cuda
+data_parallel: True
 
 retrieval_module:
   loss: CrossEntropy

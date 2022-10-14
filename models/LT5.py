@@ -310,6 +310,9 @@ class Proxy_LT5:
         self.model = LT5.from_pretrained(config['model_weights'], config=config_x)
         self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
 
+    def parallelize(self):
+        self.model = nn.DataParallel(self.model)
+
     def forward(self, batch, return_pred_answer=False):
         question = batch['questions']
         context = batch['contexts']

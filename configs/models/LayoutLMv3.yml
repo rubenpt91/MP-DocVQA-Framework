@@ -4,6 +4,7 @@ model_name: LayoutLMv3
 # model_weights: xhyi/layoutlmv3-large_docvqa_t13c11000
 model_weights: weights/layoutlmv3_oracle_mp-docvqa.ckpt
 device: cuda
+data_parallel: False
 
 training_parameters:
   lr: 1e-4

@@ -2,7 +2,8 @@ import re, random
 import numpy as np
 
 import torch
-from transformers import BigBirdTokenizer, BigBirdTokenizerFast, BigBirdForQuestionAnswering
+import torch.nn as nn
+from transformers import BigBirdTokenizerFast, BigBirdForQuestionAnswering
 from utils import correct_alignment
 
 
@@ -14,6 +15,9 @@ class BigBird:
         self.model = BigBirdForQuestionAnswering.from_pretrained(config['model_weights'])
         self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
         self.ignore_index = 9999  # 0
+
+    def parallelize(self):
+        self.model = nn.DataParallel(self.model)
 
     def forward(self, batch, return_pred_answer=False):
 

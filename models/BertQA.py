@@ -1,5 +1,7 @@
 import re, random
 import torch
+import torch.nn as nn
+
 import numpy as np
 from transformers import AutoModelForQuestionAnswering, AutoTokenizer
 from utils import correct_alignment
@@ -13,6 +15,9 @@ class BertQA:
         self.tokenizer = AutoTokenizer.from_pretrained(config['model_weights'])
         self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
         self.ignore_index = 9999  # 0
+
+    def parallelize(self):
+        self.model = nn.DataParallel(self.model)
 
     def forward(self, batch, return_pred_answer=False):
         question = batch['questions']

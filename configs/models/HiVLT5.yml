@@ -6,6 +6,7 @@ model_name: Hi-VLT5
 model_weights: weights/hilt5_custom_mp-docvqa__best.ckpt
 page_tokens: 10
 device: cuda
+data_parallel: False
 
 retrieval_module:
   loss: CrossEntropy

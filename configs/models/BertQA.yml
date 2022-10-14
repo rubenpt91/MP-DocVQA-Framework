@@ -6,6 +6,7 @@ model_weights: save/bert_weights/bert-large-squad-docvqa-finetuned
 # model_weights: weights/bertQA_oracle_mp-docvqa__epoch4
 # model_weights: weights/checkpoint-5000
 device: cuda
+data_parallel: False
 
 training_parameters:
   lr: 2e-4  # 2e-4

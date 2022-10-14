@@ -2,7 +2,8 @@ import re, random
 import numpy as np
 
 import torch
-from transformers import LongformerTokenizer, LongformerTokenizerFast, LongformerForQuestionAnswering
+import torch.nn as nn
+from transformers import LongformerTokenizerFast, LongformerForQuestionAnswering
 from utils import correct_alignment
 
 """ From https://colab.research.google.com/github/patil-suraj/Notebooks/blob/master/longformer_qa_training.ipynb#scrollTo=ON0le-uD4yiK
@@ -23,6 +24,9 @@ class Longformer:
         self.model = LongformerForQuestionAnswering.from_pretrained(config['model_weights'])
         self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
         self.ignore_index = 9999  # 0
+
+    def parallelize(self):
+        self.model = nn.DataParallel(self.model)
 
     def forward(self, batch, return_pred_answer=False):
         question = batch['questions']

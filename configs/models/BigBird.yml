@@ -4,6 +4,7 @@ model_name: BigBird
 # model_weights: google/bigbird-base-trivia-itc  # TriviaQA
 model_weights: weights/bigbird_oracle_mp-docvqa__best.ckpt
 device: cuda
+data_parallel: False
 
 training_parameters:
   lr: 1e-4  # 2e-4

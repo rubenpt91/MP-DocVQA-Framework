@@ -3,6 +3,7 @@ model_name: T5
 # model_weights: t5-base
 model_weights: weights/t5_oracle_mp-docvqa__best.ckpt
 device: cuda
+data_parallel: False
 
 training_parameters:
   lr: 2e-4  # 2e-4

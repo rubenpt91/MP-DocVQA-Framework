@@ -4,6 +4,7 @@ model_name: BertQA
 # model_weights: bert-large-uncased-whole-word-masking-finetuned-squad
 model_weights: save/bert_weights/x/bert-large-squad-docvqa-finetuned
 device: cuda
+data_parallel: True
 
 training_parameters:
   lr: 2e-4

@@ -1,5 +1,5 @@
 
-import importlib
+import torch
 import transformers
 
 from transformers import get_scheduler
@@ -58,6 +58,9 @@ def build_model(config):
 
     else:
         raise ValueError("Value '{:s}' for model selection not expected. Please choose one of {:}".format(config['model_name'], ', '.join(available_models)))
+
+    if config['device'] == 'cuda' and config['data_parallel'] and torch.cuda.device_count() > 1:
+        model.parallelize()
 
     model.model.to(config['device'])
     return model

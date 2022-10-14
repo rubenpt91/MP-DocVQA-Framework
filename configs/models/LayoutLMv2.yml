@@ -4,6 +4,7 @@ model_name: LayoutLMv2
 # model_weights: tiennvcs/layoutlmv2-base-uncased-finetuned-docvqa  # 5e-5
 model_weights: weights/layoutlmv2_oracle_mp-docvqa.ckpt
 device: cuda
+data_parallel: False
 
 training_parameters:
   lr: 1e-4  # 5e-5 From the ModelCard in Huggingface (https://huggingface.co/tiennvcs/layoutlmv2-base-uncased-finetuned-docvqa) -- 2e-4

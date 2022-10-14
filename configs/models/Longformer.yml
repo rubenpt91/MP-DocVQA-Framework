@@ -5,6 +5,7 @@ model_name: Longformer
 # model_weights: allenai/longformer-base-4096-finetuned-triviaqa
 model_weights: weights/longformer_oracle_mp-docvqa__best.ckpt
 device: cuda
+data_parallel: False
 
 training_parameters:
   lr: 1e-4  # 2e-4
