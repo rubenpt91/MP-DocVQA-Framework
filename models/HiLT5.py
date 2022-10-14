@@ -421,6 +421,7 @@ class Proxy_HiLT5:
 
         # Whenever the number of [PAGE] tokens or Max pages per document changes, the architecture also changes and therefore, it needs to be fine-tuned.
         self.model = HiLT5.from_pretrained(config['model_weights'], config=config_x, ignore_mismatched_sizes=True)
+        self.device = config['device']
 
     def parallelize(self):
         self.model = nn.DataParallel(self.model)
@@ -430,7 +431,7 @@ class Proxy_HiLT5:
         context = batch['contexts']
         answers = batch['answers']
         num_pages = batch['num_pages']
-        answer_page_idx = torch.LongTensor(batch['answer_page_idx']).to(self.model.device)
+        answer_page_idx = torch.LongTensor(batch['answer_page_idx']).to(self.device)
 
         page_token_box = [0, 0, 1000, 1000]
         question_box = [0, 0, 1000, 1000]
@@ -451,7 +452,7 @@ class Proxy_HiLT5:
             """ TODO - Set the max sequence length to N(512/1024) and simplify this triplicated loop."""
             for batch_idx in range(bs):
                 input_text = ["{:s}: question: {:s}  context: {:s}".format("[PAGE]" * self.page_tokens, question[batch_idx], c) for c in context[batch_idx]]
-                tokens = self.tokenizer(input_text, return_tensors='pt', padding=True, truncation=True).to(self.model.device)
+                tokens = self.tokenizer(input_text, return_tensors='pt', padding=True, truncation=True).to(self.device)
                 input_ids.append(tokens.input_ids)
                 attention_mask.append(tokens.attention_mask)
                 longest_sequence = max(longest_sequence, tokens.input_ids.shape[-1])
@@ -479,14 +480,14 @@ class Proxy_HiLT5:
 
                     all_boxes[batch_idx, page_idx, self.page_tokens + len(question_boxes) + len(context_boxes)] = torch.tensor(eos_box)
 
-            all_input_ids = all_input_ids.to(self.model.device)
-            all_boxes = all_boxes.to(self.model.device)
-            all_attention_masks = all_attention_masks.to(self.model.device)
+            all_input_ids = all_input_ids.to(self.device)
+            all_boxes = all_boxes.to(self.device)
+            all_attention_masks = all_attention_masks.to(self.device)
 
             answers = [random.choice(answer) for answer in answers]
             labels = self.tokenizer(answers, return_tensors='pt', padding=True)
             labels.input_ids[labels.input_ids[:] == self.tokenizer.pad_token_id] = -100
-            labels = labels.input_ids.to(self.model.device)
+            labels = labels.input_ids.to(self.device)
 
             outputs = self.model(input_ids=all_input_ids, bbox=all_boxes, attention_mask=all_attention_masks, labels=labels, num_pages=num_pages, answer_page_idx=answer_page_idx)
             pred_answers = self.get_answer_from_model_output(all_input_ids, all_boxes, all_attention_masks, num_pages) if return_pred_answer else None
