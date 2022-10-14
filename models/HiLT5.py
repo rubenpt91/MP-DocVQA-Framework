@@ -502,11 +502,7 @@ class Proxy_HiLT5:
         return outputs, pred_answers, pred_answer_pages
 
     def get_answer_from_model_output(self, input_ids, boxes, attention_mask, num_pages):
-        if isinstance(self.model, nn.DataParallel):
-            output = self.model.module.generate(input_ids=input_ids, bbox=boxes, attention_mask=attention_mask, num_pages=num_pages, output_scores=True, return_dict_in_generate=True)
-        else:
-            output = self.model.generate(input_ids=input_ids, bbox=boxes, attention_mask=attention_mask, num_pages=num_pages, output_scores=True, return_dict_in_generate=True)
-
+        output = self.model.generate(input_ids=input_ids, bbox=boxes, attention_mask=attention_mask, num_pages=num_pages, output_scores=True, return_dict_in_generate=True)
         pred_answers = self.tokenizer.batch_decode(output['sequences'], skip_special_tokens=True)
 
         return pred_answers

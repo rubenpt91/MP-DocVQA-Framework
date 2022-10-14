@@ -21,7 +21,7 @@ def parse_args():
     # Overwrite config parameters
     parser.add_argument('-bs', '--batch-size', type=int, help='DataLoader batch size.')
     parser.add_argument('--seed', type=int, help='Seed to allow reproducibility.')
-
+    parser.add_argument('--data-parallel', help='Boolean to indicate to parallelize the execution.')
     return parser.parse_args()
 
 
