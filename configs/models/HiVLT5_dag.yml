@@ -4,6 +4,7 @@ model_weights: t5-base
 # model_weights: weights/t5_oracle_mp-docvqa__best.ckpt
 # model_weights: weights/lt5_oracle_mp-docvqa__best.ckpt
 # model_weights: weights/hilt5_custom_mp-docvqa__best.ckpt
+freeze_encoder: False
 page_tokens: 10
 device: cuda
 data_parallel: True
