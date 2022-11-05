@@ -12,6 +12,8 @@ from torch.nn import LayerNorm as BertLayerNorm
 from transformers import T5Config, T5Tokenizer, T5ForConditionalGeneration
 from transformers import ViTModel, ViTFeatureExtractor
 
+from transformers import AutoFeatureExtractor, AutoModel
+
 from transformers.modeling_outputs import Seq2SeqLMOutput, ModelOutput, BaseModelOutput
 
 from models.HiLT5 import SpatialEmbeddings, MLP, RetrievalModule
@@ -34,8 +36,8 @@ class VisualEmbeddings(nn.Module):
     def __init__(self, config, finetune=False):
         super(VisualEmbeddings, self).__init__()
 
-        self.feature_extractor = ViTFeatureExtractor.from_pretrained(config.visual_module_config['model_weights'])
-        self.image_model = ViTModel.from_pretrained(config.visual_module_config['model_weights'])
+        self.feature_extractor = AutoFeatureExtractor.from_pretrained(config.visual_module_config['model_weights'])
+        self.image_model = AutoModel.from_pretrained(config.visual_module_config['model_weights'])
 
         if not finetune:
             self.freeze()

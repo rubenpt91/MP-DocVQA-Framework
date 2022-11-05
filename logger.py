@@ -16,9 +16,11 @@ class Logger:
 
         dataset = config['dataset_name']
         page_retrieval = config.get('page_retrieval', '-').capitalize()
+        visual_encoder = config.get('visual_module', {}).get('model', '-').upper()
 
         tags = [config['model_name'], dataset, machine]
-        config = {'Model': config['model_name'], 'Weights': config['model_weights'], 'Dataset': dataset, 'Page retrieval': page_retrieval,
+        config = {'Model': config['model_name'], 'Weights': config['model_weights'], 'Dataset': dataset,
+                  'Page retrieval': page_retrieval, 'Visual Encoder': visual_encoder,
                   'Batch size': config['batch_size'], 'lr': config['lr'], 'seed': config['seed']}
 
         self.logger = wb.init(project="DocCVQA_Baselines", name=self.experiment_name, dir=self.log_folder, tags=tags, config=config)
