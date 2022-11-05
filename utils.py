@@ -54,10 +54,10 @@ def seed_everything(seed):
 def check_config(config):
     model_name = config['model_name'].lower()
     page_retrieval = config.get('page_retrieval', '').lower()
-    if model_name not in ['hilt5', 'hi-lt5', 'hi-vlt5'] and page_retrieval == 'custom':
+    if model_name not in ['hi-layoutlmv3', 'hi-lt5', 'hi-vlt5'] and page_retrieval == 'custom':
         raise ValueError("'Custom' retrieval is not allowed for {:}".format(model_name))
 
-    elif model_name in ['hilt5', 'hi-lt5', 'hi-lt5'] and page_retrieval in ['concat', 'logits']:
+    elif model_name in ['hi-layoutlmv3, hilt5', 'hi-lt5', 'hi-lt5'] and page_retrieval in ['concat', 'logits']:
         raise ValueError("Hierarchical model {:} can't run on {:} retrieval type. Only 'oracle' and 'custom' are allowed.".format(model_name, page_retrieval))
 
     if page_retrieval in ['concat', 'logits'] and config.get('max_pages') is not None:

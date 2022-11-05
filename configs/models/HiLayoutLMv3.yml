@@ -1,0 +1,18 @@
+save_dir: save/
+model_name: Hi-LayoutLMv3
+# model_weights: microsoft/layoutlmv3-base  # 1e-4
+# model_weights: xhyi/layoutlmv3-large_docvqa_t13c11000
+model_weights: weights/layoutlmv3_oracle_mp-docvqa.ckpt
+page_tokens: 10
+device: cuda
+data_parallel: False
+
+# retrieval_module:
+#  loss: CrossEntropy
+#  loss_weight: 0.25
+
+training_parameters:
+  lr: 1e-4
+  batch_size: 2
+  train_epochs: 10
+  warmup_iterations: 1000

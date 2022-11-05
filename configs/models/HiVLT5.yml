@@ -14,7 +14,10 @@ retrieval_module:
   loss_weight: 0.25
 
 visual_module:
-  model_weights: 'google/vit-base-patch16-224-in21k'
+#  model: 'vit'
+#  model_weights: 'google/vit-base-patch16-224-in21k'
+  model: 'dit'
+  model_weights: 'microsoft/dit-base-finetuned-rvlcdip'
 
 training_parameters:
   lr: 2e-4  # 2e-4

@@ -40,6 +40,7 @@ class MPDocVQA(Dataset):
 
             if self.use_images:
                 image_names = os.path.join(self.images_dir, "{:s}.jpg".format(record['image_name'][answer_page_idx]))
+                images = Image.open(image_names).convert("RGB")
 
             if self.get_raw_ocr_data:
                 words = [word.lower() for word in record['ocr_tokens'][answer_page_idx]]
@@ -58,6 +59,7 @@ class MPDocVQA(Dataset):
 
             if self.use_images:
                 image_names = [os.path.join(self.images_dir, "{:s}.jpg".format(image_name)) for image_name in record['image_name']]
+                images = [Image.open(img_path).convert("RGB") for img_path in image_names]
 
             if self.get_raw_ocr_data:
                 words, boxes = [], []
@@ -81,6 +83,7 @@ class MPDocVQA(Dataset):
 
             if self.use_images:
                 image_names = [os.path.join(self.images_dir, "{:s}.jpg".format(image_name)) for image_name in record['image_name']]
+                images = [Image.open(img_path).convert("RGB") for img_path in image_names]
 
             if self.get_raw_ocr_data:
                 words = []
@@ -98,20 +101,22 @@ class MPDocVQA(Dataset):
             context = []
             image_names = []
 
-            try:
-                for page_ix in range(first_page, last_page):
-                    words.append([word.lower() for word in record['ocr_tokens'][page_ix]])
-                    boxes.append(record['ocr_normalized_boxes'][page_ix])
-                    context.append(' '.join([word.lower() for word in record['ocr_tokens'][page_ix]]))
-                    image_names.append(os.path.join(self.images_dir, "{:s}.jpg".format(record['image_name'][page_ix])))
-            except IndexError:
-                for page_ix in range(first_page, last_page):
-                    words.append([word.lower() for word in record['ocr_tokens'][page_ix]])
-                    boxes.append(record['ocr_normalized_boxes'][page_ix])
-                    context.append(' '.join([word.lower() for word in record['ocr_tokens'][page_ix]]))
+            for page_ix in range(first_page, last_page):
+                words.append([word.lower() for word in record['ocr_tokens'][page_ix]])
+                boxes.append(np.array(record['ocr_normalized_boxes'][page_ix], dtype=np.float32))
+                context.append(' '.join([word.lower() for word in record['ocr_tokens'][page_ix]]))
                 image_names.append(os.path.join(self.images_dir, "{:s}.jpg".format(record['image_name'][page_ix])))
 
             context_page_corresp = None
+
+            if num_pages < self.max_pages:
+                for _ in range(self.max_pages - num_pages):
+                    words.append([''])
+                    boxes.append(np.zeros([1, 4], dtype=np.float32))
+
+            if self.use_images:
+                images = [Image.open(img_path).convert("RGB") for img_path in image_names]
+                images += [Image.new('RGB', (0, 0)) for i in range(self.max_pages - len(image_names))]  # Pad with 0x0 images.
 
         if self.page_retrieval == 'oracle' or self.page_retrieval == 'concat':
             start_idxs, end_idxs = self._get_start_end_idx(context, answers)
@@ -129,8 +134,7 @@ class MPDocVQA(Dataset):
 
         if self.use_images:
             sample_info['image_names'] = image_names
-            sample_info['images'] = [Image.open(img_path).convert("RGB") for img_path in image_names]
-            sample_info['images'] += [Image.new('RGB', (0, 0)) for i in range(self.max_pages - len(image_names))]  # Pad with 0x0 images.
+            sample_info['images'] = images
 
         if self.get_raw_ocr_data:
             sample_info['words'] = words

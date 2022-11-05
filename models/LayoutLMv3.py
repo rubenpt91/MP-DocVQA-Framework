@@ -73,7 +73,7 @@ class LayoutLMv3:
         else:
 
             if self.page_retrieval in ['oracle', None]:
-                images = [Image.open(img_path).convert("RGB") for img_path in batch['image_names']]
+                images = batch['images']
 
             elif self.page_retrieval == 'concat':
 
@@ -81,7 +81,7 @@ class LayoutLMv3:
                 for batch_idx in range(bs):
                     images.append(self.get_concat_v_multi_resize([Image.open(img_path).convert("RGB") for img_path in batch['image_names'][batch_idx]]))  # Concatenate images vertically.
 
-            boxes = [(bbox * 1000).astype(int) for bbox in batch['boxes']]
+            boxes = [(bbox * 1000).astype(int) for bbox in batch['boxes']]  # Scale boxes 0->1 to 0-->1000.
             encoding = self.processor(images, question, batch["words"], boxes=boxes, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
 
             start_pos, end_pos = self.get_start_end_idx(encoding, context, answers)
