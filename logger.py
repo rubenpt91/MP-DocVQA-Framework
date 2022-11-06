@@ -18,10 +18,18 @@ class Logger:
         page_retrieval = config.get('page_retrieval', '-').capitalize()
         visual_encoder = config.get('visual_module', {}).get('model', '-').upper()
 
+        document_pages = config.get('max_pages', None)
+        page_tokens = config.get('page_tokens', None)
         tags = [config['model_name'], dataset, machine]
         config = {'Model': config['model_name'], 'Weights': config['model_weights'], 'Dataset': dataset,
                   'Page retrieval': page_retrieval, 'Visual Encoder': visual_encoder,
                   'Batch size': config['batch_size'], 'lr': config['lr'], 'seed': config['seed']}
+
+        if document_pages:
+            config['Max Pages'] = document_pages
+
+        if page_tokens:
+            config['PAGE tokens'] = page_tokens
 
         self.logger = wb.init(project="DocCVQA_Baselines", name=self.experiment_name, dir=self.log_folder, tags=tags, config=config)
         self._print_config(config)

@@ -27,8 +27,23 @@ class MPDocVQA(Dataset):
     def __len__(self):
         return len(self.imdb)
 
+    def sample(self, idx=None, question_id=None):
+
+        if idx:
+            return self.__getitem__(idx)
+
+        if question_id:
+            for idx in range(self.__len__()):
+                record = self.imdb[idx]
+                if record['question_id'] == question_id:
+                    return self.__getitem__(idx)
+
+        idx = random.randint(0, self.__len__())
+        return self.__getitem__(idx)
+
     def __getitem__(self, idx):
         record = self.imdb[idx]
+
         question = record['question']
         answers = list(set(answer.lower() for answer in record['answers']))
         answer_page_idx = record['answer_page_idx']

@@ -1,23 +1,19 @@
 import random
-from pydoc import doc
-
 import numpy as np
 
 import torch
 import torch.nn as nn
 from transformers import LayoutLMv3Processor, LayoutLMv3ForQuestionAnswering, LayoutLMv3Model
 # from transformers import LayoutLMv3Processor, LayoutLMv3ForQuestionAnswering, LayoutLMv3Model
-from transformers.modeling_outputs import BaseModelOutput, Seq2SeqLMOutput, QuestionAnsweringModelOutput
+from transformers.modeling_outputs import BaseModelOutput, QuestionAnsweringModelOutput
 from transformers.models.layoutlmv3.modeling_layoutlmv3 import LayoutLMv3ClassificationHead
 from utils import correct_alignment
 from torch.nn import CrossEntropyLoss
 
-from transformers import T5Tokenizer, T5ForConditionalGeneration
 
 from transformers.models.layoutlmv3.modeling_layoutlmv3 import LayoutLMv3Model  # TODO Remove
 # from transformers.models.layoutlmv3.processing_layoutlmv3 import LayoutLMv3Processor    # TODO Remove
 
-from models.HiLT5 import RetrievalModule
 
 class HiLayoutLMv3Model(LayoutLMv3Model):
 
@@ -218,74 +214,28 @@ class HiLayoutLMv3Model(LayoutLMv3Model):
         )
 
 
-class HiLayoutLMv3Decoder(LayoutLMv3ClassificationHead):
+class HiLayoutLMv3ClassificationHead(LayoutLMv3ClassificationHead):
 
-    def __init__(self, config, project_config):
-        super().__init__(config, pool_feature=False)
-
-        self.device = project_config['device']
-        t5 = T5ForConditionalGeneration.from_pretrained(project_config['decoder_module']['decoder_weights'])
-        self.t5_decoder = t5.decoder.to(self.device)
-        self.t5_lm_head = t5.lm_head.to(self.device)
-        self.model_dim = t5.model_dim
-        self.tie_word_embeddings = t5.config.tie_word_embeddings
-
-    def forward(self, document_embeddings, attention_mask, answer_tokens):
-
-        decoder_input_ids = self.t5_decoder._shift_right(answer_tokens)
-        decoder_outputs = self.t5_decoder(
-            input_ids=decoder_input_ids,
-            attention_mask=None,
-            inputs_embeds=None,
-            past_key_values=None,
-            encoder_hidden_states=document_embeddings,  # Previous 'hidden states' in original T5
-            encoder_attention_mask=attention_mask,  # Multi-page attention mask.
-            head_mask=None,
-            cross_attn_head_mask=None,
-            use_cache=True,  # ??
-            output_attentions=None,
-            output_hidden_states=None,
-            return_dict=True,
-        )
-
-        sequence_output = decoder_outputs[0]
-
-        """
-        # Set device for model parallelism
-        if self.decoder.model_parallel:
-            torch.cuda.set_device(self.decoder.first_device)
-            self.t5_lm_head = self.t5_lm_head.to(self.decoder.first_device)
-            sequence_output = sequence_output.to(self.lm_head.weight.device)
-        """
-
-        if self.tie_word_embeddings:
-            # Rescale output before projecting on vocab
-            # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/transformer/transformer.py#L586
-            sequence_output = sequence_output * (self.model_dim ** -0.5)
-
-        lm_logits = self.t5_lm_head(sequence_output)
-
-        return lm_logits
+    def __init__(self, config, pool_feature=False):
+        super().__init__(config, pool_feature)
 
 
 class HiLayoutLMv3(LayoutLMv3ForQuestionAnswering):
 
-    def __init__(self, pretrained_config, project_config):
+    def __init__(self, config, page_tokens):
         # config.vocab_size = 50270
         # config.vocab_size = 50300
-        super().__init__(pretrained_config)
+        super().__init__(config)
 
-        self.num_labels = pretrained_config.num_labels
-        self.page_tokens = project_config['page_tokens']
-        pretrained_config.max_doc_pages = project_config['max_pages']
-        pretrained_config.page_tokens = project_config['page_tokens']
-        pretrained_config.page_retrieval_config = project_config['retrieval_module']
+        self.num_labels = config.num_labels
+        self.page_tokens = page_tokens
+        config.page_tokens = page_tokens
 
-        self.layoutlmv3 = HiLayoutLMv3Model(pretrained_config)
-        self.decoder = HiLayoutLMv3Decoder(pretrained_config, project_config=project_config)
-        self.retrieval_module = RetrievalModule(pretrained_config)
+        self.layoutlmv3 = HiLayoutLMv3Model(config)
+        self.qa_outputs = HiLayoutLMv3ClassificationHead(config, pool_feature=False)
 
         self.init_weights()
+
 
     def forward(
         self,
@@ -302,8 +252,6 @@ class HiLayoutLMv3(LayoutLMv3ForQuestionAnswering):
         return_dict=None,
         bbox=None,
         pixel_values=None,
-        answer_tokens=None,
-        answer_page_idx=None,
         num_pages=None,
     ):
         r"""
@@ -349,49 +297,10 @@ class HiLayoutLMv3(LayoutLMv3ForQuestionAnswering):
 
         document_embeddings = torch.cat(page_embeddings, dim=1)
         """
-        document_embeddings = torch.cat(page_embeddings, dim=1)
-        document_attention_mask = torch.zeros([len(document_embeddings), self.page_tokens*max(num_pages)], dtype=torch.long, device=document_embeddings.device)
-        for batch_idx in range(len(document_embeddings)):
-            document_attention_mask[:self.page_tokens * num_pages[batch_idx]] = 1
-
-        # logits = self.qa_outputs(document_embeddings)
-        # decoder_outputs = self.decoder(document_embeddings, document_attention_mask, answer_tokens)
-        lm_logits = self.decoder(document_embeddings, document_attention_mask, answer_tokens)
-
-        # document_embeddings_x = torch.cat(page_embeddings_x, dim=1)
+        # document_embeddings = torch.cat(page_embeddings, dim=1)
+        document_embeddings_x = torch.cat(page_embeddings_x, dim=1)
         # logits = self.qa_outputs(document_embeddings_x)
-
-        """ From T5, decoder post-processing: """
-
-
-        loss, ret_loss, ret_logits = None, None, None
-        if answer_tokens is not None:
-            loss_fct = CrossEntropyLoss(ignore_index=-100)
-            loss = loss_fct(lm_logits.view(-1, lm_logits.size(-1)), answer_tokens.view(-1))
-
-            ret_loss, ret_logits = self.retrieval_module(document_embeddings, answer_page_idx)
-
-        if not return_dict:
-            output = (lm_logits,)
-            return ((loss,) + output) if loss is not None else output
-
-        model_output = Seq2SeqLMOutput(
-            loss=loss,
-            logits=lm_logits,
-            # past_key_values=decoder_outputs.past_key_values,
-            # decoder_hidden_states=decoder_outputs.hidden_states,
-            # decoder_attentions=decoder_outputs.attentions,
-            # cross_attentions=decoder_outputs.cross_attentions,
-            # encoder_last_hidden_state=encoder_outputs.last_hidden_state,
-            # encoder_hidden_states=encoder_outputs.hidden_states,
-            # encoder_attentions=encoder_outputs.attentions,
-        )
-
-        model_output.ret_logits = ret_logits
-        model_output.ret_loss = ret_loss
-
-        return model_output
-        """
+        logits = self.qa_outputs(document_embeddings_x)
         start_logits, end_logits = logits.split(1, dim=-1)
         start_logits = start_logits.squeeze(-1).contiguous()
         end_logits = end_logits.squeeze(-1).contiguous()
@@ -424,7 +333,6 @@ class HiLayoutLMv3(LayoutLMv3ForQuestionAnswering):
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
         )
-        """
 
 
 class Proxy_HiLayoutLMv3:
@@ -433,17 +341,11 @@ class Proxy_HiLayoutLMv3:
         self.batch_size = config['batch_size']
         self.processor = LayoutLMv3Processor.from_pretrained(config['model_weights'], apply_ocr=False)
         self.processor.tokenizer.add_tokens("[PAGE]")
-        self.device = config['device']
 
         try:
-            self.t5_tokenizer = T5Tokenizer.from_pretrained(config['decoder_module']['decoder_weights'])  # TODO - Improve it -- Pre-trained / Local, etc.
-        except TypeError:
-            self.t5_tokenizer = T5Tokenizer.from_pretrained(config['decoder_module']['decoder_weights'])  # TODO - Improve it -- Pre-trained / Local, etc.
-
-        try:
-            self.model = HiLayoutLMv3.from_pretrained(config['model_weights'], project_config=config)
+            self.model = HiLayoutLMv3.from_pretrained(config['model_weights'], page_tokens=config['page_tokens'])
         except RuntimeError:
-            self.model = HiLayoutLMv3.from_pretrained(config['model_weights'], project_config=config, ignore_mismatched_sizes=True)
+            self.model = HiLayoutLMv3.from_pretrained(config['model_weights'], page_tokens=config['page_tokens'], ignore_mismatched_sizes=True)
 
             x = torch.load('weights/layoutlmv3_oracle_mp-docvqa.ckpt/pytorch_model.bin')
             previous_embedding_size = x['layoutlmv3.embeddings.word_embeddings.weight'].shape[0]
@@ -491,6 +393,7 @@ class Proxy_HiLayoutLMv3:
             except AttributeError:
                 boxes.append([(box * 1000).astype(int) for box in doc_boxes])
 
+
         longest_sequence = 0
         input_ids, attention_mask, bboxes, pixel_values = [], [], [], []
         documents_num_tokens = []
@@ -520,10 +423,10 @@ class Proxy_HiLayoutLMv3:
             all_boxes[batch_idx, :num_pages[batch_idx], :input_ids[batch_idx].shape[-1]] = bboxes[batch_idx][:num_pages[batch_idx]]
             all_pixel_values[batch_idx, :num_pages[batch_idx]] = pixel_values[batch_idx][:num_pages[batch_idx]]
 
-        all_input_ids = all_input_ids.to(self.device)
-        all_attention_masks = all_attention_masks.to(self.device)
-        all_boxes = all_boxes.to(self.device)
-        all_pixel_values = all_pixel_values.to(self.device)
+        all_input_ids = all_input_ids.to(self.model.device)
+        all_attention_masks = all_attention_masks.to(self.model.device)
+        all_boxes = all_boxes.to(self.model.device)
+        all_pixel_values = all_pixel_values.to(self.model.device)
 
         # Get answer start and end token position.
         # answer_page_words = [batch["words"][batch_idx][answer_pages_idx[batch_idx]] for batch_idx in range(bs)]
@@ -535,12 +438,6 @@ class Proxy_HiLayoutLMv3:
         start_pos, end_pos = self.get_start_end_idx(padded_encoding, answers)  # TODO --> Adapt to multipage
         # start_pos, end_pos = self.get_start_end_idx(answer_page_encoding, answers, documents_num_tokens, answer_pages_idx)  # TODO --> Adapt to multipage
 
-        answers = [random.choice(answer) for answer in answers]
-        labels = self.t5_tokenizer(answers, return_tensors='pt', padding=True)
-        labels.input_ids[labels.input_ids[:] == self.t5_tokenizer.pad_token_id] = -100
-        labels = labels.input_ids.to(self.device)
-        answer_pages_idx = torch.tensor(answer_pages_idx, dtype=torch.long).to(self.device)
-
         # outputs = self.model(**encoding, start_positions=start_pos, end_positions=end_pos)
         outputs = self.model(input_ids=all_input_ids,
                              attention_mask=all_attention_masks,
@@ -548,11 +445,9 @@ class Proxy_HiLayoutLMv3:
                              pixel_values=all_pixel_values,
                              num_pages=num_pages,
                              start_positions=start_pos,
-                             end_positions=end_pos,
-                             answer_tokens=labels,
-                             answer_page_idx=answer_pages_idx)
+                             end_positions=end_pos)
 
-        pred_answers, pred_answer_pages = self.get_answer_from_model_output(outputs) if return_pred_answer else None
+        pred_answers, pred_answer_pages = self.get_answer_from_model_output(padded_encoding, outputs, context_page_corresp) if return_pred_answer else None
 
         # if self.page_retrieval == 'oracle':
         #     pred_answer_pages = batch['answer_page_idx']
@@ -591,8 +486,8 @@ class Proxy_HiLayoutLMv3:
                 answer_pos = random.choice(answer_pos)  # To add variability, pick a random correct span.
                 pos_idx.append(answer_pos)
 
-        start_idxs = torch.LongTensor([idx[0] for idx in pos_idx]).to(self.device)
-        end_idxs = torch.LongTensor([idx[1] for idx in pos_idx]).to(self.device)
+        start_idxs = torch.LongTensor([idx[0] for idx in pos_idx]).to(self.model.device)
+        end_idxs = torch.LongTensor([idx[1] for idx in pos_idx]).to(self.model.device)
 
         return start_idxs, end_idxs
 
@@ -635,17 +530,11 @@ class Proxy_HiLayoutLMv3:
     #             # pos_idx.append(answer_pos)
     #             pos_idx.append([pos+trailing_tokens for pos in answer_pos])
     #
-    #     start_idxs = torch.LongTensor([idx[0] for idx in pos_idx]).to(self.device)
-    #     end_idxs = torch.LongTensor([idx[1] for idx in pos_idx]).to(self.device)
+    #     start_idxs = torch.LongTensor([idx[0] for idx in pos_idx]).to(self.model.device)
+    #     end_idxs = torch.LongTensor([idx[1] for idx in pos_idx]).to(self.model.device)
     #
     #     return start_idxs, end_idxs
 
-    def get_answer_from_model_output(self, outputs):
-        answers = self.t5_tokenizer.batch_decode(outputs.logits.argmax(-1))
-        answer_pages = outputs.ret_logits.argmax(-1)
-        return answers, answer_pages
-
-    """
     def get_answer_from_model_output(self, input_tokens, outputs, context_page_corresp):
         bs = len(input_tokens)
         start_idxs = torch.argmax(outputs.start_logits, axis=1)
@@ -654,4 +543,3 @@ class Proxy_HiLayoutLMv3:
         answers = [self.processor.tokenizer.decode(input_tokens[batch_idx][start_idxs[batch_idx]: end_idxs[batch_idx]+1]).strip() for batch_idx in range(bs)]
         answer_pages = [context_page_corresp[batch_idx][start_idxs[batch_idx]].item() for batch_idx in range(bs)]
         return answers, answer_pages
-    """

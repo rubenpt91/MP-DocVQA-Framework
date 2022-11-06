@@ -7,9 +7,12 @@ page_tokens: 10
 device: cuda
 data_parallel: False
 
-# retrieval_module:
-#  loss: CrossEntropy
-#  loss_weight: 0.25
+decoder_module:
+  decoder_weights: 't5-base'
+
+retrieval_module:
+  loss: CrossEntropy
+  loss_weight: 0.25
 
 training_parameters:
   lr: 1e-4
