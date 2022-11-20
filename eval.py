@@ -118,6 +118,7 @@ if __name__ == '__main__':
 
     experiment_date = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     results_file = os.path.join(config['save_dir'], 'results', "{:}_{:}_{:}__{:}.json".format(config['model_name'], config['dataset_name'], config.get('page_retrieval', '').lower(), experiment_date))
+    print("Results correctly saved in: {:s}".format(results_file))
 
     save_json(results_file, save_data)
 

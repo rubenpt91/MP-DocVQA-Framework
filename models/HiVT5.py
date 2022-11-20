@@ -54,6 +54,9 @@ class VisualEmbeddings(nn.Module):
         vis_attention_mask = torch.zeros(vis_embeddings.shape[:2]).to(self.image_model.device)
         vis_attention_mask[page_idx_mask] = 1
 
+        # self.emb_matcher_img = MLP(self.image_model.config.hidden_size, 0, self.mmt.config.hidden_size, 1)
+        # fwd_results['img_feat'] = self.emb_matcher_img(fwd_results['out_image'])
+
         return vis_embeddings, vis_attention_mask
 
 
@@ -63,7 +66,8 @@ class HiVLT5(T5ForConditionalGeneration):
         super().__init__(config)
         self.config = config
         self.spatial_embeddings = SpatialEmbeddings(config)
-        self.emb_matcher = MLP(self.spatial_embeddings.config.hidden_size, 0, self.config.hidden_size, 1)
+        self.spatial_emb_matcher = MLP(self.spatial_embeddings.config.hidden_size, 0, self.config.hidden_size, 1)
+        self.visual_emb_matcher = MLP(self.spatial_embeddings.config.hidden_size, 0, self.config.hidden_size, 1)
 
         self.visual_embeddings = VisualEmbeddings(config, finetune=False)
         # self.emb_matcher_img = MLP(self.visual_embeddings.image_model.config.hidden_size, 0, self.config.hidden_size, 1)  # Only if added?
@@ -217,11 +221,12 @@ class HiVLT5(T5ForConditionalGeneration):
             # for page_idx in range(self.max_doc_pages):
             for page_idx in range(max(num_pages)):
                 textual_emb = self.shared(input_ids[:, page_idx])  # read from default T5
-                spatial_emb = self.emb_matcher(self.spatial_embeddings(bbox[:, page_idx]))
+                spatial_emb = self.spatial_emb_matcher(self.spatial_embeddings(bbox[:, page_idx]))
                 inputs_embeds = textual_emb + spatial_emb
 
                 page_idx_mask = [batch_idx for batch_idx in range(len(num_pages)) if num_pages[batch_idx] >= page_idx+1]
                 visual_emb, vis_mask = self.visual_embeddings([doc_images[page_idx] for doc_images in images], page_idx_mask=page_idx_mask)
+                visual_emb = self.visual_emb_matcher(visual_emb)
                 # TODO add spatial information of patches?
 
                 inputs_embeds = torch.cat((inputs_embeds, visual_emb), dim=1)

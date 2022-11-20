@@ -1,4 +1,4 @@
-import random
+import ast, random
 
 import os, yaml, json
 import argparse
@@ -25,6 +25,26 @@ def parse_args():
     parser.add_argument('--data-parallel', action='store_true', help='Boolean to indicate to parallelize the execution.')
     parser.add_argument('--no-data-parallel', action='store_false', dest='data_parallel', help='Boolean to indicate to parallelize the execution.')
     return parser.parse_args()
+
+
+def parse_multitype2list_arg(argument):
+    if argument is None:
+        return argument
+
+    if '-' in argument and '[' in argument and ']' in argument:
+        first, last = argument.strip('[]').split('-')
+        argument = list(range(int(first), int(last)))
+        return argument
+
+    argument = ast.literal_eval(argument)
+
+    if isinstance(argument, int):
+        argument = [argument]
+
+    elif isinstance(argument, list):
+        argument = argument
+
+    return argument
 
 
 def save_json(path, data):
@@ -54,7 +74,7 @@ def seed_everything(seed):
 def check_config(config):
     model_name = config['model_name'].lower()
     page_retrieval = config.get('page_retrieval', '').lower()
-    if model_name not in ['hi-layoutlmv3', 'hi-lt5', 'hi-vlt5'] and page_retrieval == 'custom':
+    if model_name not in ['hi-layoutlmv3', 'hi-lt5', 'hi-vt5'] and page_retrieval == 'custom':
         raise ValueError("'Custom' retrieval is not allowed for {:}".format(model_name))
 
     elif model_name in ['hi-layoutlmv3, hilt5', 'hi-lt5', 'hi-lt5'] and page_retrieval in ['concat', 'logits']:

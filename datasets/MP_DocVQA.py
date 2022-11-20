@@ -23,20 +23,23 @@ class MPDocVQA(Dataset):
         self.use_images = kwargs.get('use_images', False)
         self.get_raw_ocr_data = kwargs.get('get_raw_ocr_data', False)
         self.max_pages = kwargs.get('max_pages', 1)
+        self.get_doc_id = False
 
     def __len__(self):
         return len(self.imdb)
 
     def sample(self, idx=None, question_id=None):
 
-        if idx:
+        if idx is not None:
             return self.__getitem__(idx)
 
-        if question_id:
+        if question_id is not None:
             for idx in range(self.__len__()):
                 record = self.imdb[idx]
                 if record['question_id'] == question_id:
                     return self.__getitem__(idx)
+
+            raise ValueError("Question ID {:d} not in dataset.".format(question_id))
 
         idx = random.randint(0, self.__len__())
         return self.__getitem__(idx)
@@ -160,6 +163,10 @@ class MPDocVQA(Dataset):
             sample_info['context_page_corresp'] = context_page_corresp
             sample_info['start_indxs'] = start_idxs
             sample_info['end_indxs'] = end_idxs
+
+        if self.get_doc_id:
+            sample_info['doc_id'] = [record['image_name'][page_ix] for page_ix in range(first_page, last_page)]
+
         return sample_info
 
     def _get_start_end_idx(self, context, answers):
