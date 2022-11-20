@@ -128,7 +128,7 @@ def create_plot(text_V, text_KQ, att, color):
         axs[V_tok_idx].set_title(V_tok, loc='left')
 
         labels_pos = range(num_KQ_tok)
-        axs[V_tok_idx].bar(labels_pos, att[V_tok_idx], color=[color]) # , metric_dict[method], width, label=method.split('_')[0])
+        axs[V_tok_idx].bar(labels_pos, att[V_tok_idx], color=[color])
 
         axs[V_tok_idx].set_xticks(labels_pos)
         axs[V_tok_idx].set_xticklabels(text_KQ, rotation=90)
