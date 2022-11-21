@@ -3,36 +3,7 @@ import torch
 import matplotlib.pyplot as plt
 from joblib import Parallel, delayed
 
-from visualization.vis_utils import parse_vis_args
-
-
-head_colors = ['#6E0065', '#1F1FFF', '#4E2CD2', '#7D38A5', '#DB504A', '#EB8E2D', '#FACB0F', '#07A0C3', '#33A78D', '#5FAD56', '#7E8080', '#222222']
-
-
-def get_plot_ranges(att_layers, att_heads, args, pages=None):
-
-    if args.att_layers:
-        assert att_layers >= max(args.att_layers), f'Attention only has {att_layers} layers, while you specified attention layers: {args.att_layers}'
-        att_layers = args.att_layers
-    else:
-        att_layers = list(range(att_layers))
-
-    if args.att_heads:
-        assert att_heads >= max(args.att_heads), f'Attention only has {att_heads} layers, while you specified attention heads: {args.att_heads}'
-        att_heads = args.att_heads
-    else:
-        att_heads = list(range(att_heads))
-
-    if pages is not None:
-        if args.page_idx:
-            assert pages >= max(args.page_idx), f'Attention only has {pages} pages, but you specified: {args.page_idx} pages'
-            pages = args.page_idx
-        else:
-            pages = list(range(pages))
-
-        return pages, att_layers, att_heads
-    else:
-        return att_layers, att_heads
+from visualization.vis_utils import parse_vis_args, get_plot_ranges, head_colors
 
 
 def plot_attentions(attentions, x, y, figure_dir, verbose, args):

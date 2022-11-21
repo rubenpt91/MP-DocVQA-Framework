@@ -264,6 +264,7 @@ class HiLT5(T5ForConditionalGeneration):
         if encoder_outputs is None:
             # Convert encoder inputs in embeddings if needed
             page_embeddings = []
+            page_encoder_attentions = []
             # for page_idx in range(self.max_doc_pages):
             for page_idx in range(max(num_pages)):
                 textual_emb = self.shared(input_ids[:, page_idx])  # read from default T5
@@ -282,6 +283,9 @@ class HiLT5(T5ForConditionalGeneration):
                 # Keep only [PAGE] token representation.
                 hidden_states = encoder_outputs[0]
                 page_embeddings.append(hidden_states[:, :self.page_tokens])
+
+                if output_attentions:
+                    page_encoder_attentions.append(encoder_outputs.attentions)
 
             document_embeddings = torch.cat(page_embeddings, dim=1)
 
@@ -394,7 +398,8 @@ class HiLT5(T5ForConditionalGeneration):
             cross_attentions=decoder_outputs.cross_attentions,
             encoder_last_hidden_state=encoder_outputs.last_hidden_state,
             encoder_hidden_states=encoder_outputs.hidden_states,
-            encoder_attentions=encoder_outputs.attentions,
+            encoder_attentions=page_encoder_attentions if output_attentions else None,
+            # encoder_attentions=encoder_outputs.attentions,
         )
 
         model_output.ret_logits = ret_logits
@@ -432,7 +437,7 @@ class Proxy_HiLT5:
     def parallelize(self):
         self.model = nn.DataParallel(self.model)
 
-    def forward(self, batch, return_pred_answer=False):
+    def forward(self, batch, output_attentions=False, return_pred_answer=False):
         question = batch['questions']
         context = batch['contexts']
         answers = batch['answers']
@@ -495,7 +500,8 @@ class Proxy_HiLT5:
             labels.input_ids[labels.input_ids[:] == self.tokenizer.pad_token_id] = -100
             labels = labels.input_ids.to(self.device)
 
-            outputs = self.model(input_ids=all_input_ids, bbox=all_boxes, attention_mask=all_attention_masks, labels=labels, num_pages=num_pages, answer_page_idx=answer_page_idx)
+            # outputs = self.model(input_ids=all_input_ids, bbox=all_boxes, attention_mask=all_attention_masks, labels=labels, num_pages=num_pages, answer_page_idx=answer_page_idx)
+            outputs = self.model(input_ids=all_input_ids, bbox=all_boxes, attention_mask=all_attention_masks, labels=labels, num_pages=num_pages, answer_page_idx=answer_page_idx, output_attentions=output_attentions)
             pred_answers = self.get_answer_from_model_output(all_input_ids, all_boxes, all_attention_masks, num_pages) if return_pred_answer else None
 
             if self.page_retrieval == 'oracle':
@@ -512,3 +518,44 @@ class Proxy_HiLT5:
         pred_answers = self.tokenizer.batch_decode(output['sequences'], skip_special_tokens=True)
 
         return pred_answers
+
+    def forward_record_and_retrieve_attention_dict(self, record):
+
+        with torch.no_grad():
+            batched_record = {k: [v] for k, v in record.items()}  # fake batch
+            outputs, pred_answer, pred_answer_page = self.forward(batched_record, output_attentions=True, return_pred_answer=True)
+
+        num_pages = record['num_pages']
+        input_text = ["{:s}: question: {:s}  context: {:s}".format("[PAGE]" * self.page_tokens, record['questions'], record['contexts'][page_idx]) for page_idx in range(num_pages)]
+        tokens = [self.tokenizer(input_text[page_idx], return_tensors='pt', padding='max_length', truncation=True) for page_idx in range(num_pages)]
+
+        answers = random.choice(record['answers'])
+        labels = self.tokenizer(answers, return_tensors='pt', padding=True)
+        # encoder_text = model.tokenizer.convert_ids_to_tokens(tokens.input_ids[0])
+        encoder_text = [self.tokenizer.convert_ids_to_tokens(tokens[page_idx].input_ids[0]) for page_idx in range(num_pages)]
+        answer_text = self.tokenizer.convert_ids_to_tokens(labels.input_ids[0])
+        decoder_input_text = ["[PAGE_{:d},{:d}]".format(page_idx, token_idx) for page_idx in range(num_pages) for token_idx in range(self.page_tokens)]
+
+        # Convert tensors to CPU
+        encoder_att = []
+        for page_idx in range(len(outputs.encoder_attentions)):
+            encoder_att.append([att.data.cpu() for att in outputs.encoder_attentions[page_idx]])
+
+        decoder_att = [att.data.cpu() for att in outputs.decoder_attentions]
+        cross_att = [att.data.cpu() for att in outputs.cross_attentions]
+
+        att_dict = {
+            "Page retrieval": self.page_retrieval.capitalize(),
+            "Pred. Answer": pred_answer[0],
+            "Pred. Answer Page": pred_answer_page[0],
+            "question_id": record['question_id'],
+            "doc_id": record['question_id'],
+            "encoder_att": encoder_att,
+            "decoder_att": decoder_att,
+            "cross_att": cross_att,
+            "encoder_text": encoder_text,
+            "answer_text": answer_text,
+            "decoder_input_text": decoder_input_text,
+        }
+
+        return outputs, pred_answer, pred_answer_page, att_dict

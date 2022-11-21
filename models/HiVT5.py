@@ -60,7 +60,7 @@ class VisualEmbeddings(nn.Module):
         return vis_embeddings, vis_attention_mask
 
 
-class HiVLT5(T5ForConditionalGeneration):
+class HiVT5(T5ForConditionalGeneration):
 
     def __init__(self, config):
         super().__init__(config)
@@ -95,7 +95,7 @@ class HiVLT5(T5ForConditionalGeneration):
         page_embeddings = []
         for p_idx in range(max(model_kwargs['num_pages'])):
             textual_emb = self.shared(inputs_tensor[:, p_idx])  # read from default T5
-            spatial_emb = self.emb_matcher(self.spatial_embeddings(bbox[:, p_idx]))
+            spatial_emb = self.spatial_emb_matcher(self.spatial_embeddings(bbox[:, p_idx]))
             inputs_embeds = textual_emb + spatial_emb
 
             page_idx_mask = [batch_idx for batch_idx in range(len(num_pages)) if num_pages[batch_idx] >= p_idx + 1]
@@ -218,6 +218,7 @@ class HiVLT5(T5ForConditionalGeneration):
         if encoder_outputs is None:
             # Convert encoder inputs in embeddings if needed
             page_embeddings = []
+            page_encoder_attentions = []
             # for page_idx in range(self.max_doc_pages):
             for page_idx in range(max(num_pages)):
                 textual_emb = self.shared(input_ids[:, page_idx])  # read from default T5
@@ -244,6 +245,9 @@ class HiVLT5(T5ForConditionalGeneration):
                 # Keep only [PAGE] token representation.
                 hidden_states = encoder_outputs[0]
                 page_embeddings.append(hidden_states[:, :self.page_tokens])
+
+                if output_attentions:
+                    page_encoder_attentions.append(encoder_outputs.attentions)
 
             document_embeddings = torch.cat(page_embeddings, dim=1)
 
@@ -353,7 +357,8 @@ class HiVLT5(T5ForConditionalGeneration):
             cross_attentions=decoder_outputs.cross_attentions,
             encoder_last_hidden_state=encoder_outputs.last_hidden_state,
             encoder_hidden_states=encoder_outputs.hidden_states,
-            encoder_attentions=encoder_outputs.attentions,
+            encoder_attentions=page_encoder_attentions if output_attentions else None,
+            # encoder_attentions=encoder_outputs.attentions,
         )
 
         model_output.ret_logits = ret_logits
@@ -362,7 +367,7 @@ class HiVLT5(T5ForConditionalGeneration):
         return model_output
 
 
-class Proxy_HiVLT5:
+class Proxy_HiVT5:
 
     def __init__(self, config):
         self.batch_size = config['batch_size']
@@ -380,7 +385,7 @@ class Proxy_HiVLT5:
         # [self.tokenizer.add_tokens("[PAGE_{:d}]".format(p)) for p in range(self.num_doc_cls_tokens)]  # Different representation
 
         # Whenever the number of [PAGE] tokens or Max pages per document changes, the architecture also changes and therefore, it needs to be fine-tuned.
-        self.model = HiVLT5.from_pretrained(config['model_weights'], config=config_x, ignore_mismatched_sizes=True)
+        self.model = HiVT5.from_pretrained(config['model_weights'], config=config_x, ignore_mismatched_sizes=True)
 
         if config.get('freeze_encoder', False):
             for n, p in self.model.named_parameters():
@@ -392,7 +397,7 @@ class Proxy_HiVLT5:
     def parallelize(self):
         self.model = nn.DataParallel(self.model)
 
-    def forward(self, batch, return_pred_answer=False):
+    def forward(self, batch, output_attentions=False, return_pred_answer=False):
         question = batch['questions']
         context = batch['contexts']
         answers = batch['answers']
@@ -456,7 +461,7 @@ class Proxy_HiVLT5:
             labels.input_ids[labels.input_ids[:] == self.tokenizer.pad_token_id] = -100
             labels = labels.input_ids.to(self.model.device)
 
-            outputs = self.model(input_ids=all_input_ids, bbox=all_boxes, images=batch['images'], attention_mask=all_attention_masks, labels=labels, num_pages=num_pages, answer_page_idx=answer_page_idx)
+            outputs = self.model(input_ids=all_input_ids, bbox=all_boxes, images=batch['images'], attention_mask=all_attention_masks, labels=labels, num_pages=num_pages, answer_page_idx=answer_page_idx, output_attentions=output_attentions)
             pred_answers = self.get_answer_from_model_output(all_input_ids, all_boxes, batch['images'], all_attention_masks, num_pages) if return_pred_answer else None
 
             if self.page_retrieval == 'oracle':
@@ -473,3 +478,104 @@ class Proxy_HiVLT5:
         pred_answers = self.tokenizer.batch_decode(output['sequences'], skip_special_tokens=True)
 
         return pred_answers
+
+    def forward_record_and_retrieve_attention_dict(self, record):
+
+        with torch.no_grad():
+            batched_record = {k: [v] for k, v in record.items()}  # fake batch
+            outputs, pred_answer, pred_answer_page = self.forward(batched_record, output_attentions=True, return_pred_answer=True)
+
+        num_pages = record['num_pages']
+        input_text = ["{:s}: question: {:s}  context: {:s}".format("[PAGE]" * self.page_tokens, record['questions'], record['contexts'][page_idx]) for page_idx in range(num_pages)]
+        # tokens = [self.tokenizer(input_text[page_idx], return_tensors='pt', padding='max_length', truncation=True) for page_idx in range(num_pages)]
+
+        # with torch.no_grad():
+        #     self.model.generate(input_ids=tokens[0].input_ids, )
+
+        answers = random.choice(record['answers'])
+        labels = self.tokenizer(answers, return_tensors='pt', padding=True)
+        # encoder_text = model.tokenizer.convert_ids_to_tokens(tokens.input_ids[0])
+
+        pretext = "{:s}: question: {:s}  context:".format("[PAGE]" * self.page_tokens, record['questions'])
+        pretext_tokens = self.tokenizer(pretext).input_ids[:-1]
+        pretext_boxes = [np.array([0, 0, 1, 1], dtype=np.float32) for _ in range(len(pretext_tokens))]
+
+        document_text = []
+        document_boxes = []
+        for page_idx in range(num_pages):
+            # page_tokens = []
+            # page_boxes = []
+            # for page_idx in range(num_pages):
+                # x = [token for page_words in record['words'][page_idx] for token in self.tokenizer(page_words).input_ids[:-1]]
+                # x = [token for page_words, page_boxes in zip(record['words'][page_idx], page_boxes) for token in self.tokenizer(page_words).input_ids[:-1]]
+                # y = [[token, page_boxes] for page_words, page_boxes in zip(record['words'][page_idx], page_boxes) for token in self.tokenizer(page_words).input_ids[:-1]]
+                # y = [self.tokenizer(word).input_ids[:-1] for page_words in record['words'][page_idx] for word in page_words]
+
+            # tokenized_words = [self.tokenizer(page_words).input_ids[:-1] for page_words in record['words'][page_idx]]
+            # token_boxes = [boxes for boxes in record['boxes'][page_idx]]
+
+            # page_tokens = []
+            # page_boxes = []
+
+            page_tokens = pretext_tokens[:]  # Deepcopy
+            page_boxes = pretext_boxes[:]  # Deepcopy
+            # page_tokens = [token for _ in range(self.page_tokens) for token in self.tokenizer("[PAGE]").input_ids[:-1]]
+            # page_boxes = [np.array([0, 0, 1, 1], dtype=np.float32) for _ in range(self.page_tokens)]
+            tokenized_words = [self.tokenizer(page_words).input_ids[:-1] for page_words in record['words'][page_idx]]
+            for tokenized_word, token_boxes in zip(tokenized_words, record['boxes'][page_idx]):
+                page_tokens.extend(tokenized_word)
+                page_boxes.extend([token_boxes]*len(tokenized_word))
+
+            if len(page_tokens) > 512:
+                page_tokens = page_tokens[:511] + [self.tokenizer.eos_token_id]
+                page_boxes = page_boxes[:511] + [np.array([0, 0, 0, 0], dtype=np.float32)]
+
+            else:
+                padding_size = 512 - len(page_boxes)
+                page_tokens_pad = [self.tokenizer.pad_token_id] * padding_size
+                page_boxes_pad = [box for box in np.zeros([padding_size, 4], dtype=np.float32)]
+
+                page_tokens += page_tokens_pad
+                page_boxes += page_boxes_pad
+
+
+            # page_boxes += [np.array([0, 0, 0, 0], dtype=np.float32)]
+            page_tokens = self.tokenizer.convert_ids_to_tokens(page_tokens)
+
+            # page_boxes += [np.array([0, 0, 1000, 1000], dtype=np.float32)] + ["[VIS_{:d}]".format(i) for i in range(0, 196)]
+
+            vis_boxes = []
+            for y in range(0, 14):
+                for x in range(0, 14):
+                    vis_boxes += [np.array([x/14, y/14, (x+1)/14, (y+1)/14], dtype=np.float32)]
+
+            page_tokens += ["[VIS_CLS]"] + ["[VIS_{:d}]".format(i) for i in range(0, 196)]
+            page_boxes += [np.array([0, 0, 1000, 1000], dtype=np.float32)] + vis_boxes
+
+            document_text.append(page_tokens)
+            document_boxes.append(page_boxes)
+
+            # print(page_idx, len(page_tokens), len(page_boxes), outputs.encoder_attentions[page_idx][0].shape)
+
+        answer_text = self.tokenizer.convert_ids_to_tokens(labels.input_ids[0])
+        decoder_input_text = ["[PAGE_{:d},{:d}]".format(page_idx, token_idx) for page_idx in range(num_pages) for token_idx in range(self.page_tokens)]
+
+        # Convert tensors to CPU
+        encoder_att = []
+        for page_idx in range(len(outputs.encoder_attentions)):
+            encoder_att.append([att.data.cpu() for att in outputs.encoder_attentions[page_idx]])
+
+        decoder_att = [att.data.cpu() for att in outputs.decoder_attentions]
+        cross_att = [att.data.cpu() for att in outputs.cross_attentions]
+
+        att_dict = {
+            "encoder_att": encoder_att,
+            "decoder_att": decoder_att,
+            "cross_att": cross_att,
+            "encoder_text": document_text,
+            "encoder_boxes": document_boxes,
+            "answer_text": answer_text,
+            "decoder_input_text": decoder_input_text,
+        }
+
+        return outputs, pred_answer, pred_answer_page, att_dict
