@@ -1,4 +1,4 @@
-name: doccvqa_baselines_new
+name: mp_docvqa
 channels:
   - pytorch
   - nvidia

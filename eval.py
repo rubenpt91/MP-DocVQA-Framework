@@ -34,9 +34,7 @@ def evaluate(data_loader, model, evaluator, **kwargs):
     for batch_idx, batch in enumerate(tqdm(data_loader)):
         bs = len(batch['question_id'])
         with torch.no_grad():
-            outputs, pred_answers, pred_answer_page = model.forward(batch, return_pred_answer=True)  # Longformer
-            # outputs, pred_answers, answer_page = model.forward(questions, contexts, gt_answers, return_pred_answer=True)  # Longformer
-            # outputs, pred_answers = model.forward(questions, contexts, start_pos=start_pos, end_pos=end_pos, return_pred_answer=True)  # Longformer SQuAD
+            outputs, pred_answers, pred_answer_page = model.forward(batch, return_pred_answer=True)
             # print(pred_answers)
 
         metric = evaluator.get_metrics(batch['answers'], pred_answers)
@@ -45,11 +43,6 @@ def evaluate(data_loader, model, evaluator, **kwargs):
             ret_metric = evaluator.get_retrieval_metric(batch['answer_page_idx'], pred_answer_page)
         else:
             ret_metric = [-1 for _ in range(bs)]
-        # for sample_ix in range(len(batch['question_id'])):
-        #     if metric['accuracy'][sample_ix] == 1 and batch['answer_page_idx'][sample_ix] != 0:
-        #         pass
-        #         print('x')
-        #         outputs, pred_answers, pred_answer_page = model.forward(batch, return_pred_answer=True)  # Longformer
 
         if return_scores_by_sample:
             for batch_idx in range(bs):
@@ -118,7 +111,8 @@ if __name__ == '__main__':
 
     experiment_date = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     results_file = os.path.join(config['save_dir'], 'results', "{:}_{:}_{:}__{:}.json".format(config['model_name'], config['dataset_name'], config.get('page_retrieval', '').lower(), experiment_date))
+    save_json(results_file, save_data)
+
     print("Results correctly saved in: {:s}".format(results_file))
 
-    save_json(results_file, save_data)
 

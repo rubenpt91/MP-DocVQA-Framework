@@ -23,7 +23,7 @@ def parse_args():
     parser.add_argument('--seed', type=int, help='Seed to allow reproducibility.')
 
     parser.add_argument('--data-parallel', action='store_true', help='Boolean to indicate to parallelize the execution.')
-    parser.add_argument('--no-data-parallel', action='store_false', dest='data_parallel', help='Boolean to indicate to parallelize the execution.')
+    # parser.add_argument('--no-data-parallel', action='store_false', dest='data_parallel', help='Boolean to indicate to parallelize the execution.')
     return parser.parse_args()
 
 

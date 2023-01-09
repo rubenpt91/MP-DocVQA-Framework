@@ -47,6 +47,8 @@ class SpatialEmbeddings(nn.Module):
         self.LayerNorm = BertLayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
+        self.spatial_emb_matcher = MLP(config.hidden_size, 0, config.hidden_size, 1)
+
         self.config = config
 
     def forward(self, bbox):
@@ -55,20 +57,21 @@ class SpatialEmbeddings(nn.Module):
         right_position_embeddings = self.x_position_embeddings(bbox[:, :, 2])
         lower_position_embeddings = self.y_position_embeddings(bbox[:, :, 3])
 
-        h_position_embeddings = self.h_position_embeddings(bbox[:, :, 3] - bbox[:, :, 1])  # TODO Remove width and height to test how much important are they.
-        w_position_embeddings = self.w_position_embeddings(bbox[:, :, 2] - bbox[:, :, 0])  # TODO Remove width and height to test how much important are they.
+        # h_position_embeddings = self.h_position_embeddings(bbox[:, :, 3] - bbox[:, :, 1])  # TODO Remove width and height to test how much important are they.
+        # w_position_embeddings = self.w_position_embeddings(bbox[:, :, 2] - bbox[:, :, 0])  # TODO Remove width and height to test how much important are they.
 
         embeddings = (
                 left_position_embeddings
                 + upper_position_embeddings
                 + right_position_embeddings
                 + lower_position_embeddings
-                + h_position_embeddings
-                + w_position_embeddings
+                # + h_position_embeddings
+                # + w_position_embeddings
         )
 
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
+        embeddings = self.spatial_emb_matcher(embeddings)
         return embeddings
 
 
@@ -118,7 +121,7 @@ class RetrievalModule(nn.Module):
             pad_document_embeddings[:, :document_embeddings.shape[-1]] = document_embeddings
             ret_logits = self.page_retrieval(pad_document_embeddings.to())  # 10*2*512
 
-        ret_loss = self.retrieval_criterion(ret_logits, answer_page_idx) * self.retrieval_loss_weight
+        ret_loss = self.retrieval_criterion(ret_logits, answer_page_idx) * self.retrieval_loss_weight if answer_page_idx is not None else None
 
         return ret_loss, ret_logits
 
@@ -129,7 +132,7 @@ class HiLT5(T5ForConditionalGeneration):
         super().__init__(config)
         self.config = config
         self.spatial_embeddings = SpatialEmbeddings(config)
-        self.emb_matcher = MLP(self.spatial_embeddings.config.hidden_size, 0, self.config.hidden_size, 1)
+        # self.emb_matcher = MLP(self.spatial_embeddings.config.hidden_size, 0, self.config.hidden_size, 1)
         self.retrieval_module = RetrievalModule(config)
 
         self.page_tokens = config.page_tokens
@@ -147,9 +150,9 @@ class HiLT5(T5ForConditionalGeneration):
         # 2.2 replace input ids by the hierarchical layout-aware input embeddings
         page_embeddings = []
         for p_idx in range(max(model_kwargs['num_pages'])):
-            textual_emb = self.shared(inputs_tensor[:, p_idx])  # read from default T5
-            spatial_emb = self.emb_matcher(self.spatial_embeddings(model_kwargs['bbox'][:, p_idx]))
-            inputs_embeds = textual_emb + spatial_emb
+            semantic_emb = self.shared(inputs_tensor[:, p_idx])  # read from default T5
+            spatial_emb = self.spatial_embeddings(model_kwargs['bbox'][:, p_idx])
+            inputs_embeds = semantic_emb + spatial_emb
 
             encoder_outputs = encoder(
                 input_ids=None,
@@ -267,9 +270,10 @@ class HiLT5(T5ForConditionalGeneration):
             page_encoder_attentions = []
             # for page_idx in range(self.max_doc_pages):
             for page_idx in range(max(num_pages)):
-                textual_emb = self.shared(input_ids[:, page_idx])  # read from default T5
-                spatial_emb = self.emb_matcher(self.spatial_embeddings(bbox[:, page_idx]))
-                inputs_embeds = textual_emb + spatial_emb
+                semantic_emb = self.shared(input_ids[:, page_idx])  # read from default T5
+                # spatial_emb = self.emb_matcher(self.spatial_embeddings(bbox[:, page_idx]))
+                spatial_emb = self.spatial_embeddings(bbox[:, page_idx])
+                inputs_embeds = semantic_emb + spatial_emb
                 encoder_outputs = self.encoder(
                     input_ids=None,  # Input IDs must be None because input embeds is provided.
                     attention_mask=attention_mask[:, page_idx],
