@@ -32,6 +32,10 @@ def build_model(config):
         from models.BigBird import BigBird
         model = BigBird(config)
 
+    elif config['model_name'].lower() == 'longt5':
+        from models.LongT5 import LongT5
+        model = LongT5(config)
+
     elif config['model_name'].lower() == 'layoutlmv2':
         from models.LayoutLMv2 import LayoutLMv2
         model = LayoutLMv2(config)
@@ -105,6 +109,10 @@ def build_dataset(config, split):
     elif config['dataset_name'] == 'MP-DocVQA':
         from datasets.MP_DocVQA import MPDocVQA
         dataset = MPDocVQA(config['imdb_dir'], config['images_dir'], config['page_retrieval'], split, dataset_kwargs)
+
+    elif config['dataset_name'] == 'DUDE':
+        from datasets.DUDE import DUDE
+        dataset = DUDE(config['imdb_dir'], config['images_dir'], config['page_retrieval'], split, dataset_kwargs)
 
     else:
         raise ValueError

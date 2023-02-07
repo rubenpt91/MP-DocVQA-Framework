@@ -22,8 +22,8 @@ def parse_args():
     parser.add_argument('-bs', '--batch-size', type=int, help='DataLoader batch size.')
     parser.add_argument('--seed', type=int, help='Seed to allow reproducibility.')
 
-    parser.add_argument('--data-parallel', action='store_true', help='Boolean to indicate to parallelize the execution.')
-    # parser.add_argument('--no-data-parallel', action='store_false', dest='data_parallel', help='Boolean to indicate to parallelize the execution.')
+    parser.add_argument('--data-parallel', action='store_true', help='Boolean to overwrite data-parallel arg in config parallelize the execution.')
+    parser.add_argument('--no-data-parallel', action='store_false', dest='data_parallel', help='Boolean to overwrite data-parallel arg in config to indicate to parallelize the execution.')
     return parser.parse_args()
 
 
@@ -81,7 +81,7 @@ def check_config(config):
         raise ValueError("Hierarchical model {:} can't run on {:} retrieval type. Only 'oracle' and 'custom' are allowed.".format(model_name, page_retrieval))
 
     if page_retrieval in ['concat', 'logits'] and config.get('max_pages') is not None:
-        print("WARNING - Max pages ({:}) value is ignored for {:} retrieval setting.".format(config.get('max_pages'), page_retrieval))
+        print("WARNING - Max pages ({:}) value is ignored for {:} page-retrieval setting.".format(config.get('max_pages'), page_retrieval))
 
     return True
 
