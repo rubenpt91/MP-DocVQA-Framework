@@ -1,0 +1,1 @@
+python3 eval.py -m BigBird -d DUDE -bs 1 --seed 42
