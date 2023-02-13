@@ -39,10 +39,10 @@ def evaluate(data_loader, model, evaluator, **kwargs):
 
         metric = evaluator.get_metrics(batch['answers'], pred_answers)
 
-        if 'answer_page_idx' in batch:
+        if 'answer_page_idx' in batch and pred_answer_page is not None:
             ret_metric = evaluator.get_retrieval_metric(batch['answer_page_idx'], pred_answer_page)
         else:
-            ret_metric = [-1 for _ in range(bs)]
+            ret_metric = [0 for _ in range(bs)]
 
         if return_scores_by_sample:
             for batch_idx in range(bs):

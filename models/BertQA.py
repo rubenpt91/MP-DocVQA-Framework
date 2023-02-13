@@ -73,24 +73,7 @@ class BertQA:
                 pred_answer_pages = batch['answer_page_idx']
 
             elif self.page_retrieval == 'concat':
-                # pred_answer_pages = [batch['context_page_corresp'][batch_idx][pred_start_idx] if len(batch['context_page_corresp'][batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
                 pred_answer_pages = [context_page_token_correspondent[batch_idx][pred_start_idx] if len(context_page_token_correspondent[batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
-
-                # pred_answer_pages = []
-                # for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1)):
-                    # context_page_corresp = batch['context_page_corresp'][batch_idx]
-                    # pred_answer_pages.append(context_page_corresp[pred_start_idx] if len(context_page_corresp) > 0 else 0)
-
-
-
-        # start_logits_cnf = [outputs.start_logits[batch_ix, max_start_logits_idx.item()].item() for batch_ix, max_start_logits_idx in enumerate(outputs.start_logits.argmax(-1))]
-        # end_logits_cnf = [outputs.end_logits[batch_ix, max_end_logits_idx.item()].item() for batch_ix, max_end_logits_idx in enumerate(outputs.end_logits.argmax(-1))]
-
-        if any([ans[0] == p_ans and gt_answer_page != 0 for ans, p_ans, gt_answer_page in zip(answers, pred_answers, batch['answer_page_idx'])]):
-            for ans, p_ans, gt_answer_page in zip(answers, pred_answers, batch['answer_page_idx']):
-                print(ans, p_ans, gt_answer_page)
-
-            start_pos, end_pos, context_page_token_correspondent = self.get_start_end_idx(encoding, context, answers, batch['context_page_corresp'])
 
         return outputs, pred_answers, pred_answer_pages
 
@@ -107,7 +90,7 @@ class BertQA:
                     end_idx = start_idx + len(answer)
                     start_idx, end_idx = correct_alignment(context[batch_idx], answer, start_idx, end_idx)
 
-                    if start_idx is not None:
+                    if start_idx is not None and end_idx != 0:
                         batch_pos_idxs.append([start_idx, end_idx])
                         break
 

@@ -2,8 +2,8 @@ import random
 import torch
 import torch.nn as nn
 import numpy as np
-from numpy.ma.core import outer
 from transformers import T5Tokenizer, T5ForConditionalGeneration
+import transformers.models.t5.modeling_t5
 
 
 class T5:
@@ -66,7 +66,8 @@ class T5:
 
     def get_answer_from_model_output(self, input_tokens):
         bs = input_tokens.input_ids.shape[0]
-        output = self.model.generate(**input_tokens, output_scores=True, return_dict_in_generate=True)
+        # output = self.model.generate(**input_tokens, output_scores=True, return_dict_in_generate=True)
+        output = self.model.generate(**input_tokens, output_scores=True, return_dict_in_generate=True, output_attentions=True)
         pred_answers = self.tokenizer.batch_decode(output['sequences'], skip_special_tokens=True)
 
         all_logits = torch.stack(output.scores)
@@ -77,4 +78,3 @@ class T5:
                 best_logits[batch_ix] += all_logits[seq_ix, batch_ix, token_id] if token_id not in self.tokenizer.all_special_ids else 0
 
         return pred_answers, best_logits
-
