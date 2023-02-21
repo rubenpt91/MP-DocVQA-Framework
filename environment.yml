@@ -16,5 +16,10 @@ dependencies:
   - transformers=4.20.0
   - editdistance
 
+## when running into issues, some of these helped resolve
+# pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu116
 # conda install pytorch torchvision cudatoolkit=11.2 -c pytorch
 # conda install transformers -c huggingface
+# pip3 install tokenizers --upgrade #issue with 
+#conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
+#https://stackoverflow.com/questions/54948216/usr-lib-x86-64-linux-gnu-libstdc-so-6-version-glibcxx-3-4-21-not-found-req

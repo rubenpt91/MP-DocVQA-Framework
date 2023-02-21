@@ -2,4 +2,21 @@ dataset_name: DUDE
 imdb_dir:  /home/jordy/code/DUchallenge/E2E/DUDE_loader/sample # /SSD/Datasets/DUDE/imdb  # /imdb/collection/imdb_train.npy
 images_dir: /home/jordy/Downloads/DUDE_train-val-test_binaries/images # /SSD/Datasets/DUDE/Images
 page_retrieval: Concat  # Oracle / Concat / Logits / Custom (for Hierarchical methods (Hi-LayoutLMv3, Hi-LT5, Hi-VT5)
-max_pages: 2
+
+none_strategy: token # token / special_token
+list_strategy: separator # separator / special_token
+
+atype_learning: None # None / MLP / special_token / separator 
+qtype_learning: None # None / MLP / special_token / separator 
+
+#nonetype answers
+  ## special token
+  ## negative span (-1,-1)
+#list
+  ## separator |
+  ## special token <LSEP>
+  ## permutations / powerset [cap]
+#answer&qtype
+  ## 2 separate MLP with own losses - joint weight -> add parameters
+  ## set special tokens/embedding for all the different types
+  ## encode $y$ as "answer&&qtype&&atype"
