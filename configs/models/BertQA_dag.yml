@@ -2,7 +2,8 @@ save_dir: save/
 model_name: BertQA
 # model_weights: bert-base-uncased
 # model_weights: bert-large-uncased-whole-word-masking-finetuned-squad
-model_weights: save/bert_weights/x/bert-large-squad-docvqa-finetuned
+# model_weights: save/bert_weights/x/bert-large-squad-docvqa-finetuned
+model_weights: rubentito/bert-large-mpdocvqa
 device: cuda
 data_parallel: True
 
