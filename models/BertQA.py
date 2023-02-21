@@ -113,7 +113,7 @@ class BertQA:
 
                 if start_positions_context is not None and end_positions_context is not None:
                     start_position = start_positions_context + sep_idx
-                    end_position = end_positions_context + sep_idx + 1
+                    end_position = end_positions_context + sep_idx
 
                 else:
                     start_position, end_position = self.ignore_index, self.ignore_index
@@ -126,8 +126,7 @@ class BertQA:
             # Page correspondence for concat:
             if self.page_retrieval == 'concat':
                 context_encodings = self.tokenizer.encode_plus(context[batch_idx], padding=True, truncation=True)
-                page_change_idxs = [0] + [i + 1 for i, x in enumerate(context_page_char_correspondent[batch_idx]) if
-                                          x == -1]
+                page_change_idxs = [0] + [i + 1 for i, x in enumerate(context_page_char_correspondent[batch_idx]) if x == -1]
                 page_change_idxs_tokens = [context_encodings.char_to_token(idx) for idx in page_change_idxs]
 
                 page_tok_corr = np.empty(len(context_encodings.input_ids))
