@@ -136,7 +136,7 @@ class MPDocVQA(Dataset):
                 images = [Image.open(img_path).convert("RGB") for img_path in image_names]
                 images += [Image.new('RGB', (0, 0)) for i in range(self.max_pages - len(image_names))]  # Pad with 0x0 images.
 
-        if self.page_retrieval == 'oracle' or self.page_retrieval == 'concat':
+        if self.page_retrieval in ['oracle', 'concat', 'none']:
             start_idxs, end_idxs = self._get_start_end_idx(context, answers)
 
         elif self.page_retrieval == 'logits':
