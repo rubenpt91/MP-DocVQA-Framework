@@ -142,6 +142,9 @@ class MPDocVQA(Dataset):
         elif self.page_retrieval == 'logits':
             start_idxs, end_idxs = self._get_start_end_idx(context[answer_page_idx], answers)
 
+        else:
+            start_idxs, end_idxs = None, None
+
         sample_info = {'question_id': record['question_id'],
                        'questions': question,
                        'contexts': context,
