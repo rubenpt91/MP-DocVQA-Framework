@@ -112,7 +112,7 @@ def build_dataset(config, split):
 
     elif config['dataset_name'] == 'DUDE':
         from datasets.DUDE import DUDE
-        split = "val" #overriding to val
+        split = "val" if split == 'test' else 'train'  #overriding to val
         dataset = DUDE(config['imdb_dir'], config['images_dir'], config['page_retrieval'], split, dataset_kwargs)
 
     else:

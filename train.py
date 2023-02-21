@@ -21,7 +21,10 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
 
     for batch_idx, batch in enumerate(tqdm(data_loader)):
         gt_answers = batch['answers']
+
         outputs, pred_answers, pred_answer_page = model.forward(batch, return_pred_answer=True)
+        if isinstance(outputs, list):
+            raise NotImplementedError("Logits mode does not support training")
         loss = outputs.loss + outputs.ret_loss if hasattr(outputs, 'ret_loss') else outputs.loss
 
         loss.backward()
@@ -46,7 +49,12 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
             log_dict['Train/Batch retrieval loss'] = outputs.ret_loss.item()
 
         if 'answer_page_idx' in batch:
-            ret_metric = evaluator.get_retrieval_metric(batch.get('answer_page_idx', None), pred_answer_page)
+            try:
+                ret_metric = evaluator.get_retrieval_metric(batch.get('answer_page_idx', None), pred_answer_page)
+            except Exception as e:
+                print(e)
+                import pdb; pdb.set_trace()  # breakpoint 6c07fa7e //
+                
             batch_ret_prec = np.mean(ret_metric)
             log_dict['Train/Batch Ret. Prec.'] = batch_ret_prec
 

@@ -22,9 +22,9 @@ import transformers.models.t5.modeling_t5
 """ START - FOR GREEDY SEARCH """
 import torch.distributed as dist
 from typing import Union
-from transformers.generation_utils import GreedySearchOutput, GreedySearchEncoderDecoderOutput, GreedySearchDecoderOnlyOutput
-from transformers.generation_logits_process import LogitsProcessorList
-from transformers.generation_stopping_criteria import StoppingCriteriaList, validate_stopping_criteria
+from transformers.generation import GreedySearchEncoderDecoderOutput, GreedySearchDecoderOnlyOutput #GreedySearchOutput, 
+from transformers.generation.logits_process import LogitsProcessorList
+from transformers.generation.stopping_criteria import StoppingCriteriaList, validate_stopping_criteria
 """ END - FOR GREEDY SEARCH """
 
 
@@ -194,7 +194,7 @@ class HiVT5(T5ForConditionalGeneration):
             return_dict_in_generate: Optional[bool] = None,
             synced_gpus: Optional[bool] = False,
             **model_kwargs,
-    ) -> Union[GreedySearchOutput, torch.LongTensor]:
+    ) -> Union[GreedySearchEncoderDecoderOutput, torch.LongTensor]:
         r"""
         Generates sequences of token ids for models with a language modeling head using **greedy decoding** and can be
         used for text-decoder, text-to-text, speech-to-text, and vision-to-text models.
@@ -725,7 +725,7 @@ class Proxy_HiVT5:
     def forward(self, batch, output_attentions=False, return_pred_answer=False):
         question_id = batch['question_id']
         answers = batch['answers']
-        num_pages = batch['num_pages']
+        num_pages = batch['num_pages']        
         answer_page_idx = torch.LongTensor(batch['answer_page_idx']).to(self.device)
 
         bs = len(question_id)

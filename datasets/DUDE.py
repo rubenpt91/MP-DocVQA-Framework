@@ -21,13 +21,14 @@ class DUDE(MPDocVQA):
         record = self.imdb[idx]
 
         question = record['question']
-        answers = list(set(answer.lower() for answer in record['answers']))
-        answer_page_idx = None
+        answers = list(set(answer.lower() for answer in record['answers'])) #DEV: join if list again by |
         num_pages = record['num_pages']
+        answer_page_idx = random.choice(range(num_pages)) #random 
+        record['answer_page_idx'] = answer_page_idx #putting it in here
 
         if self.page_retrieval == 'oracle':
             raise ValueError("'Oracle' set-up is not valid for DUDE, since there is no GT for the answer page.")
-
+            #is there not in the case of extractive? 
             """
             context = ' '.join([word.lower() for word in record['ocr_tokens'][answer_page_idx]])
             context_page_corresp = None
@@ -90,6 +91,7 @@ class DUDE(MPDocVQA):
                     words.append([word.lower() for word in record['ocr_tokens'][p]])
 
         elif self.page_retrieval == 'custom':
+            record['imdb_doc_pages'] = num_pages
             first_page, last_page = self.get_pages(record)
             answer_page_idx = answer_page_idx - first_page
             num_pages = len(range(first_page, last_page))
@@ -127,7 +129,8 @@ class DUDE(MPDocVQA):
                        'contexts': context,
                        'context_page_corresp': context_page_corresp,
                        'answers': answers,
-                       'answer_page_idx': answer_page_idx
+                       'answer_page_idx': answer_page_idx,
+                       'imdb_doc_pages': num_pages
                        }
 
         if self.use_images:

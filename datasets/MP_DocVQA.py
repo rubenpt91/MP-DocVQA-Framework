@@ -48,7 +48,7 @@ class MPDocVQA(Dataset):
         record = self.imdb[idx]
 
         question = record['question']
-        answers = list(set(answer.lower() for answer in record['answers']))
+        answers = list(set(answer.lower() for answer in record['answers']))        
         answer_page_idx = record['answer_page_idx']
         num_pages = record['imdb_doc_pages']
 
@@ -147,7 +147,7 @@ class MPDocVQA(Dataset):
                        'contexts': context,
                        # 'context_page_corresp': context_page_corresp,
                        'answers': answers,
-                       'answer_page_idx': answer_page_idx
+                       'answer_page_idx': answer_page_idx,
                        }
 
         if self.use_images:
@@ -187,7 +187,7 @@ class MPDocVQA(Dataset):
         return start_idx, end_idx
 
     def get_pages(self, sample_info):
-        # TODO implement margins
+        # TODO implement margins        
         answer_page = sample_info['answer_page_idx']
         document_pages = sample_info['imdb_doc_pages']
         if document_pages <= self.max_pages:
