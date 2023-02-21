@@ -1,0 +1,4 @@
+dataset_name: DUDE
+imdb_dir: /data/users/rperez/DUDE/imdb  # /imdb/collection/imdb_train.npy
+images_dir: /data/users/rperez/DUDE/Images
+page_retrieval: Concat  # Oracle / Concat / Logits / Custom (for Hierarchical methods (Hi-LayoutLMv3, Hi-LT5, Hi-VT5)

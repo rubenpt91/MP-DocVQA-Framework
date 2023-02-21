@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from datasets.SingleDocVQA import SingleDocVQA, singledocvqa_collate_fn
+from datasets.SP_DocVQA import SPDocVQA, singlepage_docvqa_collate_fn
 from models.Longformer import Longformer
 from eval import evaluate
 from metrics import Evaluator
@@ -86,8 +86,8 @@ def train(model, **kwargs):
     # g = torch.Generator()
     # g.manual_seed(kwargs['seed'])
 
-    train_data_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, collate_fn=singledocvqa_collate_fn)
-    val_data_loader   = DataLoader(val_dataset, batch_size=config['batch_size'],  shuffle=False, collate_fn=singledocvqa_collate_fn)
+    train_data_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, collate_fn=singlepage_docvqa_collate_fn)
+    val_data_loader   = DataLoader(val_dataset, batch_size=config['batch_size'], shuffle=False, collate_fn=singlepage_docvqa_collate_fn)
     # train_data_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, collate_fn=singledocvqa_collate_fn, worker_init_fn=seed_worker, generator=g)
     # val_data_loader   = DataLoader(val_dataset, batch_size=config['batch_size'],  shuffle=False, collate_fn=singledocvqa_collate_fn, worker_init_fn=seed_worker, generator=g)
 

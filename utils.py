@@ -73,15 +73,22 @@ def seed_everything(seed):
 
 def check_config(config):
     model_name = config['model_name'].lower()
-    page_retrieval = config.get('page_retrieval', '').lower()
+
+    if 'page_retrieval' not in config:
+        config['page_retrieval'] = 'none'
+
+    page_retrieval = config['page_retrieval']
     if model_name not in ['hi-layoutlmv3', 'hi-lt5', 'hi-vt5'] and page_retrieval == 'custom':
         raise ValueError("'Custom' retrieval is not allowed for {:}".format(model_name))
 
-    elif model_name in ['hi-layoutlmv3, hilt5', 'hi-lt5', 'hi-lt5'] and page_retrieval in ['concat', 'logits']:
+    elif model_name in ['hi-layoutlmv3, hilt5', 'hi-lt5', 'hivt5', 'hi-vt5'] and page_retrieval in ['concat', 'logits']:
         raise ValueError("Hierarchical model {:} can't run on {:} retrieval type. Only 'oracle' and 'custom' are allowed.".format(model_name, page_retrieval))
 
     if page_retrieval in ['concat', 'logits'] and config.get('max_pages') is not None:
         print("WARNING - Max pages ({:}) value is ignored for {:} page-retrieval setting.".format(config.get('max_pages'), page_retrieval))
+
+    elif page_retrieval == 'none' and config['dataset_name'] not in ['SP-DocVQA']:
+        print("Page retrieval can't be none for dataset '{:s}'. This is intended only for single page datasets. Please specify in the method config file the 'page_retrieval' setup to one of the following: [oracle, concat, logits, custom] ".format(config['dataset_name']))
 
     return True
 

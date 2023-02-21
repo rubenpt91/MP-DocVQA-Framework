@@ -73,6 +73,9 @@ class BigBird:
             elif self.page_retrieval == 'concat':
                 pred_answer_pages = [context_page_token_correspondent[batch_idx][pred_start_idx] if len(context_page_token_correspondent[batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
 
+            elif self.page_retrieval == 'none':
+                pred_answer_pages = None
+
         if random.randint(0, 1000) == 0 and self.page_retrieval != 'logits':
             print(batch['question_id'])
             for gt_answer, pred_answer in zip(answers, pred_answers):
@@ -96,7 +99,7 @@ class BigBird:
                     end_idx = start_idx + len(answer)
                     start_idx, end_idx = correct_alignment(context[batch_idx], answer, start_idx, end_idx)
 
-                    if start_idx is not None:
+                    if start_idx is not None and end_idx != 0:
                         batch_pos_idxs.append([start_idx, end_idx])
                         break
 

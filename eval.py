@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from datasets.SingleDocVQA import SingleDocVQA, singledocvqa_collate_fn
+from datasets.SP_DocVQA import SPDocVQA, singlepage_docvqa_collate_fn
 from logger import Logger
 from metrics import Evaluator
 from utils import parse_args, time_stamp_to_hhmmss, load_config, save_json
@@ -39,10 +39,10 @@ def evaluate(data_loader, model, evaluator, **kwargs):
 
         metric = evaluator.get_metrics(batch['answers'], pred_answers)
 
-        if 'answer_page_idx' in batch:
+        if 'answer_page_idx' in batch and pred_answer_page is not None:
             ret_metric = evaluator.get_retrieval_metric(batch['answer_page_idx'], pred_answer_page)
         else:
-            ret_metric = [-1 for _ in range(bs)]
+            ret_metric = [0 for _ in range(bs)]
 
         if return_scores_by_sample:
             for batch_idx in range(bs):
@@ -83,7 +83,7 @@ if __name__ == '__main__':
     start_time = time.time()
 
     dataset = build_dataset(config, 'test')
-    val_data_loader = DataLoader(dataset, batch_size=config['batch_size'], shuffle=False, collate_fn=singledocvqa_collate_fn)
+    val_data_loader = DataLoader(dataset, batch_size=config['batch_size'], shuffle=False, collate_fn=singlepage_docvqa_collate_fn)
 
     model = build_model(config)
 
@@ -91,11 +91,11 @@ if __name__ == '__main__':
     logger.log_model_parameters(model)
 
     evaluator = Evaluator(case_sensitive=False)
-    accuracy_list, anls_list, ret_prec_list, pred_answers, scores_by_samples = evaluate(val_data_loader, model, evaluator, return_scores_by_sample=True, return_answers=True)
-    accuracy, anls, ret_prec = np.mean(accuracy_list), np.mean(anls_list), np.mean(ret_prec_list)
+    accuracy_list, anls_list, answer_page_pred_acc_list, pred_answers, scores_by_samples = evaluate(val_data_loader, model, evaluator, return_scores_by_sample=True, return_answers=True)
+    accuracy, anls, answ_page_pred_acc = np.mean(accuracy_list), np.mean(anls_list), np.mean(answer_page_pred_acc_list)
 
     inf_time = time_stamp_to_hhmmss(time.time() - start_time, string=True)
-    logger.log_val_metrics(accuracy, anls, ret_prec, update_best=False)
+    logger.log_val_metrics(accuracy, anls, answ_page_pred_acc, update_best=False)
 
     save_data = {
         "Model": config["model_name"],
@@ -105,7 +105,7 @@ if __name__ == '__main__':
         "Inference time": inf_time,
         "Mean accuracy": accuracy,
         "Mean ANLS": anls,
-        "Mean Retrieval precision": ret_prec,
+        "Mean Retrieval precision": answ_page_pred_acc,
         "Scores by samples": scores_by_samples,
     }
 

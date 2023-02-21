@@ -730,7 +730,7 @@ class Proxy_HiVT5:
 
         bs = len(question_id)
         if self.page_retrieval == 'oracle':
-            raise ValueError("Oracle set-up not available for Hi-LT5. Instead, specify 'max_pages: 1' in dataset config with 'page_retrieval: custom'.")
+            raise ValueError("Oracle set-up not available for Hi-VT5. Instead, specify 'max_pages: 1' in dataset config with 'page_retrieval: custom'.")
 
         elif self.page_retrieval in ['logits', 'concat']:
             raise ValueError("{:s} set-up not available for Hi-LT5".format(self.page_retrieval.capitalize()))

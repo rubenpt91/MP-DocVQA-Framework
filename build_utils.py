@@ -96,15 +96,16 @@ def build_dataset(config, split):
 
     if config['model_name'].lower() in ['hilayoutlmv3', 'hi-layoutlmv3', 'hilt5', 'hi-lt5', 'hivt5', 'hi-vt5']:
         dataset_kwargs['max_pages'] = config.get('max_pages', 1)
+        dataset_kwargs['hierarchical_method'] = True
 
     # Build dataset
     if config['dataset_name'] == 'SQuAD':
         from datasets.SQuAD import SQuAD
         dataset = SQuAD(config['imdb_dir'], split)
 
-    elif config['dataset_name'] == 'SingleDocVQA':
-        from datasets.SingleDocVQA import SingleDocVQA
-        dataset = SingleDocVQA(config['imdb_dir'], config['images_dir'], split, dataset_kwargs)
+    elif config['dataset_name'] == 'SP-DocVQA':
+        from datasets.SP_DocVQA import SPDocVQA
+        dataset = SPDocVQA(config['imdb_dir'], config['images_dir'], split, dataset_kwargs)
 
     elif config['dataset_name'] == 'MP-DocVQA':
         from datasets.MP_DocVQA import MPDocVQA
