@@ -73,7 +73,7 @@ class MPDocVQA(Dataset):
                 context_page_corresp.extend([-1] + [page_ix]*len(page_context))
 
             context = context.strip()
-            context_page_corresp = context_page_corresp[1:]
+            context_page_corresp = context_page_corresp[1:]  # Remove the first character corresponding to the first space.
 
             if self.use_images:
                 image_names = [os.path.join(self.images_dir, "{:s}.jpg".format(image_name)) for image_name in record['image_name']]
@@ -217,7 +217,7 @@ class MPDocVQA(Dataset):
         return first_page, last_page
 
 
-def singledocvqa_collate_fn(batch):
+def mpdocvqa_collate_fn(batch):  # It's actually the same as in SP-DocVQA...
     batch = {k: [dic[k] for dic in batch] for k in batch[0]}  # List of dictionaries to dict of lists.
     return batch
 

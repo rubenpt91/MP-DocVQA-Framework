@@ -1,8 +1,6 @@
 save_dir: save/
 model_name: BigBird
-# model_weights: abhinavkulkarni/bigbird-roberta-base-finetuned-squad
-# model_weights: google/bigbird-base-trivia-itc  # TriviaQA
-model_weights: weights/bigbird-base-trivia-itc
+model_weights: rubentito/bigbird-base-itc-mpdocvqa
 device: cuda
 data_parallel: True
 

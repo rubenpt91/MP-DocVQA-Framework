@@ -18,6 +18,7 @@ visual_module:
   model_weights: 'microsoft/dit-base-finetuned-rvlcdip'  # 'google/vit-base-patch16-224-in21k' / 'microsoft/dit-base-finetuned-rvlcdip'
 
 training_parameters:
+  max_pages: 2
   lr: 2e-4  # 2e-4
   batch_size: 16
   train_epochs: 10

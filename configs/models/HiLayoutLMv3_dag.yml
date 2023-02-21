@@ -16,7 +16,7 @@ retrieval_module:
 
 training_parameters:
   lr: 1e-4
-  batch_size: 2
+  batch_size: 10
   train_epochs: 10
   warmup_iterations: 1000
   seed: 42

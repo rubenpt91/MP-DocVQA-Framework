@@ -3,7 +3,8 @@ model_name: Longformer
 # model_weights: valhalla/longformer-base-4096-finetuned-squadv1  # Best pretrained.
 # model_weights: mrm8488/longformer-base-4096-finetuned-squadv2
 # model_weights: allenai/longformer-base-4096-finetuned-triviaqa
-model_weights: weights/longformer_oracle_mp-docvqa__best.ckpt
+# model_weights: weights/longformer_oracle_mp-docvqa__best.ckpt
+model_weights: rubentito/longformer-base-mpdocvqa
 device: cuda
 data_parallel: False
 

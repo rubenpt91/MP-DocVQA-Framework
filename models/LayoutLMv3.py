@@ -81,6 +81,9 @@ class LayoutLMv3:
                 for batch_idx in range(bs):
                     images.append(self.get_concat_v_multi_resize([Image.open(img_path).convert("RGB") for img_path in batch['image_names'][batch_idx]]))  # Concatenate images vertically.
 
+            elif self.page_retrieval == 'none':
+                images = [Image.open(img_path).convert("RGB") for img_path in batch['image_names']]
+
             boxes = [(bbox * 1000).astype(int) for bbox in batch['boxes']]  # Scale boxes 0->1 to 0-->1000.
             encoding = self.processor(images, question, batch["words"], boxes=boxes, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
 
@@ -125,12 +128,15 @@ class LayoutLMv3:
             elif self.page_retrieval == 'concat':
                 pred_answer_pages = [batch['context_page_corresp'][batch_idx][pred_start_idx] if len(batch['context_page_corresp'][batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
 
-            elif self.page_retrieval is None:
-                pred_answer_pages = [-1 for _ in range(bs)]
+            # elif self.page_retrieval is None:
+            #     pred_answer_pages = None
+
+            elif self.page_retrieval == 'none':
+                pred_answer_pages = None
 
         if random.randint(0, 1000) == 0:
             for question_id, gt_answer, pred_answer in zip(batch['question_id'], answers, pred_answers):
-                print("ID: {:5d}  GT: {:}  -  Pred: {:s}".format(question_id, gt_answer, pred_answer))
+                print("ID: {:}  GT: {:}  -  Pred: {:s}".format(question_id, gt_answer, pred_answer))
         #
         #     for start_p, end_p, pred_start_p, pred_end_p in zip(start_pos, end_pos, outputs.start_logits.argmax(-1), outputs.end_logits.argmax(-1)):
         #         print("GT: {:d}-{:d} \t Pred: {:d}-{:d}".format(start_p.item(), end_p.item(), pred_start_p, pred_end_p))

@@ -82,6 +82,8 @@ class Longformer:
             elif self.page_retrieval == 'concat':
                 pred_answer_pages = [context_page_token_correspondent[batch_idx][pred_start_idx] if len(context_page_token_correspondent[batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
 
+            elif self.page_retrieval == 'none':
+                pred_answer_pages = None
 
         if random.randint(0, 1000) == 0:
             print(batch['question_id'])

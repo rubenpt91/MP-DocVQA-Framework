@@ -75,6 +75,9 @@ class BertQA:
             elif self.page_retrieval == 'concat':
                 pred_answer_pages = [context_page_token_correspondent[batch_idx][pred_start_idx] if len(context_page_token_correspondent[batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
 
+            elif self.page_retrieval == 'none':
+                pred_answer_pages = None
+
         return outputs, pred_answers, pred_answer_pages
 
     def get_start_end_idx(self, encoding, context, answers, context_page_char_correspondent=None):
