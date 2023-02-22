@@ -27,9 +27,7 @@ class DUDE(MPDocVQA):
         record = self.imdb[idx]
 
         question = record["question"]
-        answers = list(
-            set(answer.lower() for answer in record["answers"])
-        )  # DEV: join if list again by |
+        answers = record["answers"]  # DEV: join if list again by |
         num_pages = record["num_pages"]
         answer_page_idx = random.choice(range(num_pages))  # random
         record["answer_page_idx"] = answer_page_idx  # putting it in here
@@ -171,7 +169,7 @@ class DUDE(MPDocVQA):
         if self.get_doc_id:
             sample_info["doc_id"] = [
                 record["image_name"][page_ix] for page_ix in range(first_page, last_page)
-            ]
+            ]        
 
         ## parse list and none strategies; adjust accordingly
         #if self.list_strategy: 
