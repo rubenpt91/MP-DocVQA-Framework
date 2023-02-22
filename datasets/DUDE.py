@@ -167,16 +167,14 @@ class DUDE(MPDocVQA):
             sample_info["end_indxs"] = end_idxs
 
         if self.get_doc_id:
-            sample_info["doc_id"] = [
-                record["image_name"][page_ix] for page_ix in range(first_page, last_page)
-            ]        
+            sample_info['doc_id'] = [record['image_name'][page_ix] for page_ix in range(first_page, last_page)]
+        
+        if not record['images']:
+            print(f"NO IMAGES: {record['images']}")
 
         ## parse list and none strategies; adjust accordingly
         #if self.list_strategy: 
         #   do
-
-        return sample_info
-
 
 if __name__ == "__main__":
     dude_dataset = DUDE("/SSD/Datasets/DUDE/imdb/", split="val")
