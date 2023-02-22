@@ -27,7 +27,7 @@ class DUDE(MPDocVQA):
         record = self.imdb[idx]
 
         question = record["question"]
-        answers = record["answers"]  # DEV: join if list again by |
+        answers = record["answers"] 
         num_pages = record["num_pages"]
         answer_page_idx = random.choice(range(num_pages))  # random
         record["answer_page_idx"] = answer_page_idx  # putting it in here
@@ -144,6 +144,11 @@ class DUDE(MPDocVQA):
 
         if len(answers) == 0 and self.none_strategy == 'none':
             answers = ["none"]
+            
+        if len(answers) > 1 and 'list' in record['extra']['answer_type'] and self.list_strategy:
+            if self.list_strategy == "separator":
+                answers = " | ".join(answers)
+                #print(answers)
         
         sample_info = {
             "question_id": record["question_id"],
@@ -182,4 +187,6 @@ class DUDE(MPDocVQA):
         return sample_info
 
 if __name__ == "__main__":
-    dude_dataset = DUDE("/SSD/Datasets/DUDE/imdb/", split="val")
+    #dude_dataset = DUDE("/SSD/Datasets/DUDE/imdb/", split="val")
+    dude_dataset = DUDE("/cw/liir_data/NoCsBack/jordy/DUDE/", split="val")
+    print(dude_dataset[1])
