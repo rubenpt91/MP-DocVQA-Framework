@@ -149,7 +149,9 @@ class DUDE(MPDocVQA):
 
         if self.get_doc_id:
             sample_info['doc_id'] = [record['image_name'][page_ix] for page_ix in range(first_page, last_page)]
-
+        
+        if not record['images']:
+            print(f"NO IMAGES: {record['images']}")
         return sample_info
 
 
