@@ -16,9 +16,9 @@ class DUDE(MPDocVQA):
             )
 
         self.list_strategy = kwargs.get("list_strategy")
-        self.none_strategy = kwargs.get("none_strategy")
-        self.qtype_learning = kwargs.get("qtype_learning")
-        self.atype_learning = kwargs.get("atype_learning")
+        self.none_strategy = kwargs.get("none_strategy", "none")
+        self.qtype_learning = kwargs.get("qtype_learning", None)
+        self.atype_learning = kwargs.get("atype_learning", None)
         # Defaults: {'none_strategy': 'token', 'list_strategy': 'separator',
         #'atype_learning': 'None', 'qtype_learning': 'None'}
 
@@ -142,6 +142,9 @@ class DUDE(MPDocVQA):
         elif self.page_retrieval == "logits":
             start_idxs, end_idxs = self._get_start_end_idx(context[answer_page_idx], answers)
 
+        if len(answers) == 0 and self.none_strategy == 'none':
+            answers = ["none"]
+        
         sample_info = {
             "question_id": record["question_id"],
             "questions": question,
@@ -155,6 +158,8 @@ class DUDE(MPDocVQA):
         if self.use_images:
             sample_info["image_names"] = image_names
             sample_info["images"] = images
+            if not sample_info['images']:
+                print(f"NO IMAGES: {sample_info['images']}")
 
         if self.get_raw_ocr_data:
             sample_info["words"] = words
@@ -169,12 +174,12 @@ class DUDE(MPDocVQA):
         if self.get_doc_id:
             sample_info['doc_id'] = [record['image_name'][page_ix] for page_ix in range(first_page, last_page)]
         
-        if not record['images']:
-            print(f"NO IMAGES: {record['images']}")
 
         ## parse list and none strategies; adjust accordingly
         #if self.list_strategy: 
         #   do
+
+        return sample_info
 
 if __name__ == "__main__":
     dude_dataset = DUDE("/SSD/Datasets/DUDE/imdb/", split="val")

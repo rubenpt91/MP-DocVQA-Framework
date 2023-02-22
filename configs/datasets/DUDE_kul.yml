@@ -1,4 +1,4 @@
 dataset_name: DUDE
 imdb_dir:  /cw/liir_data/NoCsBack/jordy/DUDE # /SSD/Datasets/DUDE/imdb  # /imdb/collection/imdb_train.npy
 images_dir: /cw/liir_data/NoCsBack/jordy/DUDE/DUDE_train-val-test_binaries/images # /SSD/Datasets/DUDE/Images
-page_retrieval: Custom  # Oracle / Concat / Logits / Custom (for Hierarchical methods (Hi-LayoutLMv2, Hi-LT5, Hi-VT5)
+page_retrieval: Concat  # Oracle / Concat / Logits / Custom (for Hierarchical methods (Hi-LayoutLMv2, Hi-LT5, Hi-VT5)

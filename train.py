@@ -48,12 +48,12 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
         if hasattr(outputs, 'ret_loss'):
             log_dict['Train/Batch retrieval loss'] = outputs.ret_loss.item()
 
-        if 'answer_page_idx' in batch:
+        if 'answer_page_idx' in batch and pred_answer_page is not None:
             try:
                 ret_metric = evaluator.get_retrieval_metric(batch.get('answer_page_idx', None), pred_answer_page)
             except Exception as e:
                 print(e)
-                import pdb; pdb.set_trace()  # breakpoint 6c07fa7e //
+                ret_metric = 0
                 
             batch_ret_prec = np.mean(ret_metric)
             log_dict['Train/Batch Ret. Prec.'] = batch_ret_prec
