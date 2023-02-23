@@ -142,15 +142,24 @@ class DUDE(MPDocVQA):
         elif self.page_retrieval == "logits":
             start_idxs, end_idxs = self._get_start_end_idx(context[answer_page_idx], answers)
 
-        if len(answers) == 0 and self.none_strategy == 'none':
-            answers = ["none"]
-            
+        # novel strategies
+        if len(answers) == 0:
+            if self.none_strategy == 'none':
+                answers = ["none"]
+            elif self.none_strategy == "special_token":
+                answers = ["NA"]
+                
         if len(answers) > 1 and 'list' in record['extra']['answer_type'] and self.list_strategy:
             if self.list_strategy == "separator":
                 answers = " | ".join(answers)
-                #print(answers)
-                
-        #if special token update
+            elif self.list_strategy == "special_token":
+                answers = " [LSEP] ".join(answers)
+        
+        if self.qtype_learning == "special_token":
+            answers = [a + f" & {record['extra']['answer_type']}" for a in answers]
+
+        if self.atype_learning == "special_token":
+            answers = [a + f" & {record['extra']['answer_data_type']}" for a in answers]
         
         sample_info = {
             "question_id": record["question_id"],
@@ -180,11 +189,6 @@ class DUDE(MPDocVQA):
 
         if self.get_doc_id:
             sample_info['doc_id'] = [record['image_name'][page_ix] for page_ix in range(first_page, last_page)]
-        
-
-        ## parse list and none strategies; adjust accordingly
-        #if self.list_strategy: 
-        #   do
 
         return sample_info
 

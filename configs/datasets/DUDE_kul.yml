@@ -4,3 +4,8 @@ images_dir: /cw/liir_data/NoCsBack/jordy/DUDE/DUDE_train-val-test_binaries/image
 page_retrieval: Concat  # Oracle / Concat / Logits / Custom (for Hierarchical methods (Hi-LayoutLMv2, Hi-LT5, Hi-VT5)
 
 list_strategy: separator # separator " | " / special_token "[LSEP]"
+
+atype_learning: null # null / MLP / special_token / separator
+  loss_weight: 0.15 
+qtype_learning: null # null / MLP / special_token / separator 
+  loss_weight: 0.15
