@@ -4,6 +4,7 @@ import torch.nn as nn
 import numpy as np
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 import transformers.models.t5.modeling_t5
+from pdb import set_trace
 
 
 class T5:
@@ -12,7 +13,7 @@ class T5:
         self.batch_size = config['batch_size']
         self.tokenizer = T5Tokenizer.from_pretrained(config['model_weights'])
         self.model = T5ForConditionalGeneration.from_pretrained(config['model_weights'])
-        
+        self.model.generation_config.max_length = config.get("generation_max_tokens", 20) #fix for short answers
         self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
 
     def parallelize(self):
