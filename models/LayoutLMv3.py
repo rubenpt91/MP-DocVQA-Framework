@@ -177,6 +177,8 @@ class LayoutLMv3:
             else:
                 answer_pos = random.choice(answer_pos)  # To add variability, pick a random correct span.
                 pos_idx.append(answer_pos)
+        
+        #check unanswerable token
 
         start_idxs = torch.LongTensor([idx[0] for idx in pos_idx]).to(self.model.device)
         end_idxs = torch.LongTensor([idx[1] for idx in pos_idx]).to(self.model.device)

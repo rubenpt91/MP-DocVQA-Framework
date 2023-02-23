@@ -149,6 +149,8 @@ class DUDE(MPDocVQA):
             if self.list_strategy == "separator":
                 answers = " | ".join(answers)
                 #print(answers)
+                
+        #if special token update
         
         sample_info = {
             "question_id": record["question_id"],

@@ -1,8 +1,9 @@
 save_dir: save/
 model_name: T5
-model_weights: t5-base
+#model_weights: t5-base
 # model_weights: weights/t5_oracle_mp-docvqa__best.ckpt
 # model_weights: rubentito/t5-base-mpdocvqa
+model_weights: save/checkpoints/t5_concat_dude/best.ckpt
 device: cuda
 data_parallel: False
 
