@@ -31,7 +31,10 @@ def build_model(config):
         "Hi-LT5",
         "Hi-VT5",
     ]
-    if config["model_name"].lower() == "bert" or config["model_name"].lower() == "bertqa":
+    if (
+        config["model_name"].lower() == "bert"
+        or config["model_name"].lower() == "bertqa"
+    ):
         from models.BertQA import BertQA
 
         model = BertQA(config)
@@ -94,7 +97,11 @@ def build_model(config):
             )
         )
 
-    if config["device"] == "cuda" and config["data_parallel"] and torch.cuda.device_count() > 1:
+    if (
+        config["device"] == "cuda"
+        and config["data_parallel"]
+        and torch.cuda.device_count() > 1
+    ):
         model.parallelize()
 
     model.model.to(config["device"])
@@ -159,7 +166,9 @@ def build_dataset(config, split):
     elif config["dataset_name"] == "SP-DocVQA":
         from datasets.SP_DocVQA import SPDocVQA
 
-        dataset = SPDocVQA(config["imdb_dir"], config["images_dir"], split, dataset_kwargs)
+        dataset = SPDocVQA(
+            config["imdb_dir"], config["images_dir"], split, dataset_kwargs
+        )
 
     elif config["dataset_name"] == "MP-DocVQA":
         from datasets.MP_DocVQA import MPDocVQA
@@ -175,10 +184,16 @@ def build_dataset(config, split):
     elif config["dataset_name"] == "DUDE":
         from datasets.DUDE import DUDE
 
-        split = "val" if split == "test" else "train"  # overriding to val
+        if split == "test":
+            split = "val"
         DUDE_kwargs = {
             k: config[k]
-            for k in ["none_strategy", "list_strategy", "atype_learning", "qtype_learning"]
+            for k in [
+                "none_strategy",
+                "list_strategy",
+                "atype_learning",
+                "qtype_learning",
+            ]
             if k in config
         }
         dataset = DUDE(

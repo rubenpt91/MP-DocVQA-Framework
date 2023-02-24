@@ -1,4 +1,5 @@
 import os
+import yaml
 
 
 def save_model(model, epoch, update_best=False, **kwargs):
@@ -11,18 +12,21 @@ def save_model(model, epoch, update_best=False, **kwargs):
             kwargs["dataset_name"].lower(),
         ),
     )
-    if kwargs["none_strategy"]:
+    if kwargs.get("none_strategy"):
         save_dir += f"_none-{kwargs['none_strategy']}"
-    if kwargs["list_strategy"]:
+    if kwargs.get("list_strategy"):
         save_dir += f"_list-{kwargs['list_strategy']}"
-    if kwargs["qtype_learning"]:
+    if kwargs.get("qtype_learning"):
         save_dir += f"_qtype-{kwargs['qtype_learning']}"
-    if kwargs["atype_learning"]:
+    if kwargs.get("atype_learning"):
         save_dir += f"_atype-{kwargs['atype_learning']}"
-    if kwargs["atype_learning"]:
+    if kwargs.get("atype_learning"):
         save_dir += f"_atype-{kwargs['atype_learning']}"
-    if kwargs["generation_max_tokens"]:
+    if kwargs.get("generation_max_tokens"):
         save_dir += f"_mtk-{kwargs['generation_max_tokens']}"
+    if kwargs.get("sampling"):
+        save_dir += f"_sample"
+
     model.model.save_pretrained(
         os.path.join(save_dir, "model__{:d}.ckpt".format(epoch))
     )
@@ -35,10 +39,15 @@ def save_model(model, epoch, update_best=False, **kwargs):
         else None
     )
     tokenizer.save_pretrained(os.path.join(save_dir, "model__{:d}.ckpt".format(epoch)))
-
+    with open(
+        os.path.join(save_dir, "model__{:d}.ckpt".format(epoch), "config.yml"), "w"
+    ) as outfile:
+        yaml.dump(kwargs, outfile, default_flow_style=False)
     if update_best:
         model.model.save_pretrained(os.path.join(save_dir, "best.ckpt"))
         tokenizer.save_pretrained(os.path.join(save_dir, "best.ckpt"))
+        with open(os.path.join(save_dir, "best.ckpt", "config.yml"), "w") as outfile:
+            yaml.dump(kwargs, outfile, default_flow_style=False)
 
 
 def load_model(base_model, ckpt_name, **kwargs):

@@ -111,7 +111,7 @@ class T5:
 
         return outputs, pred_answers, pred_answer_pages
 
-    def get_answer_from_model_output(self, input_tokens):
+    def get_answer_from_model_output(self, input_tokens, return_confidence=False):
         bs = input_tokens.input_ids.shape[0]
         # output = self.model.generate(**input_tokens, output_scores=True, return_dict_in_generate=True)
         output = self.model.generate(

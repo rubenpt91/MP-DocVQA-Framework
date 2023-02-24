@@ -18,9 +18,10 @@ class DUDE(MPDocVQA):
             raise ValueError(
                 "'Oracle' set-up is not valid for DUDE, since there is no GT for the answer page."
             )
-
         self.list_strategy = kwargs.get("list_strategy")
-        self.none_strategy = kwargs.get("none_strategy", "none")
+        self.none_strategy = (
+            kwargs.get("none_strategy") if kwargs.get("none_strategy") else "none"
+        )
         self.qtype_learning = kwargs.get("qtype_learning", None)
         self.atype_learning = kwargs.get("atype_learning", None)
 
