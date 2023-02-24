@@ -7,11 +7,7 @@ import transformers.models.t5.modeling_t5
 
 # from pdb import set_trace
 
-from tokenization_utils import (
-    QTYPES,
-    initialize_tokens_by_averaging,
-    initialize_tokens_randomly,
-)
+from tokenization_utils import update_tokenizer
 
 
 class T5:
@@ -25,21 +21,12 @@ class T5:
         self.page_retrieval = (
             config["page_retrieval"].lower() if "page_retrieval" in config else None
         )
-        self.update_tokenizer(config)
+        self.tokenizer, self.model = update_tokenizer(
+            self.tokenizer, self.model, config
+        )
 
     def parallelize(self):
         self.model = nn.DataParallel(self.model)
-
-    def update_tokenizer(self, config):
-        add_tokens = []
-        if config.get("none_strategy") == "special_token":
-            add_tokens.append("NA")
-        if config.get("list_strategy") == "special_token":
-            add_tokens.append("[LSEP]")
-        if config.get("qtype_learning") == "special_token":
-            add_tokens.extend(QTYPES)
-        initialize_tokens_randomly(self.tokenizer, self.model, add_tokens)
-        # initialize_tokens_by_averaging(self.tokenizer, self.model,add_tokens)
 
     def forward(self, batch, return_pred_answer=False):
         question = batch["questions"]
