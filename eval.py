@@ -38,22 +38,15 @@ def evaluate(data_loader, model, evaluator, **kwargs):
     for batch_idx, batch in enumerate(tqdm(data_loader)):
         bs = len(batch["question_id"])
         with torch.no_grad():
-            outputs, pred_answers, pred_answer_page = model.forward(
-                batch, return_pred_answer=True
-            )
-            
-            #outputs.logits
+            outputs, pred_answers, pred_answer_page = model.forward(batch, return_pred_answer=True)
+
+            # outputs.logits
             # print(pred_answers)
-            from pdb import set_trace
-            set_trace()
-            pass
 
         metric = evaluator.get_metrics(batch["answers"], pred_answers)
 
         if "answer_page_idx" in batch and pred_answer_page is not None:
-            ret_metric = evaluator.get_retrieval_metric(
-                batch["answer_page_idx"], pred_answer_page
-            )
+            ret_metric = evaluator.get_retrieval_metric(batch["answer_page_idx"], pred_answer_page)
         else:
             ret_metric = [0 for _ in range(bs)]
 
