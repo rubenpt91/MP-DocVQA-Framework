@@ -18,7 +18,9 @@ class T5:
         self.model.generation_config.max_length = config.get(
             "generation_max_tokens", 20
         )  # fix for short answers
-        self.page_retrieval = config["page_retrieval"].lower() if "page_retrieval" in config else None
+        self.page_retrieval = (
+            config["page_retrieval"].lower() if "page_retrieval" in config else None
+        )
         self.tokenizer, self.model = update_tokenizer(self.tokenizer, self.model, config)
 
     def parallelize(self):
@@ -41,9 +43,9 @@ class T5:
                         context[batch_idx],
                     )
                 ]
-                tokens = self.tokenizer(input_text, return_tensors="pt", padding=True, truncation=True).to(
-                    self.model.device
-                )
+                tokens = self.tokenizer(
+                    input_text, return_tensors="pt", padding=True, truncation=True
+                ).to(self.model.device)
 
                 max_logits = -999999
                 answer_page = None
@@ -62,10 +64,12 @@ class T5:
                 pred_answer_pages.append(answer_page)
 
         else:
-            input_text = ["question: {:s}  context: {:s}".format(q, c) for q, c in zip(question, context)]
-            tokens = self.tokenizer(input_text, return_tensors="pt", padding=True, truncation=True).to(
-                self.model.device
-            )
+            input_text = [
+                "question: {:s}  context: {:s}".format(q, c) for q, c in zip(question, context)
+            ]
+            tokens = self.tokenizer(
+                input_text, return_tensors="pt", padding=True, truncation=True
+            ).to(self.model.device)
 
             answers = [random.choice(answer) for answer in answers]
             labels = self.tokenizer(answers, return_tensors="pt", padding=True)
@@ -77,11 +81,9 @@ class T5:
                 attention_mask=tokens.attention_mask,
                 labels=labels,
             )
-            pred_answers, logits = self.get_answer_from_model_output(tokens) if return_pred_answer else None
-            from pdb import set_trace
-
-            set_trace()
-
+            pred_answers, logits = (
+                self.get_answer_from_model_output(tokens) if return_pred_answer else None
+            )
             if self.page_retrieval == "oracle":
                 pred_answer_pages = batch["answer_page_idx"]
 
