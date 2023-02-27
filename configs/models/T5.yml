@@ -14,6 +14,6 @@ generation_max_tokens: 100
 training_parameters:
   lr: 2e-4  # 2e-4
   batch_size: 3
-  train_epochs: 1
+  train_epochs: 10
   warmup_iterations: 1000
 

@@ -11,6 +11,7 @@ use_spatial_features: True
 use_visual_features: True
 data_parallel: False
 max_text_tokens: 512
+generation_max_tokens: 50
 
 retrieval_module:
   loss: CrossEntropy
