@@ -5,7 +5,7 @@ This repository implements the baselines and Hi-VT5 methods for the paper [Hiera
 **DISCLAIMER:** The Hi-VT5 method was originally trained in [MMF framework](https://mmf.sh/). Althought it's a very optimized framework, it's very complex and we had to modify some core functions and classes to make the project work. Hence, we decided to move it outside such complex framework and build a simpler version. The code for Hi-VT5 is exactly the same, but the weights are not transferable. Hence, we are working to provide to the community the most similar weight we obtained on the MMF framework.
 
 ## How to use
-To use the framework please check [How to use](framework_documentation#how-to-use) instructions.
+To use the framework please check [How to use](framework_documentation/how_to_use.md#how-to-use) instructions.
 
 
 ## Dataset
