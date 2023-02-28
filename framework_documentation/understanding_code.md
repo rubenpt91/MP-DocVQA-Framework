@@ -40,7 +40,7 @@ It's quite straight-forward and self-explanatory:
 
 ### Configs
 
-In configs you will find the '_yml_' configuration files for the datasets and models. You can check the configuration files format in the [how to use section](how_to_use#datasets-configuration-files). 
+In configs you will find the '_yml_' configuration files for the datasets and models. You can check the configuration files format in the [how to use section](how_to_use.md#datasets-configuration-files). 
 
 
 ### Datasets
@@ -86,7 +86,7 @@ Here we describe the main changes performed to add spatial and visual features. 
   * In models/HiVT5.py#L487 we get the **semantic embedding** of the words from the language model `self.shared`. Then we obtain the **spatial embedding** by sending the words' boxes to the `self.spatial_embedding` and sum up both representations. 
 
 
-* **Visual features:** We define the [`VisualEmbedding`](#models/HiVT5.py#L39) using a DiT (alternatively ViT), freeze it and add a projection layer. We also define a function to create mock bounding boxes corresponding to the grid patches of the features extractor.
+* **Visual features:** We define the [`VisualEmbedding`](models/HiVT5.py#L39) using a DiT (alternatively ViT), freeze it and add a projection layer. We also define a function to create mock bounding boxes corresponding to the grid patches of the features extractor.
   * In #models/HiVT5.py#L493 the page images are sent to the `self.visual_embedding` with its corresponding mask (it might be necessary to add padding pages). Then, we get the visual boxes `self.visual_embeddings.get_visual_boxes`, send them to the `self.spatial_embedding`, and finally add the extracted visual features with the visual-spatial embedding.   
  
 
