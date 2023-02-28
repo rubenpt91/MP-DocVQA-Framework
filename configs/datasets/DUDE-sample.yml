@@ -1,7 +1,7 @@
 dataset_name: DUDE
 imdb_dir:  /home/jordy/code/DUchallenge/E2E/DUDE_loader/sample # /SSD/Datasets/DUDE/imdb  # /imdb/collection/imdb_train.npy
 images_dir: /home/jordy/Downloads/DUDE_train-val-test_binaries/images # /SSD/Datasets/DUDE/Images
-page_retrieval: Concat  # Oracle / Concat / Logits / Custom (for Hierarchical methods (Hi-LayoutLMv3, Hi-LT5, Hi-VT5)
+#page_retrieval: Concat  # Oracle / Concat / Logits / Custom (for Hierarchical methods (Hi-LayoutLMv3, Hi-LT5, Hi-VT5)
 
 none_strategy: null # empty string / token / special_token
 list_strategy: separator # separator / special_token

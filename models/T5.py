@@ -46,9 +46,9 @@ class T5:
                         context[batch_idx],
                     )
                 ]
-                tokens = self.tokenizer(input_text, return_tensors="pt", padding=True, truncation=True).to(
-                    self.model.device
-                )
+                tokens = self.tokenizer(
+                    input_text, return_tensors="pt", padding=True, truncation=True
+                ).to(self.model.device)
 
                 max_logits = -999999
                 answer_page = None
@@ -67,10 +67,13 @@ class T5:
                 pred_answer_pages.append(answer_page)
 
         else:
-            input_text = ["question: {:s}  context: {:s}".format(q, c) for q, c in zip(question, context)]
-            tokens = self.tokenizer(input_text, return_tensors="pt", padding=True, truncation=True).to(
-                self.model.device
-            )
+            input_text = [
+                "question: {:s}  context: {:s}".format(q, c)
+                for q, c in zip(question, context)
+            ]
+            tokens = self.tokenizer(
+                input_text, return_tensors="pt", padding=True, truncation=True
+            ).to(self.model.device)
 
             answers = [random.choice(answer) for answer in answers]
 
@@ -109,7 +112,6 @@ class T5:
         pred_answers = self.tokenizer.batch_decode(
             output["sequences"], skip_special_tokens=True
         )
-        pred_answers = self.tokenizer.batch_decode(output["sequences"], skip_special_tokens=True)
 
         all_logits = torch.stack(output.scores)
         best_logits = np.zeros(len(output["scores"][0]))
