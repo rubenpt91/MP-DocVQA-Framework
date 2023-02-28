@@ -1,13 +1,15 @@
 # How to use
 
-1. [Set-up environment](#Set-up environment)
-2. [Train or evaluate](#Train and evaluate)
-3. [Configuration files and input arguments](#Configuration files and input arguments)
-   1. [Input Arguments](Input arguments)
-   2. [Datasets configuration files](Datasets configuration files)
-   3. [Models configuration files](#Models configuration files)
-      1. [Training parameters](#Training parameters)
-4. [Visualization](#Visualization)
+1. [Set-up environment](#set-up-environment)
+2. [Train or evaluate](#train-and-evaluate)
+3. [Configuration files and input arguments](#configuration-files-and-input-arguments)
+   1. [Input Arguments](#input-arguments)
+   2. [Datasets configuration files](#datasets-configuration-files)
+   3. [Models configuration files](#models-configuration-files)
+      1. [Retrieval module](#retrieval-module)
+      2. [Visual Module](#visual-module)
+      3. [Training parameters](#training-parameters)
+4. [Visualization](#attention-visualization)
 
 ## Set-up environment
 
