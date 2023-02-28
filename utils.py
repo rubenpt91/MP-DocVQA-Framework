@@ -27,14 +27,6 @@ def parse_args():
     )
 
     # Optional
-    parser.add_argument(
-        "-c",
-        "--checkpoint",
-        type=str,
-        required=False,
-        default="",
-        help="Path to checkpoint with configuration.",
-    )
 
     parser.add_argument(
         "--eval-start",
@@ -44,6 +36,22 @@ def parse_args():
     )
     parser.add_argument("--no-eval-start", dest="eval_start", action="store_false")
 
+    parser.add_argument(
+        "-c",
+        "--checkpoint",
+        type=str,
+        required=False,
+        default="",
+        help="Path to checkpoint with configuration.",
+    )
+    
+    parser.add_argument(
+        "--cf",
+        dest="return_confidence",
+        action="store_true",
+        default=False,
+        help="Add confidence to sample scoring",
+    )
     # Overwrite config parameters
     parser.add_argument("-bs", "--batch-size", type=int, help="DataLoader batch size.")
     parser.add_argument("--seed", type=int, help="Seed to allow reproducibility.")

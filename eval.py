@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from datasets.SP_DocVQA import SPDocVQA, singlepage_docvqa_collate_fn
+from datasets.SP_DocVQA import singlepage_docvqa_collate_fn
 from logger import Logger
 from metrics import Evaluator
 from utils import parse_args, time_stamp_to_hhmmss, load_config, save_json
@@ -16,6 +16,7 @@ def evaluate(data_loader, model, evaluator, **kwargs):
 
     return_scores_by_sample = kwargs.get('return_scores_by_sample', False)
     return_answers = kwargs.get('return_answers', False)
+    return_confidence = kwargs.get('return_confidence', False)
 
     if return_scores_by_sample:
         scores_by_samples = {}
@@ -34,8 +35,10 @@ def evaluate(data_loader, model, evaluator, **kwargs):
     for batch_idx, batch in enumerate(tqdm(data_loader)):
         bs = len(batch['question_id'])
         with torch.no_grad():
-            outputs, pred_answers, pred_answer_page = model.forward(batch, return_pred_answer=True)
-            # print(pred_answers)
+            outputs, pred_answers, pred_answer_page = model.forward(batch, return_pred_answer=True, return_confidence=return_confidence)
+            if return_confidence:
+                pred_answers = pred_answers[0]
+                confidences = pred_answers[1]
 
         metric = evaluator.get_metrics(batch['answers'], pred_answers)
 
@@ -51,8 +54,10 @@ def evaluate(data_loader, model, evaluator, **kwargs):
                     'anls': metric['anls'][batch_idx],
                     'ret_prec': ret_metric[batch_idx],
                     'pred_answer': pred_answers[batch_idx],
-                    'pred_answer_page': pred_answer_page[batch_idx] if pred_answer_page is not None else None
+                    'pred_answer_page': pred_answer_page[batch_idx] if pred_answer_page is not None else None,
                 }
+                if return_confidence:
+                    scores_by_samples[batch['question_id'][batch_idx]]['answers_confidence'] = confidences[batch_idx]
 
         if return_scores_by_sample:
             total_accuracies.extend(metric['accuracy'])

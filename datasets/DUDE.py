@@ -163,7 +163,7 @@ class DUDE(MPDocVQA):
             start_idxs, end_idxs = self._get_start_end_idx(
                 context[answer_page_idx], answers
             )
-
+        
         # novel strategies
         if len(answers) == 0:
             if self.none_strategy == "none":

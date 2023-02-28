@@ -3,21 +3,25 @@ import torch
 import torch.nn as nn
 import numpy as np
 from transformers import T5Tokenizer, T5ForConditionalGeneration
-import transformers.models.t5.modeling_t5
 
 # from pdb import set_trace
 
 from tokenization_utils import update_tokenizer
 
+def generative_confidence(output):
+    batch_logits = torch.stack(output.scores, dim=1)[:,:-1,:] #b x s x V and dropping EOS token
+    decoder_output_confs = torch.amax(batch_logits.softmax(-1), 2).cpu().numpy() 
+    confidences = decoder_output_confs.prod(1) #b
+    return confidences
 
 class T5:
     def __init__(self, config):
         self.batch_size = config["batch_size"]
         self.tokenizer = T5Tokenizer.from_pretrained(config["model_weights"])
         self.model = T5ForConditionalGeneration.from_pretrained(config["model_weights"])
-        self.model.generation_config.max_length = config.get(
-            "generation_max_tokens", 20
-        )  # fix for short answers
+        #self.model.generation_config.max_length = config.get(
+        #    "generation_max_tokens", 20
+        #)  # fix for short answers
         self.page_retrieval = (
             config["page_retrieval"].lower() if "page_retrieval" in config else None
         )
@@ -28,7 +32,7 @@ class T5:
     def parallelize(self):
         self.model = nn.DataParallel(self.model)
 
-    def forward(self, batch, return_pred_answer=False):
+    def forward(self, batch, return_pred_answer=False, return_confidence=False):
         question = batch["questions"]
         context = batch["contexts"]
         answers = batch["answers"]
@@ -74,7 +78,11 @@ class T5:
                 input_text, return_tensors="pt", padding=True, truncation=True
             ).to(self.model.device)
 
-            answers = [random.choice(answer) for answer in answers]
+            try:
+                answers = [random.choice(answer) for answer in answers]
+            except Exception as e:
+                import pdb; pdb.set_trace()  # breakpoint b4418626 //
+                
             labels = self.tokenizer(answers, return_tensors="pt", padding=True)
             labels.input_ids[labels.input_ids[:] == self.tokenizer.pad_token_id] = -100
             labels = labels.input_ids.to(self.model.device)
@@ -84,11 +92,10 @@ class T5:
                 attention_mask=tokens.attention_mask,
                 labels=labels,
             )
-            pred_answers, logits = (
-                self.get_answer_from_model_output(tokens)
-                if return_pred_answer
-                else None
-            )
+            if return_pred_answer:
+                pred_answers, logits = self.get_answer_from_model_output(tokens)
+                if return_confidence:
+                    pred_answers = (pred_answers, logits) #tuple of answers and confidences
 
             if self.page_retrieval == "oracle":
                 pred_answer_pages = batch["answer_page_idx"]
@@ -101,7 +108,7 @@ class T5:
     def get_answer_from_model_output(self, input_tokens, return_confidence=False):
         bs = input_tokens.input_ids.shape[0]
         # output = self.model.generate(**input_tokens, output_scores=True, return_dict_in_generate=True)
-        output = self.model.generate(
+        output = self.model.generate( #without labels
             **input_tokens,
             output_scores=True,
             return_dict_in_generate=True,
@@ -121,5 +128,7 @@ class T5:
                     if token_id not in self.tokenizer.all_special_ids
                     else 0
                 )
+        if return_confidence:
+            return pred_answers, generative_confidence(output)
 
         return pred_answers, best_logits
