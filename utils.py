@@ -84,7 +84,10 @@ def check_config(config):
     elif model_name in ['hi-layoutlmv3, hilt5', 'hi-lt5', 'hivt5', 'hi-vt5'] and page_retrieval in ['concat', 'logits']:
         raise ValueError("Hierarchical model {:} can't run on {:} retrieval type. Only 'oracle' and 'custom' are allowed.".format(model_name, page_retrieval))
 
-    if page_retrieval in ['concat', 'logits'] and config.get('max_pages') is not None:
+    if page_retrieval == 'custom' and model_name not in ['hi-layoutlmv3', 'hi-lt5', 'hi-vt5']:
+        raise ValueError("'Custom' page retrieval only allowed for Heirarchical methods ('hi-layoutlmv3', 'hi-lt5', 'hi-vt5').")
+
+    elif page_retrieval in ['concat', 'logits'] and config.get('max_pages') is not None:
         print("WARNING - Max pages ({:}) value is ignored for {:} page-retrieval setting.".format(config.get('max_pages'), page_retrieval))
 
     elif page_retrieval == 'none' and config['dataset_name'] not in ['SP-DocVQA']:
