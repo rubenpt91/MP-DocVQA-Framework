@@ -19,15 +19,11 @@ class T5:
         self.batch_size = config["batch_size"]
         self.tokenizer = T5Tokenizer.from_pretrained(config["model_weights"])
         self.model = T5ForConditionalGeneration.from_pretrained(config["model_weights"])
-        #self.model.generation_config.max_length = config.get(
-        #    "generation_max_tokens", 20
-        #)  # fix for short answers
-        self.page_retrieval = (
-            config["page_retrieval"].lower() if "page_retrieval" in config else None
-        )
-        self.tokenizer, self.model = update_tokenizer(
-            self.tokenizer, self.model, config
-        )
+        self.model.generation_config.max_length = config.get(
+            "generation_max_tokens", 20
+        )  # fix for short answers
+        self.page_retrieval = config["page_retrieval"].lower() if "page_retrieval" in config else None
+        self.tokenizer, self.model = update_tokenizer(self.tokenizer, self.model, config)
 
     def parallelize(self):
         self.model = nn.DataParallel(self.model)
@@ -49,9 +45,9 @@ class T5:
                         context[batch_idx],
                     )
                 ]
-                tokens = self.tokenizer(
-                    input_text, return_tensors="pt", padding=True, truncation=True
-                ).to(self.model.device)
+                tokens = self.tokenizer(input_text, return_tensors="pt", padding=True, truncation=True).to(
+                    self.model.device
+                )
 
                 max_logits = -999999
                 answer_page = None
@@ -70,17 +66,14 @@ class T5:
                 pred_answer_pages.append(answer_page)
 
         else:
-            input_text = [
-                "question: {:s}  context: {:s}".format(q, c)
-                for q, c in zip(question, context)
-            ]
-            tokens = self.tokenizer(
-                input_text, return_tensors="pt", padding=True, truncation=True
-            ).to(self.model.device)
+            input_text = ["question: {:s}  context: {:s}".format(q, c) for q, c in zip(question, context)]
+            tokens = self.tokenizer(input_text, return_tensors="pt", padding=True, truncation=True).to(
+                self.model.device
+            )
 
             try:
                 answers = [random.choice(answer) for answer in answers]
-            except Exception as e:
+            except Exception:
                 import pdb; pdb.set_trace()  # breakpoint b4418626 //
                 
             labels = self.tokenizer(answers, return_tensors="pt", padding=True)
@@ -117,6 +110,7 @@ class T5:
         pred_answers = self.tokenizer.batch_decode(
             output["sequences"], skip_special_tokens=True
         )
+        pred_answers = self.tokenizer.batch_decode(output["sequences"], skip_special_tokens=True)
 
         all_logits = torch.stack(output.scores)
         best_logits = np.zeros(len(output["scores"][0]))

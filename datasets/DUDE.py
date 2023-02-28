@@ -5,23 +5,20 @@ from PIL import Image
 import numpy as np
 from datasets.MP_DocVQA import MPDocVQA
 
+def empty_image(height=2, width=2):
+    i = np.ones((height, width, 3), np.uint8) * 255  # whitepage
+    return i
 
 class DUDE(MPDocVQA):
-    def __init__(
-        self, imbd_dir, images_dir, page_retrieval, split, data_kwargs, **kwargs
-    ):
-        super(DUDE, self).__init__(
-            imbd_dir, images_dir, page_retrieval, split, data_kwargs
-        )
+    def __init__(self, imbd_dir, images_dir, page_retrieval, split, data_kwargs, **kwargs):
+        super(DUDE, self).__init__(imbd_dir, images_dir, page_retrieval, split, data_kwargs)
 
         if self.page_retrieval == "oracle":
             raise ValueError(
                 "'Oracle' set-up is not valid for DUDE, since there is no GT for the answer page."
             )
         self.list_strategy = kwargs.get("list_strategy")
-        self.none_strategy = (
-            kwargs.get("none_strategy") if kwargs.get("none_strategy") else "none"
-        )
+        self.none_strategy = kwargs.get("none_strategy") if kwargs.get("none_strategy") else "none"
         self.qtype_learning = kwargs.get("qtype_learning", None)
         self.atype_learning = kwargs.get("atype_learning", None)
 
@@ -57,9 +54,7 @@ class DUDE(MPDocVQA):
             context = ""
             context_page_corresp = []
             for page_ix in range(record["num_pages"]):
-                page_context = " ".join(
-                    [word.lower() for word in record["ocr_tokens"][page_ix]]
-                )
+                page_context = " ".join([word.lower() for word in record["ocr_tokens"][page_ix]])
                 context += " " + page_context
                 context_page_corresp.extend([-1] + [page_ix] * len(page_context))
 
@@ -71,9 +66,7 @@ class DUDE(MPDocVQA):
                     os.path.join(self.images_dir, "{:s}".format(image_name))
                     for image_name in record["image_name"]
                 ]
-                images = [
-                    Image.open(img_path).convert("RGB") for img_path in image_names
-                ]
+                images = [Image.open(img_path).convert("RGB") for img_path in image_names]
 
             if self.get_raw_ocr_data:
                 words, boxes = [], []
@@ -94,9 +87,7 @@ class DUDE(MPDocVQA):
         elif self.page_retrieval == "logits":
             context = []
             for page_ix in range(record["num_pages"]):
-                context.append(
-                    " ".join([word.lower() for word in record["ocr_tokens"][page_ix]])
-                )
+                context.append(" ".join([word.lower() for word in record["ocr_tokens"][page_ix]]))
 
             context_page_corresp = None
 
@@ -105,9 +96,7 @@ class DUDE(MPDocVQA):
                     os.path.join(self.images_dir, "{:s}".format(image_name))
                     for image_name in record["image_name"]
                 ]
-                images = [
-                    Image.open(img_path).convert("RGB") for img_path in image_names
-                ]
+                images = [Image.open(img_path).convert("RGB") for img_path in image_names]
 
             if self.get_raw_ocr_data:
                 words = []
@@ -128,16 +117,10 @@ class DUDE(MPDocVQA):
 
             for page_ix in range(first_page, last_page):
                 words.append([word.lower() for word in record["ocr_tokens"][page_ix]])
-                boxes.append(
-                    np.array(record["ocr_normalized_boxes"][page_ix], dtype=np.float32)
-                )
-                context.append(
-                    " ".join([word.lower() for word in record["ocr_tokens"][page_ix]])
-                )
+                boxes.append(np.array(record["ocr_normalized_boxes"][page_ix], dtype=np.float32))
+                context.append(" ".join([word.lower() for word in record["ocr_tokens"][page_ix]]))
                 image_names.append(
-                    os.path.join(
-                        self.images_dir, "{:s}".format(record["image_name"][page_ix])
-                    )
+                    os.path.join(self.images_dir, "{:s}".format(record["image_name"][page_ix]))
                 )
 
             context_page_corresp = None
@@ -148,22 +131,19 @@ class DUDE(MPDocVQA):
                     boxes.append(np.zeros([1, 4], dtype=np.float32))
 
             if self.use_images:
-                images = [
-                    Image.open(img_path).convert("RGB") for img_path in image_names
-                ]
+                images = [Image.open(img_path).convert("RGB") for img_path in image_names]
+
                 images += [
-                    Image.new("RGB", (0, 0))
-                    for i in range(self.max_pages - len(image_names))
-                ]  # Pad with 0x0 images.
+                    empty_image() for i in range(self.max_pages - len(image_names))
+                ]
+
 
         if self.page_retrieval == "oracle" or self.page_retrieval == "concat":
             start_idxs, end_idxs = self._get_start_end_idx(context, answers)
 
         elif self.page_retrieval == "logits":
-            start_idxs, end_idxs = self._get_start_end_idx(
-                context[answer_page_idx], answers
-            )
-        
+            start_idxs, end_idxs = self._get_start_end_idx(context[answer_page_idx], answers)
+
         # novel strategies
         if len(answers) == 0:
             if self.none_strategy == "none":
@@ -171,11 +151,7 @@ class DUDE(MPDocVQA):
             elif self.none_strategy == "special_token":
                 answers = ["NA"]
 
-        if (
-            len(answers) > 1
-            and "list" in record["extra"]["answer_type"]
-            and self.list_strategy
-        ):
+        if len(answers) > 1 and "list" in record["extra"]["answer_type"] and self.list_strategy:
             if self.list_strategy == "separator":
                 answers = " | ".join(answers)
             elif self.list_strategy == "special_token":
@@ -215,8 +191,7 @@ class DUDE(MPDocVQA):
 
         if self.get_doc_id:
             sample_info["doc_id"] = [
-                record["image_name"][page_ix]
-                for page_ix in range(first_page, last_page)
+                record["image_name"][page_ix] for page_ix in range(first_page, last_page)
             ]
 
         return sample_info

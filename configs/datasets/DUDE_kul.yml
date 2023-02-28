@@ -9,4 +9,4 @@ none_strategy: special_token # empty string / token / special_token
 list_strategy: separator # separator " | " / special_token "[LSEP]"
 
 atype_learning: null # null / MLP / special_token / separator
-qtype_learning: special_token # null / MLP / special_token / separator 
+qtype_learning: null # null / MLP / special_token / separator 
