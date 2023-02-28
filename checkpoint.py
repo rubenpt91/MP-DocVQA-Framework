@@ -1,8 +1,7 @@
 import os
 import yaml
 
-
-def save_model(model, epoch, update_best=False, **kwargs):
+def name_save_dir(**kwargs):
     save_dir = os.path.join(
         kwargs["save_dir"],
         "checkpoints",
@@ -26,7 +25,10 @@ def save_model(model, epoch, update_best=False, **kwargs):
         save_dir += f"_mtk-{kwargs['generation_max_tokens']}"
     if kwargs.get("sampling"):
         save_dir += f"_sample"
+    return save_dir
 
+def save_model(model, epoch, update_best=False, **kwargs):
+    save_dir = name_save_dir(kwargs)
     model.model.save_pretrained(
         os.path.join(save_dir, "model__{:d}.ckpt".format(epoch))
     )
