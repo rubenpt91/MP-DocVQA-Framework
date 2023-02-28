@@ -12,7 +12,7 @@ use_spatial_features: True
 use_visual_features: True
 data_parallel: False
 max_text_tokens: 512
-page_retrieval: Concat  # Oracle / Concat / Logits / Custom (for Hierarchical methods (Hi-LayoutLMv2, Hi-LT5, Hi-VT5)
+page_retrieval: Custom  # Oracle / Concat / Logits / Custom (for Hierarchical methods (Hi-LayoutLMv2, Hi-LT5, Hi-VT5)
 
 generation_max_tokens: 50
 
