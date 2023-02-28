@@ -8,22 +8,26 @@ from transformers import T5Tokenizer, T5ForConditionalGeneration
 
 from tokenization_utils import update_tokenizer
 
+
 def generative_confidence(output):
-    batch_logits = torch.stack(output.scores, dim=1)[:,:-1,:] #b x s x V and dropping EOS token
-    decoder_output_confs = torch.amax(batch_logits.softmax(-1), 2).cpu().numpy() 
-    confidences = decoder_output_confs.prod(1) #b
+    batch_logits = torch.stack(output.scores, dim=1)[:, :-1, :]  # b x s x V and dropping EOS token
+    decoder_output_confs = torch.amax(batch_logits.softmax(-1), 2).cpu().numpy()
+    confidences = decoder_output_confs.prod(1)  # b
     return confidences
+
 
 class T5:
     def __init__(self, config):
         self.batch_size = config["batch_size"]
         self.tokenizer = T5Tokenizer.from_pretrained(config["model_weights"])
         self.model = T5ForConditionalGeneration.from_pretrained(config["model_weights"])
-        if hasattr(self.model, 'generation_config'):
+        if hasattr(self.model, "generation_config"):
             self.model.generation_config.max_length = config.get(
                 "generation_max_tokens", 20
             )  # fix for too short answers
-        self.page_retrieval = config["page_retrieval"].lower() if "page_retrieval" in config else None
+        self.page_retrieval = (
+            config["page_retrieval"].lower() if "page_retrieval" in config else None
+        )
         self.tokenizer, self.model = update_tokenizer(self.tokenizer, self.model, config)
 
     def parallelize(self):
@@ -68,8 +72,7 @@ class T5:
 
         else:
             input_text = [
-                "question: {:s}  context: {:s}".format(q, c)
-                for q, c in zip(question, context)
+                "question: {:s}  context: {:s}".format(q, c) for q, c in zip(question, context)
             ]
             tokens = self.tokenizer(
                 input_text, return_tensors="pt", padding=True, truncation=True
@@ -88,9 +91,11 @@ class T5:
             )
 
             if return_pred_answer:
-                pred_answers, logits = self.get_answer_from_model_output(tokens, return_confidence=return_confidence)                
+                pred_answers, logits = self.get_answer_from_model_output(
+                    tokens, return_confidence=return_confidence
+                )
                 if return_confidence:
-                    pred_answers = (pred_answers, logits) #tuple of answers and confidences
+                    pred_answers = (pred_answers, logits)  # tuple of answers and confidences
 
             if self.page_retrieval == "oracle":
                 pred_answer_pages = batch["answer_page_idx"]
@@ -103,15 +108,10 @@ class T5:
     def get_answer_from_model_output(self, input_tokens, return_confidence=False):
         bs = input_tokens.input_ids.shape[0]
         # output = self.model.generate(**input_tokens, output_scores=True, return_dict_in_generate=True)
-        output = self.model.generate( #without labels
-            **input_tokens,
-            output_scores=True,
-            return_dict_in_generate=True,
-            output_attentions=True
+        output = self.model.generate(  # without labels
+            **input_tokens, output_scores=True, return_dict_in_generate=True, output_attentions=True
         )
-        pred_answers = self.tokenizer.batch_decode(
-            output["sequences"], skip_special_tokens=True
-        )
+        pred_answers = self.tokenizer.batch_decode(output["sequences"], skip_special_tokens=True)
 
         all_logits = torch.stack(output.scores)
         best_logits = np.zeros(len(output["scores"][0]))

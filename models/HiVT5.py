@@ -4,20 +4,16 @@ from typing import Any, Dict, Optional
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from torch.nn import CrossEntropyLoss
-from torch.nn import LayerNorm as BertLayerNorm
 
 from transformers import T5Config, T5Tokenizer, T5ForConditionalGeneration
-from transformers import ViTModel, ViTFeatureExtractor
 
 from transformers import AutoFeatureExtractor, AutoModel
 
 from transformers.modeling_outputs import Seq2SeqLMOutput, ModelOutput, BaseModelOutput
 
 from models.HiLT5 import SpatialEmbeddings, MLP, RetrievalModule
-import transformers.models.t5.modeling_t5
 from tokenization_utils import update_tokenizer
 
 """ START - FOR GREEDY SEARCH """
@@ -864,13 +860,15 @@ class Proxy_HiVT5:
 
         return all_input_ids, all_boxes, all_attention_masks
 
-    def forward(self, batch, output_attentions=False, return_pred_answer=False):
+    def forward(
+        self, batch, output_attentions=False, return_pred_answer=False, return_confidence=False
+    ):
         question_id = batch["question_id"]
         answers = batch["answers"]
         num_pages = batch["num_pages"]
         answer_page_idx = torch.LongTensor(batch["answer_page_idx"]).to(self.device)
 
-        bs = len(question_id)
+        len(question_id)
         if self.page_retrieval == "oracle":
             raise ValueError(
                 "Oracle set-up not available for Hi-VT5. Instead, specify 'max_pages: 1' in dataset config with 'page_retrieval: custom'."

@@ -5,7 +5,6 @@ import torch
 import torch.nn as nn
 from transformers import LayoutLMv3Processor, LayoutLMv3ForQuestionAnswering
 from PIL import Image
-from utils import correct_alignment
 
 # from transformers.models.layoutlmv3.modeling_layoutlmv3 import LayoutLMv3Model  # TODO Remove
 # from transformers.models.layoutlmv3.processing_layoutlmv3 import LayoutLMv3Processor    # TODO Remove
@@ -26,7 +25,7 @@ class LayoutLMv3:
     def parallelize(self):
         self.model = nn.DataParallel(self.model)
 
-    def forward(self, batch, return_pred_answer=False):
+    def forward(self, batch, return_pred_answer=False, return_confidence=False):
 
         question = batch['questions']
         context = batch['contexts']
