@@ -21,7 +21,9 @@ class T5:
         self.page_retrieval = (
             config["page_retrieval"].lower() if "page_retrieval" in config else None
         )
-        self.tokenizer, self.model = update_tokenizer(self.tokenizer, self.model, config)
+        self.tokenizer, self.model = update_tokenizer(
+            self.tokenizer, self.model, config
+        )
 
     def parallelize(self):
         self.model = nn.DataParallel(self.model)
@@ -65,7 +67,8 @@ class T5:
 
         else:
             input_text = [
-                "question: {:s}  context: {:s}".format(q, c) for q, c in zip(question, context)
+                "question: {:s}  context: {:s}".format(q, c)
+                for q, c in zip(question, context)
             ]
             tokens = self.tokenizer(
                 input_text, return_tensors="pt", padding=True, truncation=True
@@ -82,7 +85,9 @@ class T5:
                 labels=labels,
             )
             pred_answers, logits = (
-                self.get_answer_from_model_output(tokens) if return_pred_answer else None
+                self.get_answer_from_model_output(tokens)
+                if return_pred_answer
+                else None
             )
             if self.page_retrieval == "oracle":
                 pred_answer_pages = batch["answer_page_idx"]
@@ -96,9 +101,14 @@ class T5:
         bs = input_tokens.input_ids.shape[0]
         # output = self.model.generate(**input_tokens, output_scores=True, return_dict_in_generate=True)
         output = self.model.generate(
-            **input_tokens, output_scores=True, return_dict_in_generate=True, output_attentions=True
+            **input_tokens,
+            output_scores=True,
+            return_dict_in_generate=True,
+            output_attentions=True
         )
-        pred_answers = self.tokenizer.batch_decode(output["sequences"], skip_special_tokens=True)
+        pred_answers = self.tokenizer.batch_decode(
+            output["sequences"], skip_special_tokens=True
+        )
 
         all_logits = torch.stack(output.scores)
         best_logits = np.zeros(len(output["scores"][0]))

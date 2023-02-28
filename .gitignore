@@ -26,4 +26,4 @@ eggs/
 .vscode/*
 *.so
 *-checkpoint.ipynb
-nohup.out
+*.out
