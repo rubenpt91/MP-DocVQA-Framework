@@ -177,7 +177,6 @@ def load_config(args):
         # Append and overwrite config values from arguments.
         # config = {'dataset_params': dataset_config, 'model_params': model_config, 'training_params': training_config}
         config = {**dataset_config, **model_config, **training_config}
-
     config.update({k: v for k, v in args._get_kwargs() if v is not None})
     config.pop("model")
     config.pop("dataset")

@@ -17,7 +17,7 @@ def evaluate(data_loader, model, evaluator, **kwargs):
     return_scores_by_sample = kwargs.get('return_scores_by_sample', False)
     return_answers = kwargs.get('return_answers', False)
     return_confidence = kwargs.get('return_confidence', False)
-
+    
     if return_scores_by_sample:
         scores_by_samples = {}
         total_accuracies = []
@@ -39,9 +39,9 @@ def evaluate(data_loader, model, evaluator, **kwargs):
         bs = len(batch["question_id"])
         with torch.no_grad():
             outputs, pred_answers, pred_answer_page = model.forward(batch, return_pred_answer=True, return_confidence=return_confidence)
-            if return_confidence:
-                pred_answers = pred_answers[0]
+            if return_confidence: #unpack tuple
                 confidences = pred_answers[1]
+                pred_answers = pred_answers[0]                
 
         metric = evaluator.get_metrics(batch["answers"], pred_answers)
 
@@ -60,7 +60,7 @@ def evaluate(data_loader, model, evaluator, **kwargs):
                     'pred_answer_page': pred_answer_page[batch_idx] if pred_answer_page is not None else None,
                 }
                 if return_confidence:
-                    scores_by_samples[batch['question_id'][batch_idx]]['answers_confidence'] = confidences[batch_idx]
+                    scores_by_samples[batch['question_id'][batch_idx]]['answers_confidence'] = float(confidences[batch_idx])
 
         if return_scores_by_sample:
             total_accuracies.extend(metric["accuracy"])
@@ -122,7 +122,7 @@ if __name__ == "__main__":
         evaluator,
         return_scores_by_sample=True,
         return_answers=True,
-        return_confidence=True,
+        return_confidence=config.get('return_confidence',False),
     )
     accuracy, anls, answ_page_pred_acc = (
         np.mean(accuracy_list),

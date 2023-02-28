@@ -19,9 +19,10 @@ class T5:
         self.batch_size = config["batch_size"]
         self.tokenizer = T5Tokenizer.from_pretrained(config["model_weights"])
         self.model = T5ForConditionalGeneration.from_pretrained(config["model_weights"])
-        self.model.generation_config.max_length = config.get(
-            "generation_max_tokens", 20
-        )  # fix for short answers
+        if hasattr(self.model, 'generation_config'):
+            self.model.generation_config.max_length = config.get(
+                "generation_max_tokens", 20
+            )  # fix for too short answers
         self.page_retrieval = config["page_retrieval"].lower() if "page_retrieval" in config else None
         self.tokenizer, self.model = update_tokenizer(self.tokenizer, self.model, config)
 
@@ -71,11 +72,8 @@ class T5:
                 self.model.device
             )
 
-            try:
-                answers = [random.choice(answer) for answer in answers]
-            except Exception:
-                import pdb; pdb.set_trace()  # breakpoint b4418626 //
-                
+            answers = [random.choice(answer) for answer in answers]
+
             labels = self.tokenizer(answers, return_tensors="pt", padding=True)
             labels.input_ids[labels.input_ids[:] == self.tokenizer.pad_token_id] = -100
             labels = labels.input_ids.to(self.model.device)
@@ -85,8 +83,9 @@ class T5:
                 attention_mask=tokens.attention_mask,
                 labels=labels,
             )
+
             if return_pred_answer:
-                pred_answers, logits = self.get_answer_from_model_output(tokens)
+                pred_answers, logits = self.get_answer_from_model_output(tokens, return_confidence=return_confidence)                
                 if return_confidence:
                     pred_answers = (pred_answers, logits) #tuple of answers and confidences
 
