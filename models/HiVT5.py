@@ -13,7 +13,7 @@ from transformers import AutoFeatureExtractor, AutoModel
 
 from transformers.modeling_outputs import Seq2SeqLMOutput, ModelOutput, BaseModelOutput
 
-from models.HiLT5 import SpatialEmbeddings, MLP, RetrievalModule
+from models.HiLT5 import SpatialEmbeddings, MLP, RetrievalModule, QClassificationModule, AClassificationModule
 from tokenization_utils import update_tokenizer
 
 """ START - FOR GREEDY SEARCH """
@@ -54,6 +54,12 @@ class VisualEmbeddings(nn.Module):
             self.image_model.config.hidden_size,
             1,
         )
+        self.return_hidden_state=False
+        if hasattr(config, 'return_visual_embedding'): 
+            self.return_hidden_state=config.return_visual_embedding
+        self.precomputed_visual_feats=False
+        if hasattr(config, 'precomputed_visual_feats'): 
+            self.precomputed_visual_feats=config.precomputed_visual_feats
 
         if not finetune:
             self.freeze()
@@ -80,6 +86,9 @@ class VisualEmbeddings(nn.Module):
         inputs = self.feature_extractor(images=images, return_tensors="pt")
         vis_embeddings = self.image_model(inputs.pixel_values.to(self.image_model.device))
         vis_embeddings = vis_embeddings.last_hidden_state  # BS; 14x14+CLS (197); 768 (hidden size)
+        if self.return_hidden_state:
+            return vis_embeddings
+        #TODO: jump in here
         vis_embeddings = self.visual_emb_matcher(vis_embeddings)
 
         vis_attention_mask = torch.zeros(vis_embeddings.shape[:2]).to(self.image_model.device)
@@ -101,6 +110,12 @@ class HiVT5(T5ForConditionalGeneration):
         self.use_visual_features = config.use_visual_features
         self.page_tokens = config.page_tokens
         self.max_doc_pages = config.max_doc_pages
+
+        #HF config
+        if config.get("qtype_learning") == "MLP" or config.get("atype_learning") == "MLP":
+            self.qtype_MLP = QClassificationModule(config)
+            self.atype_MLP = AClassificationModule(config)
+            
 
     def _prepare_encoder_decoder_kwargs_for_generation(
         self,
@@ -171,6 +186,9 @@ class HiVT5(T5ForConditionalGeneration):
                 page_encoder_attentions.append(encoder_outputs.attentions)
 
         document_embeddings = torch.cat(page_embeddings, dim=1)
+        
+        # 2.3 question tokenization and encoding
+        
 
         # 3. make sure that encoder returns `ModelOutput`
         model_input_name = (
@@ -236,13 +254,7 @@ class HiVT5(T5ForConditionalGeneration):
         Generates sequences of token ids for models with a language modeling head using **greedy decoding** and can be
         used for text-decoder, text-to-text, speech-to-text, and vision-to-text models.
 
-        Parameters:
-            input_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`):
-                The sequence used as a prompt for the generation.
-            logits_processor (`LogitsProcessorList`, *optional*):
-                An instance of [`LogitsProcessorList`]. List of instances of class derived from [`LogitsProcessor`]
-                used to modify the prediction scores of the language modeling head applied at each generation step.
-            stopping_criteria (`StoppingCriteriaList`, *optional*):
+        Parameters:HiVT5, *optional*):
                 An instance of [`StoppingCriteriaList`]. List of instances of class derived from [`StoppingCriteria`]
                 used to tell if the generation loop should stop.
 
@@ -351,13 +363,9 @@ class HiVT5(T5ForConditionalGeneration):
 
         # if model is an encoder-decoder, retrieve encoder attention weights and hidden states
         if return_dict_in_generate and self.config.is_encoder_decoder:
-            encoder_attentions = (
-                model_kwargs["encoder_outputs"].get("attentions") if output_attentions else None
-            )
+            encoder_attentions = model_kwargs["encoder_outputs"].get("attentions") if output_attentions else None
             encoder_hidden_states = (
-                model_kwargs["encoder_outputs"].get("hidden_states")
-                if output_hidden_states
-                else None
+                model_kwargs["encoder_outputs"].get("hidden_states") if output_hidden_states else None
             )
 
         # keep track of which sequences are already finished
@@ -405,9 +413,7 @@ class HiVT5(T5ForConditionalGeneration):
                     scores += (next_tokens_scores,)
                 if output_attentions:
                     decoder_attentions += (
-                        (outputs.decoder_attentions,)
-                        if self.config.is_encoder_decoder
-                        else (outputs.attentions,)
+                        (outputs.decoder_attentions,) if self.config.is_encoder_decoder else (outputs.attentions,)
                     )
                     if self.config.is_encoder_decoder:
                         cross_attentions += (outputs.cross_attentions,)
@@ -533,22 +539,6 @@ class HiVT5(T5ForConditionalGeneration):
         # FutureWarning: head_mask was separated into two input args - head_mask, decoder_head_mask
         if head_mask is not None and decoder_head_mask is None:
             if self.config.num_layers == self.config.num_decoder_layers:
-                from transformers.models.t5.modeling_t5 import __HEAD_MASK_WARNING_MSG
-
-                warnings.warn(__HEAD_MASK_WARNING_MSG, FutureWarning)
-                decoder_head_mask = head_mask
-
-        # Encode if needed (training, first prediction pass)
-        if encoder_outputs is None:
-            # Convert encoder inputs in embeddings if needed
-            page_embeddings = []
-            page_encoder_attentions = []
-            # for page_idx in range(self.max_doc_pages):
-            for page_idx in range(max(num_pages)):
-                semantic_emb = self.shared(input_ids[:, page_idx])  # read from default T5
-                # spatial_emb = self.spatial_emb_matcher(self.spatial_embeddings(bbox[:, page_idx]))
-                spatial_emb = self.spatial_embeddings(bbox[:, page_idx])
-                text_embeds = semantic_emb + spatial_emb
 
                 page_idx_mask = [
                     batch_idx
@@ -730,8 +720,12 @@ class Proxy_HiVT5:
         config_x.max_doc_pages = self.max_doc_pages
         config_x.use_spatial_features = config.get("use_spatial_features", True)
         config_x.page_retrieval_config = config["retrieval_module"]
-        config_x.use_visual_features = config.get("use_spatial_features", True)
+        config_x.use_visual_features = config.get("use_visual_features", True)
         config_x.visual_module_config = config["visual_module"]
+        if config.get("qtype_learning") == "MLP" or config.get("atype_learning") == "MLP":
+            config_x.qtype_learning = config.get("qtype_learning", None)
+            config_x.atype_learning = config.get("atype_learning", None)
+                    
         self.tokenizer = T5Tokenizer.from_pretrained(config["model_weights"])
         # self.tokenizer.add_tokens("[PAGE]")  # Single representation
         [
@@ -752,7 +746,7 @@ class Proxy_HiVT5:
             for n, p in self.model.named_parameters():
                 if not (n.startswith("decoder") or n.startswith("retrieval_module")):
                     p.requires_grad = False
-
+                    
         self.device = config["device"]
 
     def parallelize(self):
