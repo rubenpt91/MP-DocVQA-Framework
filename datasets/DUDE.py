@@ -73,7 +73,7 @@ class DUDE(MPDocVQA):
             if self.get_raw_ocr_data:
                 words, boxes = [], []
                 for p in range(num_pages):
-                    if len(record["ocr_tokens"]) == 0:
+                    if len(record['ocr_tokens'][p]) == 0:
                         continue
 
                     words.extend([word.lower() for word in record["ocr_tokens"][p]])
