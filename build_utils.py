@@ -73,15 +73,6 @@ def build_model(config):
     model.model.to(config['device'])
     return model
 
-"""
-def my_import(name):
-    components = name.split('.')
-    mod = __import__(components[0])
-    for comp in components[1:]:
-        mod = getattr(mod, comp)
-    return mod
-"""
-
 
 def build_dataset(config, split):
 
