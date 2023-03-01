@@ -5,9 +5,11 @@ from PIL import Image
 import numpy as np
 from datasets.MP_DocVQA import MPDocVQA
 
+
 def empty_image(height=2, width=2):
     i = np.ones((height, width, 3), np.uint8) * 255  # whitepage
     return i
+
 
 class DUDE(MPDocVQA):
     def __init__(self, imbd_dir, images_dir, page_retrieval, split, data_kwargs, **kwargs):
@@ -71,7 +73,7 @@ class DUDE(MPDocVQA):
             if self.get_raw_ocr_data:
                 words, boxes = [], []
                 for p in range(num_pages):
-                    if len(record["ocr_tokens"]):
+                    if len(record["ocr_tokens"]) == 0:
                         continue
 
                     words.extend([word.lower() for word in record["ocr_tokens"][p]])
@@ -133,10 +135,7 @@ class DUDE(MPDocVQA):
             if self.use_images:
                 images = [Image.open(img_path).convert("RGB") for img_path in image_names]
 
-                images += [
-                    empty_image() for i in range(self.max_pages - len(image_names))
-                ]
-
+                images += [empty_image() for i in range(self.max_pages - len(image_names))]
 
         if self.page_retrieval == "oracle" or self.page_retrieval == "concat":
             start_idxs, end_idxs = self._get_start_end_idx(context, answers)

@@ -31,10 +31,7 @@ def build_model(config):
         "Hi-LT5",
         "Hi-VT5",
     ]
-    if (
-        config["model_name"].lower() == "bert"
-        or config["model_name"].lower() == "bertqa"
-    ):
+    if config["model_name"].lower() == "bert" or config["model_name"].lower() == "bertqa":
         from models.BertQA import BertQA
 
         model = BertQA(config)
@@ -97,25 +94,11 @@ def build_model(config):
             )
         )
 
-    if (
-        config["device"] == "cuda"
-        and config["data_parallel"]
-        and torch.cuda.device_count() > 1
-    ):
+    if config["device"] == "cuda" and config["data_parallel"] and torch.cuda.device_count() > 1:
         model.parallelize()
 
     model.model.to(config["device"])
     return model
-
-
-"""
-def my_import(name):
-    components = name.split('.')
-    mod = __import__(components[0])
-    for comp in components[1:]:
-        mod = getattr(mod, comp)
-    return mod
-"""
 
 
 def build_dataset(config, split):
@@ -166,9 +149,7 @@ def build_dataset(config, split):
     elif config["dataset_name"] == "SP-DocVQA":
         from datasets.SP_DocVQA import SPDocVQA
 
-        dataset = SPDocVQA(
-            config["imdb_dir"], config["images_dir"], split, dataset_kwargs
-        )
+        dataset = SPDocVQA(config["imdb_dir"], config["images_dir"], split, dataset_kwargs)
 
     elif config["dataset_name"] == "MP-DocVQA":
         from datasets.MP_DocVQA import MPDocVQA
