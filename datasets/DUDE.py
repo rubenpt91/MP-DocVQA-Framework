@@ -240,9 +240,6 @@ class DUDE(MPDocVQA):
 
     def retrieve_precomputed(self, image_names):
         images = []
-        from pdb import set_trace
-
-        set_trace()
         for img_path in image_names:
             index = self.pagename_idx.get(
                 img_path.replace(self.images_dir + "/", ""), self.pagename_idx["PAD"]
