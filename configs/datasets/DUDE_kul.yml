@@ -2,10 +2,8 @@ dataset_name: DUDE
 imdb_dir:  /cw/liir_data/NoCsBack/jordy/DUDE # /SSD/Datasets/DUDE/imdb  # /imdb/collection/imdb_train.npy
 images_dir: /cw/liir_data/NoCsBack/jordy/DUDE/DUDE_train-val-test_binaries/images # /SSD/Datasets/DUDE/Images
 
-generation_max_tokens: 100
-
-none_strategy: special_token # empty string / token / special_token
+none_strategy: null # empty string / token / special_token
 list_strategy: separator # separator " | " / special_token "[LSEP]"
 
 atype_learning: null # null / MLP / special_token / separator
-qtype_learning: special_token # null / MLP / special_token / separator 
+qtype_learning: null # null / MLP / special_token / separator 

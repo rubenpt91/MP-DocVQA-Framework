@@ -27,9 +27,9 @@ visual_module:
 precomputed_visual_feats: true
 
 training_parameters:
-  max_pages: 20
+  max_pages: 7
   lr: 2e-4  # 2e-4
-  batch_size: 2
+  batch_size: 1
   train_epochs: 10
   warmup_iterations: 1000
   seed: 42
