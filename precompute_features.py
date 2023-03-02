@@ -27,6 +27,7 @@ def precompute_visual_features(config):
     config["precomputed_visual_feats"] = False
 
     # split_to_npz, directory mode
+    CHUNKSIZE = 100
     for split in ["val", "train"]:
         page_visual_featdict = {}
         count = 0
@@ -35,7 +36,7 @@ def precompute_visual_features(config):
             image = Image.open(os.path.join(config["images_dir"], split, file)).convert(
                 "RGB"
             )
-            if count == 0:
+            if count == 0 or count % CHUNKSIZE == 0: #gives the reset
                 collect_visual_features = (
                     visual_embedder([image], None).cpu().numpy()[0]
                 )
@@ -47,6 +48,9 @@ def precompute_visual_features(config):
                 (collect_visual_features, page_visual_features)
             )
             count += 1
+            if count % CHUNKSIZE == 0:
+                out = os.path.join(config["images_dir"], f"{split}-visfeats_{int(count/CHUNKSIZE)}.npz")
+                np.savez_compressed(out, collect_visual_features)
         # deal with padding
         collect_visual_features = np.concatenate(
             (
@@ -56,9 +60,9 @@ def precompute_visual_features(config):
                 .numpy()[0],
             )
         )
+        # out = os.path.join(config["images_dir"], f"{split}-visfeats.npz")
+        # np.savez_compressed(out, collect_visual_features)
         page_visual_featdict[f"PAD"] = count
-        out = os.path.join(config["images_dir"], f"{split}-visfeats.npz")
-        np.savez_compressed(out, collect_visual_features)
         out = os.path.join(config["images_dir"], f"{split}-visfeats.json")
         with open(out, "w") as f:
             json.dump(page_visual_featdict, f)

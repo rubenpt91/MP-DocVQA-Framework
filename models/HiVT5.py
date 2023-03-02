@@ -189,6 +189,8 @@ class HiVT5(T5ForConditionalGeneration):
             ]
 
             if self.use_visual_features:
+                #DEBUG:
+                
                 visual_emb, vis_mask = self.visual_embeddings(
                     [doc_images[p_idx] for doc_images in images],
                     page_idx_mask=page_idx_mask,
@@ -980,6 +982,7 @@ class Proxy_HiVT5:
                 ] = -100
                 labels = labels.input_ids.to(self.device)
 
+                #here? #if config.get("precomputed_visual_feats"):
                 outputs = self.model(
                     input_ids=input_ids,
                     bbox=input_boxes,
