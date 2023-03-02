@@ -94,6 +94,7 @@ class VisualEmbeddings(nn.Module):
     def forward(self, images, page_idx_mask):
         if self.precomputed_visual_feats:
             vis_embeddings = images
+            # TODO: .to(self.visual_emb_matcher.device) might need to tensorize as well; test with eval start on server
         else:
             inputs = self.feature_extractor(images=images, return_tensors="pt")
             vis_embeddings = self.image_model(
@@ -108,7 +109,7 @@ class VisualEmbeddings(nn.Module):
         vis_embeddings = self.visual_emb_matcher(vis_embeddings)
 
         vis_attention_mask = torch.zeros(vis_embeddings.shape[:2]).to(
-            self.image_model.device
+            self.visual_emb_matcher.device
         )
         vis_attention_mask[page_idx_mask] = 1
 
@@ -129,12 +130,9 @@ class HiVT5(T5ForConditionalGeneration):
         self.page_tokens = config.page_tokens
         self.max_doc_pages = config.max_doc_pages
 
-        # HF config
-        if (
-            config.get("qtype_learning") == "MLP"
-            or config.get("atype_learning") == "MLP"
-        ):
+        if hasattr(config, "qtype_learning") and config.qtype_learning == "MLP":
             self.qtype_MLP = QClassificationModule(config)
+        if hasattr(config, "atype_learning") and config.atype_learning == "MLP":
             self.atype_MLP = AClassificationModule(config)
 
     def _prepare_encoder_decoder_kwargs_for_generation(

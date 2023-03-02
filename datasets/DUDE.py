@@ -12,13 +12,15 @@ def empty_image(height=2, width=2):
     return i
 
 
-def open_precomputed(images_dir):
-    print(f"Loading precomputed visual features from {images_dir}")
-    page_names = json.load(open(os.path.join(images_dir, "visfeat_names.json"), "r"))
-    pad_visual_features = np.array(page_names["PAD"])
-    page_names = page_names["image_names"]
-    page_visual_features = np.load(os.path.join(images_dir, "visfeats.npz"))["arr_0"]
-    return page_names, page_visual_features, pad_visual_features
+def open_precomputed(images_dir, split):
+    print(f"Loading precomputed visual features from {images_dir}-{split}")
+    pagename_idx = json.load(
+        open(os.path.join(images_dir, f"{split}-visfeats.json"), "r")
+    )
+    page_visual_features = np.load(os.path.join(images_dir, f"{split}-visfeats.npz"))[
+        "arr_0"
+    ]
+    return pagename_idx, page_visual_features
 
 
 class DUDE(MPDocVQA):
@@ -40,13 +42,15 @@ class DUDE(MPDocVQA):
         self.qtype_learning = kwargs.get("qtype_learning", None)
         self.atype_learning = kwargs.get("atype_learning", None)
 
-        self.precomputed_visual_feats = bool(data_kwargs.get("precomputed_visual_feats", False) or kwargs.get("precomputed_visual_feats", False))
+        self.precomputed_visual_feats = bool(
+            data_kwargs.get("precomputed_visual_feats", False)
+            or kwargs.get("precomputed_visual_feats", False)
+        )
         if self.precomputed_visual_feats:
             (
-                self.page_names,
+                self.pagename_idx,
                 self.page_visual_features,
-                self.pad_visual_features,
-            ) = open_precomputed(images_dir)
+            ) = open_precomputed(images_dir, split)
 
     def __getitem__(self, idx):
 
@@ -151,7 +155,7 @@ class DUDE(MPDocVQA):
 
             context_page_corresp = None
 
-            #PADDING
+            # PADDING
             if num_pages < self.max_pages:
                 for _ in range(self.max_pages - num_pages):
                     words.append([""])
@@ -232,14 +236,20 @@ class DUDE(MPDocVQA):
             ]
 
         return sample_info
-    
+
     def retrieve_precomputed(self, image_names):
         images = []
         for img_path in image_names:
-            index = self.page_names.index(img_path.replace(self.images_dir+"/",''))
+            index = self.pagename_idx.get(
+                img_path.replace(self.images_dir + "/", ""), self.pagename_idx["PAD"]
+            )
             images.append(self.page_visual_features[index])
-        images += [self.pad_visual_features for i in range(self.max_pages - len(image_names))]
-        return images #as a list?
+        images += [
+            self.page_visual_features[self.pagename_idx["PAD"]]
+            for i in range(self.max_pages - len(image_names))
+        ]
+        return images
+
 
 if __name__ == "__main__":
     # dude_dataset = DUDE("/SSD/Datasets/DUDE/imdb/", split="val")
