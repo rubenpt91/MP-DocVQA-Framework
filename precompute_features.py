@@ -41,6 +41,7 @@ def precompute_visual_features(config):
                 )
                 count += 1
                 continue
+
             page_visual_features = visual_embedder([image], None).cpu().numpy()[0]
             collect_visual_features = np.concatenate(
                 (collect_visual_features, page_visual_features)
@@ -114,9 +115,9 @@ def precompute_visual_features(config):
 
 def test_precomputed(config):
     config["precomputed_visual_feats"] = True
-    train_dataset = build_dataset(config, "train")
-    ex = train_dataset[0]
-    print(train_dataset.precomputed_visual_feats)
+    val_dataset = build_dataset(config, "val")
+    ex = val_dataset[0]
+    print(val_dataset.precomputed_visual_feats)
     print(np.array(ex["images"]).shape)
     from pdb import set_trace
 

@@ -20,6 +20,7 @@ def open_precomputed(images_dir, split):
     page_visual_features = np.load(os.path.join(images_dir, f"{split}-visfeats.npz"))[
         "arr_0"
     ]
+    page_visual_features = page_visual_features.reshape((-1, 197, 768))  # indexation
     return pagename_idx, page_visual_features
 
 
@@ -239,6 +240,9 @@ class DUDE(MPDocVQA):
 
     def retrieve_precomputed(self, image_names):
         images = []
+        from pdb import set_trace
+
+        set_trace()
         for img_path in image_names:
             index = self.pagename_idx.get(
                 img_path.replace(self.images_dir + "/", ""), self.pagename_idx["PAD"]
