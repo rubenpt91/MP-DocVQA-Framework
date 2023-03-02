@@ -19,7 +19,7 @@ class LayoutLMv3:
         self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
         self.ignore_index = 9999  # 0
 
-        # img = Image.open('/SSD2/MP-DocVQA/images/nkkh0227_p2.jpg')
+        # img = Image.open('/SSD2/MP-DocVQA/images/nkkh0227_p2.jpg') 
         # self.processor(img, 'question', ['words'], boxes=[[1, 2, 3, 4]])
 
     def parallelize(self):
