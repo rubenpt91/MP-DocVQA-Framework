@@ -174,6 +174,7 @@ def build_dataset(config, split):
                 "list_strategy",
                 "atype_learning",
                 "qtype_learning",
+                "precomputed_visual_feats"
             ]
             if k in config
         }

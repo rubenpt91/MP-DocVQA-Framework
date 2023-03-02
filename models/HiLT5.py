@@ -12,7 +12,6 @@ from torch.nn import LayerNorm as BertLayerNorm
 from transformers import T5Config, T5Tokenizer, T5ForConditionalGeneration
 from transformers.modeling_outputs import Seq2SeqLMOutput, ModelOutput, BaseModelOutput
 
-import transformers.models.t5.modeling_t5
 
 
 class LayoutT5Config(T5Config):
@@ -112,7 +111,7 @@ class RetrievalModule(nn.Module):
     def forward(self, document_embeddings, answer_page_idx):
         document_embeddings = document_embeddings.view([len(document_embeddings), -1])
         # document_embeddings = F.pad(document_embeddings, (0, self.page_retrieval.in_features-document_embeddings.shape[-1]), "constant", 0)  # In case is the last batch
-
+ 
         try:
             ret_logits = self.page_retrieval(document_embeddings)  # 10*2*512
 
@@ -125,8 +124,58 @@ class RetrievalModule(nn.Module):
 
         return ret_loss, ret_logits
 
+class QClassificationModule(nn.Module):
 
-class HiLT5(T5ForConditionalGeneration):
+    def __init__(self, config):
+        super(QClassificationModule, self).__init__()
+        #not-answerable, abstractive, extractive, list/x, list/y
+        self.mlp = nn.Linear(config.max_doc_pages * config.page_tokens * config.hidden_size, 5)
+        self.criterion = CrossEntropyLoss()
+        self.qtype_loss_weight = config.qtype_learning['loss_weight']
+
+
+    def forward(self, document_embeddings, qtype_id):
+        document_embeddings = document_embeddings.view([len(document_embeddings), -1])
+        # document_embeddings = F.pad(document_embeddings, (0, self.mlp.in_features-document_embeddings.shape[-1]), "constant", 0)  # In case is the last batch
+ 
+        try:
+            qtype_logits = self.mlp(document_embeddings)  # 10*2*512
+
+        except:
+            pad_document_embeddings = torch.zeros([len(document_embeddings), self.mlp.in_features], dtype=document_embeddings.dtype, device=document_embeddings.device)
+            pad_document_embeddings[:, :document_embeddings.shape[-1]] = document_embeddings
+            qtype_logits = self.mlp(pad_document_embeddings.to())  # 10*2*512
+
+        qtype_loss = self.criterion(qtype_logits, qtype_id) * self.qtype_loss_weight
+
+        return qtype_loss, qtype_logits
+
+class AClassificationModule(nn.Module):
+
+    def __init__(self, config):
+        super(AClassificationModule, self).__init__()
+        # supported answer_types
+        ATYPES = []
+        output_size = len(ATYPES)
+        self.mlp = nn.Linear(config.max_doc_pages * config.page_tokens * config.hidden_size, output_size)
+        self.criterion = CrossEntropyLoss()
+        self.atype_loss_weight = config.atype_learning['loss_weight']
+
+
+    def forward(self, document_embeddings, atype_id):
+        document_embeddings = document_embeddings.view([len(document_embeddings), -1]) 
+        try:
+            atype_logits = self.mlp(document_embeddings) 
+        except:
+            pad_document_embeddings = torch.zeros([len(document_embeddings), self.mlp.in_features], dtype=document_embeddings.dtype, device=document_embeddings.device)
+            pad_document_embeddings[:, :document_embeddings.shape[-1]] = document_embeddings
+            atype_logits = self.mlp(pad_document_embeddings.to()) 
+
+        atype_loss = self.criterion(atype_logits, answer_page_idx) * self.atype_loss_weight
+        return atype_loss, atype_logits
+
+
+class HiLT5(T5ForConditionalGeneration):  
 
     def __init__(self, config):
         super().__init__(config)
