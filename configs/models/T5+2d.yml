@@ -1,0 +1,23 @@
+save_dir: save/
+model_name: T5
+# model_weights: t5-base
+# model_weights: weights/t5_oracle_mp-docvqa__best.ckpt
+model_weights: /Users/mpietruszka/Repos/ruben-mp-docvqa/model/best_tfmr
+
+# model_weights: save/checkpoints/t5_concat_dude/best.ckpt
+# model_weights: save/checkpoints/t5_concat_dude_list-separator_qtype-special_token_mtk-100/model__0.ckpt
+device: cpu
+data_parallel: False
+page_retrieval: Concat  # Oracle / Concat / Logits / Custom (for Hierarchical methods (Hi-LayoutLMv2, Hi-LT5, Hi-VT5)
+
+generation_max_tokens: 100
+
+training_parameters:
+  lr: 2e-4  # 2e-4
+  batch_size: 3
+  train_epochs: 10
+  warmup_iterations: 1000
+
+use_2d: true
+
+

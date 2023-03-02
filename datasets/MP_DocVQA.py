@@ -15,7 +15,7 @@ class MPDocVQA(Dataset):
         self.imdb = data[1:]
 
         self.page_retrieval = page_retrieval.lower()
-        assert(self.page_retrieval in ['oracle', 'concat', 'logits', 'custom'])
+        assert(self.page_retrieval in ['oracle', 'concat', 'logits', 'custom', 'concat_2d'])
 
         self.max_answers = 2
         self.images_dir = images_dir

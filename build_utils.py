@@ -30,6 +30,7 @@ def build_model(config):
         "LT5",
         "Hi-LT5",
         "Hi-VT5",
+        "T5-2D"
     ]
     if (
         config["model_name"].lower() == "bert"
@@ -68,6 +69,11 @@ def build_model(config):
     elif config["model_name"].lower() == "t5":
         from models.T5 import T5
 
+        model = T5(config)
+
+    elif config["model_name"].lower() == "t5+2d":
+        from models.T5 import T5
+        config['use_2d'] = True
         model = T5(config)
 
     elif config["model_name"].lower() == "lt5":
@@ -193,6 +199,7 @@ def build_dataset(config, split):
                 "list_strategy",
                 "atype_learning",
                 "qtype_learning",
+                "get_raw_ocr_data"
             ]
             if k in config
         }

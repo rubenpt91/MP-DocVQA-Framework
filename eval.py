@@ -38,17 +38,21 @@ def evaluate(data_loader, model, evaluator, **kwargs):
     for batch_idx, batch in enumerate(tqdm(data_loader)):
         bs = len(batch["question_id"])
         with torch.no_grad():
-            outputs, pred_answers, pred_answer_page = model.forward(batch, return_pred_answer=True, return_confidence=return_confidence)
+            question = batch["questions"]
+            context = batch["contexts"]
+            answers = batch["answers"]
+            attention_mask, input_ids, labels, seg_data = model.prepare_data_for_forward_2d(answers, batch, context,
+                                                                                            question)
+
+            pred_answers, best_logits = model.get_answer_from_model_output(input_ids, seg_data, return_confidence=False)
+
             if return_confidence: #unpack tuple
                 confidences = pred_answers[1]
                 pred_answers = pred_answers[0]                
 
         metric = evaluator.get_metrics(batch["answers"], pred_answers)
 
-        if "answer_page_idx" in batch and pred_answer_page is not None:
-            ret_metric = evaluator.get_retrieval_metric(batch["answer_page_idx"], pred_answer_page)
-        else:
-            ret_metric = [0 for _ in range(bs)]
+        ret_metric = [0 for _ in range(bs)]
 
         if return_scores_by_sample:
             for batch_idx in range(bs):
@@ -57,7 +61,6 @@ def evaluate(data_loader, model, evaluator, **kwargs):
                     'anls': metric['anls'][batch_idx],
                     'ret_prec': ret_metric[batch_idx],
                     'pred_answer': pred_answers[batch_idx],
-                    'pred_answer_page': pred_answer_page[batch_idx] if pred_answer_page is not None else None,
                 }
                 if return_confidence:
                     scores_by_samples[batch['question_id'][batch_idx]]['answers_confidence'] = float(confidences[batch_idx])

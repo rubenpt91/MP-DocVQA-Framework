@@ -2,6 +2,7 @@ import os
 import random
 from PIL import Image
 
+import torch
 import numpy as np
 from datasets.MP_DocVQA import MPDocVQA
 
@@ -21,6 +22,7 @@ class DUDE(MPDocVQA):
         self.none_strategy = kwargs.get("none_strategy") if kwargs.get("none_strategy") else "none"
         self.qtype_learning = kwargs.get("qtype_learning", None)
         self.atype_learning = kwargs.get("atype_learning", None)
+        self.get_raw_ocr_data = kwargs.get("get_raw_ocr_data", None)
 
     def __getitem__(self, idx):
 
@@ -71,16 +73,47 @@ class DUDE(MPDocVQA):
             if self.get_raw_ocr_data:
                 words, boxes = [], []
                 for p in range(num_pages):
-                    if len(record["ocr_tokens"]):
+                    if len(record['ocr_tokens'][p]) == 0:
                         continue
 
                     words.extend([word.lower() for word in record["ocr_tokens"][p]])
 
                     mod_boxes = record["ocr_normalized_boxes"][p]
-                    mod_boxes[:, 1] = mod_boxes[:, 1] / num_pages + p / num_pages
-                    mod_boxes[:, 3] = mod_boxes[:, 3] / num_pages + p / num_pages
+                    mt = np.array(mod_boxes)
+                    mtt = np.stack([mt[:, 0], mt[:, 2], mt[:, 0] + mt[:, 1], mt[:, 2] + mt[:, 3]], axis=1)
 
-                    boxes.extend(mod_boxes)  # bbox in l,t,r,b
+                    boxes.extend(mtt)  # bbox in l,t,r,b
+
+                boxes = np.array(boxes)
+
+        elif self.page_retrieval == "concat_2d":
+            # Fixes: x1, width, y1, height    <- in the data ->> x1, y1, x2, y2
+            prefix = record['question'].split(' ')
+            context = [prefix]
+            for page_ix in range(record["num_pages"]):
+                page_context = record["ocr_tokens"][page_ix]
+                context.extend(page_context)
+
+            if self.use_images:
+                image_names = [
+                    os.path.join(self.images_dir, "{:s}".format(image_name))
+                    for image_name in record["image_name"]
+                ]
+                images = [Image.open(img_path).convert("RGB") for img_path in image_names]
+
+            if self.get_raw_ocr_data:
+                words, boxes = [], []
+                for p in range(num_pages):
+                    if len(record['ocr_tokens'][p]) == 0:
+                        continue
+
+                    words.extend([word.lower() for word in record["ocr_tokens"][p]])
+
+                    mod_boxes = record["ocr_normalized_boxes"][p]
+                    mt = np.array(mod_boxes)
+                    mtt = np.stack([mt[:, 0], mt[:, 2], mt[:, 0] + mt[:, 1], mt[:, 2] + mt[:, 3]], axis=1)
+
+                    boxes.extend(mtt)  # bbox in l,t,r,b
 
                 boxes = np.array(boxes)
 

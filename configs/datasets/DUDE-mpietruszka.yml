@@ -1,0 +1,12 @@
+dataset_name: DUDE
+imdb_dir:  /Users/mpietruszka/Repos/ruben-mp-docvqa/DUDE_data/OneDrive_1_01-03-2023 # /SSD/Datasets/DUDE/imdb  # /imdb/collection/imdb_train.npy
+images_dir: /Users/mpietruszka/Repos/ruben-mp-docvqa/DUDE_data/DUDE_train-val-test_binaries # Hi-ViT Specific
+
+none_strategy: null # empty string / token / special_token
+list_strategy: separator # separator / special_token
+
+atype_learning: null # null / MLP / special_token / separator
+qtype_learning: null # null / MLP / special_token / separator 
+
+eval_start: false
+get_raw_ocr_data: true

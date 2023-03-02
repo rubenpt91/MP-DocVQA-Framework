@@ -3,11 +3,9 @@ from tqdm import tqdm
 
 import numpy as np
 
-import torch
 from torch.utils.data import DataLoader
 
 from datasets.SP_DocVQA import SPDocVQA, singlepage_docvqa_collate_fn
-from models.Longformer import Longformer
 from eval import evaluate
 from metrics import Evaluator
 from build_utils import build_model, build_optimizer, build_dataset
@@ -22,7 +20,7 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
     for batch_idx, batch in enumerate(tqdm(data_loader)):
         gt_answers = batch['answers']
 
-        outputs, pred_answers, pred_answer_page = model.forward(batch, return_pred_answer=True)
+        outputs = model.forward(batch, return_pred_answer=False)
         if isinstance(outputs, list):
             raise NotImplementedError("Logits mode does not support training")
         loss = outputs.loss + outputs.ret_loss if hasattr(outputs, 'ret_loss') else outputs.loss
@@ -33,33 +31,19 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
 
         optimizer.zero_grad()
 
-        metric = evaluator.get_metrics(gt_answers, pred_answers)
-
-        batch_acc = np.mean(metric['accuracy'])
-        batch_anls = np.mean(metric['anls'])
 
         log_dict = {
             'Train/Batch loss': outputs.loss.item(),
-            'Train/Batch Accuracy': batch_acc,
-            'Train/Batch ANLS': batch_anls,
+            # 'Train/Batch Accuracy': batch_acc,
+            # 'Train/Batch ANLS': batch_anls,
             'lr': optimizer.param_groups[0]['lr']
         }
 
         if hasattr(outputs, 'ret_loss'):
             log_dict['Train/Batch retrieval loss'] = outputs.ret_loss.item()
 
-        if 'answer_page_idx' in batch and pred_answer_page is not None:
-            try:
-                ret_metric = evaluator.get_retrieval_metric(batch.get('answer_page_idx', None), pred_answer_page)
-            except Exception as e:
-                print(e)
-                ret_metric = 0
-                
-            batch_ret_prec = np.mean(ret_metric)
-            log_dict['Train/Batch Ret. Prec.'] = batch_ret_prec
-
         logger.logger.log(log_dict, step=logger.current_epoch * logger.len_dataset + batch_idx)
-
+    #
     # return total_accuracies, total_anls, answers
 
 
@@ -96,14 +80,16 @@ def train(model, **kwargs):
 
     if kwargs.get('eval_start', False):
         logger.current_epoch = -1
-        accuracy, anls, ret_prec, _, _ = evaluate(val_data_loader, model, evaluator, return_scores_by_sample=False, return_pred_answers=False, **kwargs)
+        accuracy, anls, ret_prec, _, _ = evaluate(val_data_loader, model, evaluator,
+                                                  return_scores_by_sample=False, return_pred_answers=False, **kwargs)
         is_updated = evaluator.update_global_metrics(accuracy, anls, -1)
         logger.log_val_metrics(accuracy, anls, ret_prec, update_best=is_updated)
 
     for epoch_ix in range(epochs):
         logger.current_epoch = epoch_ix
         train_epoch(train_data_loader, model, optimizer, lr_scheduler, evaluator, logger, **kwargs)
-        accuracy, anls, ret_prec, _, _ = evaluate(val_data_loader, model, evaluator, return_scores_by_sample=False, return_pred_answers=False, **kwargs)
+        accuracy, anls, ret_prec, _, _ = evaluate(val_data_loader, model, evaluator, return_scores_by_sample=False,
+                                                  return_pred_answers=True, **kwargs)
 
         is_updated = evaluator.update_global_metrics(accuracy, anls, epoch_ix)
         logger.log_val_metrics(accuracy, anls, ret_prec, update_best=is_updated)
@@ -113,8 +99,8 @@ def train(model, **kwargs):
 if __name__ == '__main__':
     args = parse_args()
     config = load_config(args)
-
+    #config['device'] = 'cpu'
     model = build_model(config)
-
+    config['eval_start'] = False
     train(model, **config)
 

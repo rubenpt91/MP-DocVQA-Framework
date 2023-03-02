@@ -28,11 +28,11 @@ def name_save_dir(**kwargs):
     return save_dir
 
 def save_model(model, epoch, update_best=False, **kwargs):
-    save_dir = name_save_dir(kwargs)
+    save_dir = name_save_dir(**kwargs)
     model.model.save_pretrained(
         os.path.join(save_dir, "model__{:d}.ckpt".format(epoch))
     )
-
+    print(f'saving in {os.path.join(save_dir, "model__{:d}.ckpt".format(epoch))}')
     tokenizer = (
         model.tokenizer
         if hasattr(model, "tokenizer")
