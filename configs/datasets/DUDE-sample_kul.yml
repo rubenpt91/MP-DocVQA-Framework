@@ -6,7 +6,13 @@ images_dir: /cw/liir_data/NoCsBack/jordy/DUDE/DUDE_train-val-test_binaries/image
 none_strategy: null # empty string / token / special_token
 list_strategy: separator # separator " | " / special_token "[LSEP]"
 
-atype_learning: null # null / MLP / special_token / separator
-qtype_learning: null # null / MLP / special_token / separator
 
+atype_learning: MLP # null / MLP / special_token / separator
+atype_module:
+  loss_weight: 0.2
+
+qtype_learning: MLP # null / MLP / special_token / separator
+qtype_module:
+  loss_weight: 0.15
+  
 sampling: true

@@ -131,7 +131,7 @@ class QClassificationModule(nn.Module):
         #not-answerable, abstractive, extractive, list/x, list/y
         self.mlp = nn.Linear(config.max_doc_pages * config.page_tokens * config.hidden_size, 5)
         self.criterion = CrossEntropyLoss()
-        self.qtype_loss_weight = config.qtype_learning['loss_weight']
+        self.qtype_loss_weight = 0.15 #config.qtype_learning['loss_weight'] #TODO: hardcoded for now
 
 
     def forward(self, document_embeddings, qtype_idx):
@@ -159,7 +159,7 @@ class AClassificationModule(nn.Module):
         output_size = len(ATYPES)
         self.mlp = nn.Linear(config.max_doc_pages * config.page_tokens * config.hidden_size, output_size)
         self.criterion = CrossEntropyLoss()
-        self.atype_loss_weight = config.atype_learning['loss_weight']
+        self.atype_loss_weight = 0.2 #config.atype_learning['loss_weight'] #TODO: hardcoded for now
 
 
     def forward(self, document_embeddings, atype_idx):

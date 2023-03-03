@@ -7,9 +7,13 @@ none_strategy: null # empty string / token / special_token
 list_strategy: separator # separator / special_token
 
 atype_learning: MLP # null / MLP / special_token / separator
+atype_module:
   loss_weight: 0.2
-qtype_learning: MLP # null / MLP / special_token / separator 
+
+qtype_learning: MLP # null / MLP / special_token / separator
+qtype_module:
   loss_weight: 0.15
+
 #nonetype answers
   ## none
   ## special token
