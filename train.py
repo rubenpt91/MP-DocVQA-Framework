@@ -16,41 +16,29 @@ from checkpoint import save_model
 
 def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, **kwargs):
     model.model.train()
-
+    accumulate_grads = 64
     for batch_idx, batch in enumerate(tqdm(data_loader)):
         gt_answers = batch['answers']
 
-        outputs = model.forward(batch, return_pred_answer=False)
+        outputs = model.forward(batch)
         if isinstance(outputs, list):
             raise NotImplementedError("Logits mode does not support training")
         loss = outputs.loss + outputs.ret_loss if hasattr(outputs, 'ret_loss') else outputs.loss
 
-        loss.backward()
-        optimizer.step()
-        lr_scheduler.step()
+        if batch_idx % accumulate_grads == accumulate_grads-1:
+            loss.backward()
+            optimizer.step()
+            lr_scheduler.step()
+            optimizer.zero_grad()
 
-        optimizer.zero_grad()
+            log_dict = {
+                'Train/Batch loss': outputs.loss.item(),
+                # 'Train/Batch Accuracy': batch_acc,
+                # 'Train/Batch ANLS': batch_anls,
+                'lr': optimizer.param_groups[0]['lr']
+            }
 
-
-        log_dict = {
-            'Train/Batch loss': outputs.loss.item(),
-            # 'Train/Batch Accuracy': batch_acc,
-            # 'Train/Batch ANLS': batch_anls,
-            'lr': optimizer.param_groups[0]['lr']
-        }
-
-        if hasattr(outputs, 'ret_loss'):
-            log_dict['Train/Batch retrieval loss'] = outputs.ret_loss.item()
-
-        logger.logger.log(log_dict, step=logger.current_epoch * logger.len_dataset + batch_idx)
-    #
-    # return total_accuracies, total_anls, answers
-
-
-# def seed_worker(worker_id):
-#     worker_seed = torch.initial_seed() % 2 ** 32
-#     np.random.seed(worker_seed)
-#     np.seed(worker_seed)
+            logger.logger.log(log_dict, step=logger.current_epoch * logger.len_dataset + batch_idx)
 
 
 def train(model, **kwargs):
@@ -85,6 +73,7 @@ def train(model, **kwargs):
         is_updated = evaluator.update_global_metrics(accuracy, anls, -1)
         logger.log_val_metrics(accuracy, anls, ret_prec, update_best=is_updated)
 
+    model.model.gradient_checkpointing_enable()
     for epoch_ix in range(epochs):
         logger.current_epoch = epoch_ix
         train_epoch(train_data_loader, model, optimizer, lr_scheduler, evaluator, logger, **kwargs)
@@ -99,7 +88,7 @@ def train(model, **kwargs):
 if __name__ == '__main__':
     args = parse_args()
     config = load_config(args)
-    #config['device'] = 'cpu'
+    config['device'] = 'cpu'
     model = build_model(config)
     config['eval_start'] = False
     train(model, **config)

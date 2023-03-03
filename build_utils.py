@@ -5,8 +5,8 @@ from transformers import get_scheduler
 
 
 def build_optimizer(model, length_train_loader, config):
-    optimizer_class = getattr(transformers, "AdamW")
-    optimizer = optimizer_class(model.model.parameters(), lr=float(config["lr"]))
+    optimizer_class = getattr(transformers, "Adafactor")
+    optimizer = optimizer_class(model.model.parameters(), lr=float(config["lr"]), relative_step=False)
     num_training_steps = config["train_epochs"] * length_train_loader
     lr_scheduler = get_scheduler(
         name="linear",

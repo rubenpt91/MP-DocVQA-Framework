@@ -97,6 +97,8 @@ class T5:
             bboxes = []
             tokens = []
             for batch_i in range(len(batch['questions'])):
+                if len(batch['words'][batch_i]) == 0:
+                    return self.cached_attention_mask, self.cached_input_ids, self.cached_labels, self.cached_seg_data
                 btokenized = self.tokenizer(
                     batch['words'][batch_i], return_tensors="pt", padding=True, truncation=True
                 ).to(self.model.device)
@@ -111,7 +113,7 @@ class T5:
                 q_tokenized = q_tokenized.data['input_ids'][0, :-1]
                 q_len = q_tokenized.shape[0]
                 q_bboxes = torch.stack(
-                    [torch.arange(0, q_len,device=self.model.device) * 0.05,
+                    [torch.arange(0, q_len, device=self.model.device) * 0.05,
                      torch.ones(q_len, device=self.model.device) * -0.05,
                      torch.arange(0, q_len, device=self.model.device) * 0.05,
                      torch.ones(q_len, device=self.model.device) * -0.05], dim=1)
@@ -140,6 +142,11 @@ class T5:
         labels = self.tokenizer(answers, return_tensors="pt", padding=True)
         labels.input_ids[labels.input_ids[:] == self.tokenizer.pad_token_id] = -100
         labels = labels.input_ids.to(self.model.device)
+
+        self.cached_attention_mask = attention_mask
+        self.cached_input_ids = input_ids
+        self.cached_labels = labels
+        self.cached_seg_data = seg_data
         return attention_mask, input_ids, labels, seg_data
 
     def get_answer_from_model_output(self, input_ids, seg_data, return_confidence=False):
