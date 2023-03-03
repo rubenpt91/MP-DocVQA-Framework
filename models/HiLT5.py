@@ -134,7 +134,7 @@ class QClassificationModule(nn.Module):
         self.qtype_loss_weight = config.qtype_learning['loss_weight']
 
 
-    def forward(self, document_embeddings, qtype_id):
+    def forward(self, document_embeddings, qtype_idx):
         document_embeddings = document_embeddings.view([len(document_embeddings), -1])
         # document_embeddings = F.pad(document_embeddings, (0, self.mlp.in_features-document_embeddings.shape[-1]), "constant", 0)  # In case is the last batch
  
@@ -146,7 +146,7 @@ class QClassificationModule(nn.Module):
             pad_document_embeddings[:, :document_embeddings.shape[-1]] = document_embeddings
             qtype_logits = self.mlp(pad_document_embeddings.to())  # 10*2*512
 
-        qtype_loss = self.criterion(qtype_logits, qtype_id) * self.qtype_loss_weight
+        qtype_loss = self.criterion(qtype_logits, qtype_idx) * self.qtype_loss_weight
 
         return qtype_loss, qtype_logits
 
@@ -162,7 +162,7 @@ class AClassificationModule(nn.Module):
         self.atype_loss_weight = config.atype_learning['loss_weight']
 
 
-    def forward(self, document_embeddings, atype_id):
+    def forward(self, document_embeddings, atype_idx):
         document_embeddings = document_embeddings.view([len(document_embeddings), -1]) 
         try:
             atype_logits = self.mlp(document_embeddings) 
@@ -171,7 +171,7 @@ class AClassificationModule(nn.Module):
             pad_document_embeddings[:, :document_embeddings.shape[-1]] = document_embeddings
             atype_logits = self.mlp(pad_document_embeddings.to()) 
 
-        atype_loss = self.criterion(atype_logits, answer_page_idx) * self.atype_loss_weight
+        atype_loss = self.criterion(atype_logits, atype_idx) * self.atype_loss_weight
         return atype_loss, atype_logits
 
 

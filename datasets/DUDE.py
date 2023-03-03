@@ -45,6 +45,25 @@ class DUDE(MPDocVQA):
         self.qtype_learning = kwargs.get("qtype_learning", None)
         self.atype_learning = kwargs.get("atype_learning", None)
 
+        if self.qtype_learning == "MLP":
+            self.QTYPES = [
+                "abstractive",
+                "extractive",
+                "list/abstractive",
+                "list/extractive",
+                "not-answerable",
+            ]
+        if self.atype_learning == "MLP":
+            self.q_id_to_ATYPE = json.load(
+                open(
+                    os.path.join(images_dir, f"trainval_QA-pairs_all_labelled.json"),
+                    "r",
+                )
+            )
+            self.ATYPES = sorted(
+                set([v for v in self.q_id_to_ATYPE.values() if v != ""])
+            )
+
         self.precomputed_visual_feats = bool(
             data_kwargs.get("precomputed_visual_feats", False)
             or kwargs.get("precomputed_visual_feats", False)
@@ -237,6 +256,12 @@ class DUDE(MPDocVQA):
                 record["image_name"][page_ix]
                 for page_ix in range(first_page, last_page)
             ]
+        if self.qtype_learning == "MLP":
+#           record['qtype'] = record['extra']['answer_type']
+            record['qtype_idx'] = self.QTYPES.index(record['extra']['answer_type'])
+        if self.atype_learning == "MLP":
+#           record['atype'] = self.q_id_to_ATYPE[record["question_id"]]
+            record['atype_idx'] = self.ATYPES.index(self.q_id_to_ATYPE[record["question_id"]])
 
         return sample_info
 

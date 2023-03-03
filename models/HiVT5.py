@@ -555,6 +555,8 @@ class HiVT5(T5ForConditionalGeneration):
         labels=None,
         num_pages=None,
         answer_page_idx=None,
+        qtype_idx=None,
+        atype_idx=None,
         use_cache=None,
         output_attentions=None,
         output_hidden_states=None,
@@ -761,6 +763,20 @@ class HiVT5(T5ForConditionalGeneration):
         ret_loss, ret_logits = self.retrieval_module(
             document_embeddings, answer_page_idx
         )
+        
+        # TODO: qtype_loss and atype_loss
+        from pdb import set_trace; set_trace()
+        if qtype_idx is not None:
+            qtype_loss, qtype_logits = self.qtype_mlp(
+                document_embeddings, qtype_idx
+            )                        
+        if atype_idx is not None:
+            qtype_loss, qtype_logits = self.atype_mlp(
+                document_embeddings, atype_idx
+            )
+        #encoder_outputs = self.encoder(input_ids=, output_hidden_states=True)
+        #qtype_MLP
+        #atype_MLP
 
         if not return_dict:
             output = (lm_logits,) + decoder_outputs[1:] + encoder_outputs
@@ -781,6 +797,12 @@ class HiVT5(T5ForConditionalGeneration):
 
         model_output.ret_logits = ret_logits
         model_output.ret_loss = ret_loss
+        if qtype_idx is not None:
+            model_output.qtype_logits = qtype_logits
+            model_output.qtype_loss = qtype_loss
+        if atype_idx is not None:
+            model_output.atype_logits = atype_logits
+            model_output.atype_loss = atype_loss
 
         return model_output
 
@@ -962,8 +984,9 @@ class Proxy_HiVT5:
         answers = batch["answers"]
         num_pages = batch["num_pages"]
         answer_page_idx = torch.LongTensor(batch["answer_page_idx"]).to(self.device)
+        qtype_idx = torch.LongTensor(batch["qtype_idx"]).to(self.device) if "qtype_idx" in batch else None
+        atype_idx = torch.LongTensor(batch["atype_idx"]).to(self.device) if "atype_idx" in batch else None
 
-        len(question_id)
         if self.page_retrieval == "oracle":
             raise ValueError(
                 "Oracle set-up not available for Hi-VT5. Instead, specify 'max_pages: 1' in dataset config with 'page_retrieval: custom'."
@@ -990,7 +1013,6 @@ class Proxy_HiVT5:
                 ] = -100
                 labels = labels.input_ids.to(self.device)
 
-                #here? #if config.get("precomputed_visual_feats"):
                 outputs = self.model(
                     input_ids=input_ids,
                     bbox=input_boxes,
@@ -999,6 +1021,8 @@ class Proxy_HiVT5:
                     labels=labels,
                     num_pages=num_pages,
                     answer_page_idx=answer_page_idx,
+                    qtype_idx=qtype_idx,
+                    atype_idx=atype_idx,
                     output_attentions=output_attentions,
                 )
                 _, pred_answers, pred_answer_pages = (

@@ -6,9 +6,10 @@ images_dir: /home/jordy/Downloads/DUDE_train-val-test_binaries/images # /SSD/Dat
 none_strategy: null # empty string / token / special_token
 list_strategy: separator # separator / special_token
 
-atype_learning: null # null / MLP / special_token / separator
-qtype_learning: null # null / MLP / special_token / separator 
-  
+atype_learning: MLP # null / MLP / special_token / separator
+  loss_weight: 0.2
+qtype_learning: MLP # null / MLP / special_token / separator 
+  loss_weight: 0.15
 #nonetype answers
   ## none
   ## special token
