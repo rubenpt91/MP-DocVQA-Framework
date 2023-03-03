@@ -7,6 +7,7 @@ from models.HiVT5 import VisualEmbeddings
 from transformers import PretrainedConfig
 from tqdm import tqdm
 from PIL import Image
+import re
 
 
 def precompute_visual_features(config):
@@ -27,19 +28,22 @@ def precompute_visual_features(config):
     config["precomputed_visual_feats"] = False
 
     # split_to_npz, directory mode
-    CHUNKSIZE = 100
+    CHUNKSIZE = 1000
     for split in ["val", "train"]:
+        if split == "val":
+            continue
         page_visual_featdict = {}
         count = 0
+
         for file in tqdm(os.listdir(os.path.join(config["images_dir"], split))):
             page_visual_featdict[f"{split}/{file}"] = count
-            image = Image.open(os.path.join(config["images_dir"], split, file)).convert(
-                "RGB"
-            )
-            if count == 0 or count % CHUNKSIZE == 0: #gives the reset
-                collect_visual_features = (
-                    visual_embedder([image], None).cpu().numpy()[0]
-                )
+            if count < 16000:  # skip
+                count += 1
+                continue
+            print(count)
+            image = Image.open(os.path.join(config["images_dir"], split, file)).convert("RGB")
+            if count == 0 or count % CHUNKSIZE == 0:  # gives the reset
+                collect_visual_features = visual_embedder([image], None).cpu().numpy()[0]
                 count += 1
                 continue
 
@@ -49,23 +53,30 @@ def precompute_visual_features(config):
             )
             count += 1
             if count % CHUNKSIZE == 0:
-                out = os.path.join(config["images_dir"], f"{split}-visfeats_{int(count/CHUNKSIZE)}.npz")
+                out = os.path.join(
+                    config["images_dir"], f"{split}-visfeats_{int(count/CHUNKSIZE)}.npz"
+                )
                 np.savez_compressed(out, collect_visual_features)
+
         # deal with padding
         collect_visual_features = np.concatenate(
             (
                 collect_visual_features,
-                visual_embedder(np.ones((2, 2, 3), np.uint8) * 255, None)
-                .cpu()
-                .numpy()[0],
+                visual_embedder(np.ones((2, 2, 3), np.uint8) * 255, None).cpu().numpy()[0],
             )
         )
+        out = os.path.join(config["images_dir"], f"{split}-visfeats_{int(count/CHUNKSIZE)+1}.npz")
+        np.savez_compressed(out, collect_visual_features)
+        from pdb import set_trace
+
+        set_trace()
         # out = os.path.join(config["images_dir"], f"{split}-visfeats.npz")
         # np.savez_compressed(out, collect_visual_features)
         page_visual_featdict[f"PAD"] = count
         out = os.path.join(config["images_dir"], f"{split}-visfeats.json")
         with open(out, "w") as f:
-            json.dump(page_visual_featdict, f)
+            pass
+            # json.dump(page_visual_featdict, f)
 
     return
 
@@ -76,9 +87,7 @@ def precompute_visual_features(config):
             for i in range(len(ex["image_names"]))
         ]
         document_visual_features = (
-            visual_embedder(
-                [ex["images"][i] for i in range(len(ex["image_names"]))], None
-            )
+            visual_embedder([ex["images"][i] for i in range(len(ex["image_names"]))], None)
             .cpu()
             .numpy()
         )
@@ -108,13 +117,30 @@ def precompute_visual_features(config):
     out = os.path.join(config["images_dir"], "visfeat_names.json")
     names_and_pad = {
         "image_names": collect_names,
-        "PAD": visual_embedder(np.ones((2, 2, 3), np.uint8) * 255, None)
-        .cpu()
-        .numpy()[0]
-        .tolist(),
+        "PAD": visual_embedder(np.ones((2, 2, 3), np.uint8) * 255, None).cpu().numpy()[0].tolist(),
     }
     with open(out, "w") as f:
         json.dump(names_and_pad, f)
+
+
+def merge_precomputed(config):
+    a = np.zeros((16918, 197, 768), dtype=float) #precomputed size
+    #catted = None
+    count = 0
+    for i, file in enumerate(os.listdir(config["images_dir"])):
+        if not re.match("train-visfeats_\d+.npz", file):
+            continue
+        saved = np.load(os.path.join(config["images_dir"], file))["arr_0"].reshape((-1, 197, 768))
+        until = int(saved.shape[0])
+        print(file, saved.shape, count, count+until)
+        a[count:count+until] = saved
+        count += until
+        # if i == 0:
+        #     catted = saved
+        # else:
+        #     catted = np.concatenate((catted, saved))
+    output_path = os.path.join(config["images_dir"], "train-visfeats.npz")
+    np.savez_compressed(output_path, a)
 
 
 def test_precomputed(config):
@@ -152,11 +178,11 @@ def image_sizes(config):
     from pdb import set_trace
 
     set_trace()
-
-
+    
 if __name__ == "__main__":
     args = parse_args()
     config = load_config(args)
+    merge_precomputed(config)
     # precompute_visual_features(config)
     # image_sizes(config)
-    test_precomputed(config)
+    # test_precomputed(config)

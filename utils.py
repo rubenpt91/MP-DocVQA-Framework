@@ -162,6 +162,8 @@ def load_config(args):
         if os.path.exists(checkpoint_config):
             print("Loading model from checkpoint")
             config = parse_config(yaml.safe_load(open(checkpoint_config, "r")), args)
+            config["model_weights"] = args.checkpoint
+            config["checkpoint"] = args.checkpoint            
             print(config)
         else:
             raise FileNotFoundError(f"{checkpoint_config}")

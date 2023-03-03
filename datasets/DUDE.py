@@ -40,6 +40,8 @@ class DUDE(MPDocVQA):
         self.none_strategy = (
             kwargs.get("none_strategy") if kwargs.get("none_strategy") else "none"
         )
+        if self.none_strategy is None:
+            self.none_strategy = "none"
         self.qtype_learning = kwargs.get("qtype_learning", None)
         self.atype_learning = kwargs.get("atype_learning", None)
 
@@ -183,7 +185,7 @@ class DUDE(MPDocVQA):
 
         # novel strategies
         if len(answers) == 0:
-            if self.none_strategy == "none":
+            if self.none_strategy == "none" or self.none_strategy == "token":
                 answers = ["none"]
             elif self.none_strategy == "special_token":
                 answers = ["NA"]

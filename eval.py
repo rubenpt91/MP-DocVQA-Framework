@@ -34,6 +34,15 @@ def evaluate(data_loader, model, evaluator, **kwargs):
 
     all_pred_answers = []
     model.model.eval()
+        
+    device = model.model.device
+    #Additional Info when using cuda
+    if device.type == 'cuda':
+        print(torch.cuda.get_device_name(0))
+        print('Memory Usage:')
+        print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
+        print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
+
 
     for batch_idx, batch in enumerate(tqdm(data_loader)):
         bs = len(batch["question_id"])
