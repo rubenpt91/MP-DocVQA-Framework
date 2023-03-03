@@ -596,16 +596,24 @@ class HiVT5(T5ForConditionalGeneration):
         # FutureWarning: head_mask was separated into two input args - head_mask, decoder_head_mask
         if head_mask is not None and decoder_head_mask is None:
             if self.config.num_layers == self.config.num_decoder_layers:
+                from transformers.models.t5.modeling_t5 import __HEAD_MASK_WARNING_MSG
+                warnings.warn(__HEAD_MASK_WARNING_MSG, FutureWarning)
+                decoder_head_mask = head_mask
 
-                page_idx_mask = [
-                    batch_idx
-                    for batch_idx in range(len(num_pages))
-                    if num_pages[batch_idx] >= page_idx + 1
-                ]
-                visual_emb, vis_mask = self.visual_embeddings(
-                    [doc_images[page_idx] for doc_images in images],
-                    page_idx_mask=page_idx_mask,
-                )
+        # Encode if needed (training, first prediction pass)
+        if encoder_outputs is None:
+            # Convert encoder inputs in embeddings if needed
+            page_embeddings = []
+            page_encoder_attentions = []
+            # for page_idx in range(self.max_doc_pages):
+            for page_idx in range(max(num_pages)):
+                semantic_emb = self.shared(input_ids[:, page_idx])  # read from default T5
+                # spatial_emb = self.spatial_emb_matcher(self.spatial_embeddings(bbox[:, page_idx]))
+                spatial_emb = self.spatial_embeddings(bbox[:, page_idx])
+                text_embeds = semantic_emb + spatial_emb
+
+                page_idx_mask = [batch_idx for batch_idx in range(len(num_pages)) if num_pages[batch_idx] >= page_idx+1]
+                visual_emb, vis_mask = self.visual_embeddings([doc_images[page_idx] for doc_images in images], page_idx_mask=page_idx_mask)
 
                 # TODO: Try with / without.
                 vis_boxes = self.visual_embeddings.get_visual_boxes(
