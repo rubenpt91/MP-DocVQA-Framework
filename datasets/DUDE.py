@@ -62,7 +62,7 @@ class DUDE(MPDocVQA):
         question = record["question"]
         answers = record["answers"]
         num_pages = record["num_pages"]
-        answer_page_idx = random.choice(range(num_pages))  # random
+        answer_page_idx = 0 # random.choice(range(num_pages))  # random
         record["answer_page_idx"] = answer_page_idx  # putting it in here
 
         if self.page_retrieval == "oracle":
@@ -74,7 +74,7 @@ class DUDE(MPDocVQA):
             context_page_corresp = []
             for page_ix in range(record["num_pages"]):
                 page_context = " ".join(
-                    [word.lower() for word in record["ocr_tokens"][page_ix]]
+                    [word for word in record["ocr_tokens"][page_ix]]
                 )
                 context += " " + page_context
                 context_page_corresp.extend([-1] + [page_ix] * len(page_context))
@@ -97,7 +97,7 @@ class DUDE(MPDocVQA):
                     if len(record["ocr_tokens"][p]) == 0:
                         continue
 
-                    words.extend([word.lower() for word in record["ocr_tokens"][p]])
+                    words.extend([word for word in record["ocr_tokens"][p]])
 
                     mod_boxes = np.array(record["ocr_normalized_boxes"][p])
                     mod_boxes[:, 1] = mod_boxes[:, 1] / num_pages + p / num_pages
@@ -111,7 +111,7 @@ class DUDE(MPDocVQA):
             context = []
             for page_ix in range(record["num_pages"]):
                 context.append(
-                    " ".join([word.lower() for word in record["ocr_tokens"][page_ix]])
+                    " ".join([word for word in record["ocr_tokens"][page_ix]])
                 )
 
             context_page_corresp = None
@@ -129,7 +129,7 @@ class DUDE(MPDocVQA):
                 words = []
                 boxes = record["ocr_normalized_boxes"]
                 for p in range(num_pages):
-                    words.append([word.lower() for word in record["ocr_tokens"][p]])
+                    words.append([word for word in record["ocr_tokens"][p]])
 
         elif self.page_retrieval == "custom":
             record["imdb_doc_pages"] = num_pages
@@ -143,12 +143,12 @@ class DUDE(MPDocVQA):
             image_names = []
 
             for page_ix in range(first_page, last_page):
-                words.append([word.lower() for word in record["ocr_tokens"][page_ix]])
+                words.append([word for word in record["ocr_tokens"][page_ix]])
                 boxes.append(
                     np.array(record["ocr_normalized_boxes"][page_ix], dtype=np.float32)
                 )
                 context.append(
-                    " ".join([word.lower() for word in record["ocr_tokens"][page_ix]])
+                    " ".join([word for word in record["ocr_tokens"][page_ix]])
                 )
                 image_names.append(
                     os.path.join(
@@ -196,7 +196,7 @@ class DUDE(MPDocVQA):
             and self.list_strategy
         ):
             if self.list_strategy == "separator":
-                answers = [" | ".join(answers)]
+                answers = [" | ".join([x.strip() for x in answers])]
             elif self.list_strategy == "special_token":
                 answers = [" [LSEP] ".join(answers)]
 

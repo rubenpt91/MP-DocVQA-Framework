@@ -179,10 +179,17 @@ def image_sizes(config):
 
     set_trace()
     
+def test_custom(config):
+    config["precomputed_visual_feats"] = False
+    val_dataset = build_dataset(config, "val")
+    for i, ex in enumerate(val_dataset):
+        print(ex["answers"])
+    
 if __name__ == "__main__":
     args = parse_args()
     config = load_config(args)
-    merge_precomputed(config)
+    test_custom(config)
+    # merge_precomputed(config)
     # precompute_visual_features(config)
     # image_sizes(config)
     # test_precomputed(config)
