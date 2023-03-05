@@ -48,6 +48,7 @@ def evaluate(data_loader, model, evaluator, **kwargs):
         bs = len(batch["question_id"])
         with torch.no_grad():
             outputs, pred_answers, pred_answer_page = model.forward(batch, return_pred_answer=True, return_confidence=return_confidence)
+            print(pred_answers, batch['answers'])
             if return_confidence: #unpack tuple
                 confidences = pred_answers[1]
                 pred_answers = pred_answers[0]                
@@ -66,6 +67,7 @@ def evaluate(data_loader, model, evaluator, **kwargs):
                     'anls': metric['anls'][batch_idx],
                     'ret_prec': ret_metric[batch_idx],
                     'pred_answer': pred_answers[batch_idx],
+                    'gold_answer': batch['answers'][batch_idx],
                     'pred_answer_page': pred_answer_page[batch_idx] if pred_answer_page is not None else None,
                 }
                 if return_confidence:

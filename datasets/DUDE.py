@@ -36,7 +36,7 @@ class DUDE(MPDocVQA):
             raise ValueError(
                 "'Oracle' set-up is not valid for DUDE, since there is no GT for the answer page."
             )
-        self.list_strategy = kwargs.get("list_strategy")
+        self.list_strategy = kwargs.get("list_strategy", "separator")
         self.none_strategy = (
             kwargs.get("none_strategy") if kwargs.get("none_strategy") else "none"
         )
@@ -196,9 +196,9 @@ class DUDE(MPDocVQA):
             and self.list_strategy
         ):
             if self.list_strategy == "separator":
-                answers = " | ".join(answers)
+                answers = [" | ".join(answers)]
             elif self.list_strategy == "special_token":
-                answers = " [LSEP] ".join(answers)
+                answers = [" [LSEP] ".join(answers)]
 
         if self.qtype_learning == "special_token":
             answers = [a + f" & {record['extra']['answer_type']}" for a in answers]
