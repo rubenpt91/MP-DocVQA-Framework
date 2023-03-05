@@ -1,9 +1,10 @@
 save_dir: save/
 model_name: Hi-VT5
-# model_weights: t5-base
+model_weights: t5-base
 # model_weights: weights/t5_oracle_mp-docvqa__best.ckpt
 # model_weights: weights/lt5_oracle_mp-docvqa__best.ckpt
-model_weights: weights/hilt5_custom_mp-docvqa__best.ckpt
+# model_weights: weights/hilt5_custom_mp-docvqa__best.ckpt
+# model_weights: save/checkpoints/hi-vt5_custom_dude_none-special_token_list-separator_mtk-50/best.ckpt
 freeze_encoder: False
 page_tokens: 10
 device: cuda
@@ -11,19 +12,24 @@ use_spatial_features: True
 use_visual_features: True
 data_parallel: False
 max_text_tokens: 512
+page_retrieval: Custom  # Oracle / Concat / Logits / Custom (for Hierarchical methods (Hi-LayoutLMv2, Hi-LT5, Hi-VT5)
+
+generation_max_tokens: 50
 
 retrieval_module:
   loss: CrossEntropy
-  loss_weight: 0.25
+  loss_weight: 0
 
 visual_module:
   model: 'dit'  # 'vit' / 'dit'
   model_weights: 'microsoft/dit-base-finetuned-rvlcdip'  # 'google/vit-base-patch16-224-in21k' / 'microsoft/dit-base-finetuned-rvlcdip'
 
+precomputed_visual_feats: true
+
 training_parameters:
-  max_pages: 2
+  max_pages: 7
   lr: 2e-4  # 2e-4
-  batch_size: 2
+  batch_size: 1
   train_epochs: 10
   warmup_iterations: 1000
   seed: 42

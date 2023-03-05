@@ -5,7 +5,6 @@ import torch
 import torch.nn as nn
 from transformers import LayoutLMv3Processor, LayoutLMv3ForQuestionAnswering
 from PIL import Image
-from utils import correct_alignment
 
 # from transformers.models.layoutlmv3.modeling_layoutlmv3 import LayoutLMv3Model  # TODO Remove
 # from transformers.models.layoutlmv3.processing_layoutlmv3 import LayoutLMv3Processor    # TODO Remove
@@ -20,13 +19,13 @@ class LayoutLMv3:
         self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
         self.ignore_index = 9999  # 0
 
-        # img = Image.open('/SSD2/MP-DocVQA/images/nkkh0227_p2.jpg')
+        # img = Image.open('/SSD2/MP-DocVQA/images/nkkh0227_p2.jpg') 
         # self.processor(img, 'question', ['words'], boxes=[[1, 2, 3, 4]])
 
     def parallelize(self):
         self.model = nn.DataParallel(self.model)
 
-    def forward(self, batch, return_pred_answer=False):
+    def forward(self, batch, return_pred_answer=False, return_confidence=False):
 
         question = batch['questions']
         context = batch['contexts']
@@ -177,6 +176,8 @@ class LayoutLMv3:
             else:
                 answer_pos = random.choice(answer_pos)  # To add variability, pick a random correct span.
                 pos_idx.append(answer_pos)
+        
+        #check unanswerable token
 
         start_idxs = torch.LongTensor([idx[0] for idx in pos_idx]).to(self.model.device)
         end_idxs = torch.LongTensor([idx[1] for idx in pos_idx]).to(self.model.device)

@@ -28,7 +28,7 @@ class Longformer:
     def parallelize(self):
         self.model = nn.DataParallel(self.model)
 
-    def forward(self, batch, return_pred_answer=False):
+    def forward(self, batch, return_pred_answer=False, return_confidence=False):
         question = batch['questions']
         context = batch['contexts']
         answers = batch['answers']

@@ -5,7 +5,7 @@ model_name: BigBird
 # model_weights: weights/bigbird_oracle_mp-docvqa__best.ckpt
 model_weights: rubentito/bigbird-base-itc-mpdocvqa
 device: cuda
-data_parallel: False
+data_parallel: False #True 
 
 training_parameters:
   lr: 1e-4  # 2e-4
