@@ -37,7 +37,7 @@ def evaluate(data_loader, model, evaluator, **kwargs):
             outputs, pred_answers, pred_answer_page = model.forward(batch, return_pred_answer=True)
             # print(pred_answers)
 
-        metric = evaluator.get_metrics(batch['answers'], pred_answers)
+        metric = evaluator.get_metrics(batch['answers'], pred_answers, batch['answer_type'])
 
         if 'answer_page_idx' in batch and pred_answer_page is not None:
             ret_metric = evaluator.get_retrieval_metric(batch['answer_page_idx'], pred_answer_page)
