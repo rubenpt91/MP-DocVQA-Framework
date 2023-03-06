@@ -15,12 +15,13 @@ def empty_image(height=2, width=2):
 def open_precomputed(images_dir, split):
     print(f"Loading precomputed visual features from {images_dir}-{split}")
     pagename_idx = json.load(
-        open(os.path.join(images_dir, f"{split}-visfeats.json"), "r")
+        open(os.path.join(images_dir, f"{split}-visfeatsv2.json"), "r")
     )
-    page_visual_features = np.load(os.path.join(images_dir, f"{split}-visfeats.npz"))[
+    page_visual_features = np.load(os.path.join(images_dir, f"{split}-visfeatsv2.npz"))[
         "arr_0"
     ]
-    page_visual_features = page_visual_features.reshape((-1, 197, 768))  # indexation
+    assert len(pagename_idx) == page_visual_features.shape[0]
+    # page_visual_features = page_visual_features.reshape((-1, 197, 768))  # indexation
     return pagename_idx, page_visual_features
 
 
@@ -178,10 +179,13 @@ class DUDE(MPDocVQA):
         if self.page_retrieval == "oracle" or self.page_retrieval == "concat":
             start_idxs, end_idxs = self._get_start_end_idx(context, answers)
 
-        elif self.page_retrieval == "logits":
-            start_idxs, end_idxs = self._get_start_end_idx(
-                context[answer_page_idx], answers
-            )
+        elif self.page_retrieval == 'logits':
+            start_idxs, end_idxs = [], []
+            for page_ix in range(record['num_pages']):
+                s, e = self._get_start_end_idx(context[page_ix], answers)
+                start_idxs.append(s)
+                end_idxs.append(e)
+        
 
         # novel strategies
         if len(answers) == 0:

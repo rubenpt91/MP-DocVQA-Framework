@@ -25,6 +25,8 @@ def name_save_dir(**kwargs):
         save_dir += f"_mtk-{kwargs['generation_max_tokens']}"
     if kwargs.get("sampling"):
         save_dir += f"_sample"
+    if kwargs.get("precomputed_visual_feats"):
+        save_dir += f"precomp"    
     return save_dir
 
 def save_model(model, epoch, update_best=False, **kwargs):

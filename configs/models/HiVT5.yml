@@ -7,7 +7,7 @@ model_weights: t5-base
 # model_weights: save/checkpoints/hi-vt5_custom_dude_none-special_token_list-separator_mtk-50/best.ckpt
 freeze_encoder: False
 page_tokens: 10
-device: cuda
+device: cuda:2
 use_spatial_features: True
 use_visual_features: True
 data_parallel: False
@@ -24,7 +24,7 @@ visual_module:
   model: 'dit'  # 'vit' / 'dit'
   model_weights: 'microsoft/dit-base-finetuned-rvlcdip'  # 'google/vit-base-patch16-224-in21k' / 'microsoft/dit-base-finetuned-rvlcdip'
 
-precomputed_visual_feats: false
+precomputed_visual_feats: true
 
 training_parameters:
   max_pages: 7

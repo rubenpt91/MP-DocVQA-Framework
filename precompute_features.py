@@ -29,7 +29,7 @@ def precompute_visual_features(config):
     config["precomputed_visual_feats"] = False
 
     # split_to_npz, directory mode
-    for split in ["val", "train", "test"]:
+    for split in ["test"]:#"val", "train",
         page_visual_featdict = {}
         count = 0
         iterator = sorted(os.listdir(os.path.join(config["images_dir"], split)))

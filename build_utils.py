@@ -165,8 +165,6 @@ def build_dataset(config, split):
     elif config["dataset_name"] == "DUDE":
         from datasets.DUDE import DUDE
 
-        if split == "test":
-            split = "val"
         DUDE_kwargs = {
             k: config[k]
             for k in [
