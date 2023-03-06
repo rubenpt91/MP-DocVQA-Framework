@@ -15,15 +15,16 @@ class Evaluator:
         # self.best_anls = 0
         self.best_epoch = 0
 
-    def get_metrics(self, gt_answers, preds, update_global_metrics=True):
+    def get_metrics(self, gt_answers, preds, answer_types=None, update_global_metrics=True):
+        answer_types = answer_types if answer_types is not None else ['string' for batch_idx in range(len(gt_answers))]
         batch_accuracy = []
         batch_anls = []
         for batch_idx in range(len(preds)):
             gt = [self._preprocess_str(gt_elm) for gt_elm in gt_answers[batch_idx]]
             pred = self._preprocess_str(preds[batch_idx])
 
-            batch_accuracy.append(self._calculate_accuracy(gt, pred))
-            batch_anls.append(self._calculate_anls(gt, pred))
+            batch_accuracy.append(self._calculate_accuracy(gt, pred, answer_types[batch_idx]))
+            batch_anls.append(self._calculate_anls(gt, pred, answer_types[batch_idx]))
 
         # if accumulate_metrics:
         #     self.total_accuracies.extend(batch_accuracy)
@@ -50,16 +51,23 @@ class Evaluator:
 
         return string.strip()
 
-    def _calculate_accuracy(self, gt, pred):
+    def _calculate_accuracy(self, gt, pred, answer_type='string'):
+
+        if answer_type == 'not-answerable':
+            return 1 if pred == '' or pred == None else 0
+
         for gt_elm in gt:
             if gt_elm == pred:
                 return 1
 
         return 0
 
-    def _calculate_anls(self, gt, pred):
-        if len(pred) == 0:
+    def _calculate_anls(self, gt, pred, answer_type='string'):
+        if len(pred) == 0 or len:
             return 0
+
+        if answer_type == 'not-answerable':
+            return 1 if pred == '' or pred == None else 0
 
         answers_similarity = [1 - self.get_edit_distance(gt_elm, pred) / max(len(gt_elm), len(pred)) for gt_elm in gt]
         max_similarity = max(answers_similarity)

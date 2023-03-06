@@ -120,15 +120,21 @@ class DUDE(MPDocVQA):
             start_idxs, end_idxs = self._get_start_end_idx(context, answers)
 
         elif self.page_retrieval == 'logits':
-            start_idxs, end_idxs = self._get_start_end_idx(context[answer_page_idx], answers)
+            start_idxs, end_idxs = [], []
+            for page_ix in range(record['num_pages']):
+                s, e = self._get_start_end_idx(context[page_ix], answers)
+                start_idxs.append(s)
+                end_idxs.append(e)
 
-        sample_info = {'question_id': record['question_id'],
-                       'questions': question,
-                       'contexts': context,
-                       'context_page_corresp': context_page_corresp,
-                       'answers': answers,
-                       'answer_page_idx': answer_page_idx
-                       }
+        sample_info = {
+            'question_id': record['question_id'],
+            'questions': question,
+            'contexts': context,
+            'context_page_corresp': context_page_corresp,
+            'answers': answers,
+            'answer_page_idx': answer_page_idx,
+            'answer_type': record['extra']['answer_type']
+        }
 
         if self.use_images:
             sample_info['image_names'] = image_names
