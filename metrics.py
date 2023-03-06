@@ -51,7 +51,7 @@ class Evaluator:
 
         return string.strip()
 
-    def _calculate_accuracy(self, gt, pred, answer_type='string'):
+    def _calculate_accuracy(self, gt, pred, answer_type):
 
         if answer_type == 'not-answerable':
             return 1 if pred == '' or pred == None else 0
@@ -62,8 +62,8 @@ class Evaluator:
 
         return 0
 
-    def _calculate_anls(self, gt, pred, answer_type='string'):
-        if len(pred) == 0 or len:
+    def _calculate_anls(self, gt, pred, answer_type):
+        if len(pred) == 0:
             return 0
 
         if answer_type == 'not-answerable':
