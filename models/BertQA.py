@@ -46,7 +46,7 @@ class BertQA:
 
                     start_logits_cnf = [page_outputs.start_logits[batch_ix, max_start_logits_idx.item()].item() for batch_ix, max_start_logits_idx in enumerate(page_outputs.start_logits.argmax(-1))][0]
                     end_logits_cnf = [page_outputs.end_logits[batch_ix, max_end_logits_idx.item()].item() for batch_ix, max_end_logits_idx in enumerate(page_outputs.end_logits.argmax(-1))][0]
-                    page_logits = np.mean([start_logits_cnf, end_logits_cnf])
+                    page_logits = np.mean([start_logits_cnf, end_logits_cnf]) #B x K (S (start-end))
 
                     if page_logits > max_logits:
                         answer_page = page_idx

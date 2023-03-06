@@ -82,7 +82,7 @@ def train(model, **kwargs):
 
     train_dataset = build_dataset(config, 'train')
     val_dataset   = build_dataset(config, 'val')
-
+ 
     # g = torch.Generator()
     # g.manual_seed(kwargs['seed'])
 
@@ -115,6 +115,15 @@ if __name__ == '__main__':
     config = load_config(args)
 
     model = build_model(config)
+    
+    device = model.model.device
+    #Additional Info when using cuda
+    if device.type == 'cuda':
+        print(torch.cuda.get_device_name(0))
+        print('Memory Usage:')
+        print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
+        print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
+
 
     train(model, **config)
 

@@ -54,7 +54,7 @@ class Evaluator:
     def _calculate_accuracy(self, gt, pred, answer_type):
 
         if answer_type == 'not-answerable':
-            return 1 if pred == '' or pred == None else 0
+            return 1 if pred in ['','none', 'NA', None, []] else 0
 
         for gt_elm in gt:
             if gt_elm == pred:
@@ -67,7 +67,7 @@ class Evaluator:
             return 0
 
         if answer_type == 'not-answerable':
-            return 1 if pred == '' or pred == None else 0
+            return 1 if pred in ['','none', 'NA', None, []] else 0
 
         answers_similarity = [1 - self.get_edit_distance(gt_elm, pred) / max(len(gt_elm), len(pred)) for gt_elm in gt]
         max_similarity = max(answers_similarity)
