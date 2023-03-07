@@ -28,6 +28,7 @@ class BertQA:
             outputs = []
             pred_answers = []
             pred_answer_pages = []
+            answ_confidence = []
             for batch_idx in range(len(context)):
                 document_encoding = self.tokenizer([question[batch_idx]]*len(context[batch_idx]), context[batch_idx], return_tensors="pt", padding=True, truncation=True)
 
@@ -43,7 +44,7 @@ class BertQA:
                     # end_pos = torch.LongTensor(end_idxs).to(self.model.device) if end_idxs else None
 
                     page_outputs = self.model(input_ids.unsqueeze(dim=0), attention_mask=attention_mask.unsqueeze(dim=0))
-                    pred_answer, answer_conf = self.get_answer_from_model_output(input_ids, page_outputs)
+                    pred_answer, answer_conf = self.get_answer_from_model_output(input_ids.unsqueeze(dim=0), page_outputs)
 
                     """
                     start_logits_cnf = [page_outputs.start_logits[batch_ix, max_start_logits_idx.item()].item() for batch_ix, max_start_logits_idx in enumerate(page_outputs.start_logits.argmax(-1))][0]
@@ -51,15 +52,15 @@ class BertQA:
                     page_logits = np.mean([start_logits_cnf, end_logits_cnf])
                     """
 
-                    if answer_conf > max_logits:
+                    if answer_conf[0] > max_logits:
                         answer_page = page_idx
                         document_outputs = page_outputs
-                        max_logits = answer_conf
+                        max_logits = answer_conf[0]
 
                 outputs.append(None)  # outputs.append(document_outputs)  # During inference outputs are not used.
-                pred_answers.append(self.get_answer_from_model_output([document_encoding["input_ids"][answer_page]], document_outputs)[0] if return_pred_answer else None)
+                pred_answers.extend(self.get_answer_from_model_output([document_encoding["input_ids"][answer_page]], document_outputs)[0] if return_pred_answer else None)
                 pred_answer_pages.append(answer_page)
-                answ_confidence = max_logits
+                answ_confidence.append(max_logits)
 
         else:
             encoding = self.tokenizer(question, context, return_tensors="pt", padding=True, truncation=True)
