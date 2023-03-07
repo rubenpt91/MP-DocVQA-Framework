@@ -43,19 +43,23 @@ class BertQA:
                     # end_pos = torch.LongTensor(end_idxs).to(self.model.device) if end_idxs else None
 
                     page_outputs = self.model(input_ids.unsqueeze(dim=0), attention_mask=attention_mask.unsqueeze(dim=0))
+                    pred_answer, answer_conf = self.get_answer_from_model_output(input_ids, page_outputs)
 
+                    """
                     start_logits_cnf = [page_outputs.start_logits[batch_ix, max_start_logits_idx.item()].item() for batch_ix, max_start_logits_idx in enumerate(page_outputs.start_logits.argmax(-1))][0]
                     end_logits_cnf = [page_outputs.end_logits[batch_ix, max_end_logits_idx.item()].item() for batch_ix, max_end_logits_idx in enumerate(page_outputs.end_logits.argmax(-1))][0]
                     page_logits = np.mean([start_logits_cnf, end_logits_cnf])
+                    """
 
-                    if page_logits > max_logits:
+                    if answer_conf > max_logits:
                         answer_page = page_idx
                         document_outputs = page_outputs
-                        max_logits = page_logits
+                        max_logits = answer_conf
 
                 outputs.append(None)  # outputs.append(document_outputs)  # During inference outputs are not used.
                 pred_answers.append(self.get_answer_from_model_output([document_encoding["input_ids"][answer_page]], document_outputs)[0] if return_pred_answer else None)
                 pred_answer_pages.append(answer_page)
+                answ_confidence = max_logits
 
         else:
             encoding = self.tokenizer(question, context, return_tensors="pt", padding=True, truncation=True)
