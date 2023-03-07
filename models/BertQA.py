@@ -67,7 +67,7 @@ class BertQA:
             start_pos, end_pos, context_page_token_correspondent = self.get_start_end_idx(encoding, context, answers, batch['context_page_corresp'])
 
             outputs = self.model(input_ids, attention_mask=attention_mask, start_positions=start_pos, end_positions=end_pos)
-            pred_answers = self.get_answer_from_model_output(input_ids, outputs) if return_pred_answer else None
+            pred_answers, answ_confidence = self.get_answer_from_model_output(input_ids, outputs) if return_pred_answer else None
 
             if self.page_retrieval == 'oracle':
                 pred_answer_pages = batch['answer_page_idx']
@@ -78,7 +78,7 @@ class BertQA:
             elif self.page_retrieval == 'none':
                 pred_answer_pages = None
 
-        return outputs, pred_answers, pred_answer_pages
+        return outputs, pred_answers, pred_answer_pages, answ_confidence
 
     def get_start_end_idx(self, encoding, context, answers, context_page_char_correspondent=None):
 
@@ -156,10 +156,11 @@ class BertQA:
         end_idxs = torch.argmax(outputs.end_logits, axis=1)
 
         answers = []
-        for elm_idx in range(len(input_tokens)):
-            context_tokens = self.tokenizer.convert_ids_to_tokens(input_tokens[elm_idx].tolist())
+        answ_confidence = []
+        for batch_idx in range(len(input_tokens)):
+            context_tokens = self.tokenizer.convert_ids_to_tokens(input_tokens[batch_idx].tolist())
 
-            answer_tokens = context_tokens[start_idxs[elm_idx]: end_idxs[elm_idx] + 1]
+            answer_tokens = context_tokens[start_idxs[batch_idx]: end_idxs[batch_idx] + 1]
             answer = self.tokenizer.decode(
                 self.tokenizer.convert_tokens_to_ids(answer_tokens)
             )
@@ -167,4 +168,13 @@ class BertQA:
             answer = answer.strip()  # remove space prepending space token
             answers.append(answer)
 
-        return answers
+            conf_mat = np.matmul(np.expand_dims(outputs.start_logits.softmax(dim=1)[batch_idx].unsqueeze(dim=0).cpu(), -1),
+                                 np.expand_dims(outputs.end_logits.softmax(dim=1)[batch_idx].unsqueeze(dim=0).cpu(), 1)).squeeze(axis=0)
+
+            answ_confidence.append(
+                # (outputs.start_logits[batch_idx, start_idxs[batch_idx]].item() + outputs.end_logits[batch_idx, start_idxs[batch_idx]].item()) / 2
+                # torch.matmul(outputs.start_logits[batch_idx], outputs.end_logits[batch_idx]).cpu()
+                conf_mat[start_idxs[batch_idx], end_idxs[batch_idx]].item()
+            )
+
+        return answers, answ_confidence
