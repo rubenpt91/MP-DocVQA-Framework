@@ -74,7 +74,7 @@ class Longformer:
             start_pos, end_pos, context_page_token_correspondent = self.get_start_end_idx(encoding, context, answers, batch['context_page_corresp'])
 
             outputs = self.model(input_ids, attention_mask=attention_mask, start_positions=start_pos, end_positions=end_pos)
-            pred_answers = self.get_answer_from_model_output(input_ids, outputs) if return_pred_answer else None
+            pred_answers, answ_confidence = self.get_answer_from_model_output(input_ids, outputs) if return_pred_answer else None
 
             if self.page_retrieval == 'oracle':
                 pred_answer_pages = batch['answer_page_idx']
@@ -85,6 +85,7 @@ class Longformer:
             elif self.page_retrieval == 'none':
                 pred_answer_pages = None
 
+        """
         if random.randint(0, 1000) == 0:
             print(batch['question_id'])
             for gt_answer, pred_answer in zip(answers, pred_answers):
@@ -92,9 +93,10 @@ class Longformer:
 
             for start_p, end_p, pred_start_p, pred_end_p in zip(start_pos, end_pos, outputs.start_logits.argmax(-1), outputs.end_logits.argmax(-1)):
                 print("GT: {:d}-{:d} \t Pred: {:d}-{:d}".format(start_p.item(), end_p.item(), pred_start_p, pred_end_p))
+        """
 
         # start_pos, end_pos = self.get_start_end_idx(encoding, context, answers)
-        return outputs, pred_answers, pred_answer_pages
+        return outputs, pred_answers, pred_answer_pages, answ_confidence
 
     # Version 2
     def get_start_end_idx(self, encoding, context, answers, context_page_char_correspondent=None):
