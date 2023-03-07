@@ -34,7 +34,7 @@ def evaluate(data_loader, model, evaluator, **kwargs):
     for batch_idx, batch in enumerate(tqdm(data_loader)):
         bs = len(batch['question_id'])
         with torch.no_grad():
-            outputs, pred_answers, pred_answer_page = model.forward(batch, return_pred_answer=True)
+            outputs, pred_answers, pred_answer_page, answer_conf = model.forward(batch, return_pred_answer=True)
             # print(pred_answers)
 
         metric = evaluator.get_metrics(batch['answers'], pred_answers, batch['answer_type'])
@@ -51,6 +51,7 @@ def evaluate(data_loader, model, evaluator, **kwargs):
                     'anls': metric['anls'][batch_idx],
                     'ret_prec': ret_metric[batch_idx],
                     'pred_answer': pred_answers[batch_idx],
+                    'pred_answer_conf': answer_conf[batch_idx],
                     'pred_answer_page': pred_answer_page[batch_idx] if pred_answer_page is not None else None
                 }
 

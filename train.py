@@ -21,7 +21,7 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
 
     for batch_idx, batch in enumerate(tqdm(data_loader)):
         gt_answers = batch['answers']
-        outputs, pred_answers, pred_answer_page = model.forward(batch, return_pred_answer=True)
+        outputs, pred_answers, pred_answer_page, answer_conf = model.forward(batch, return_pred_answer=True)
         loss = outputs.loss + outputs.ret_loss if hasattr(outputs, 'ret_loss') else outputs.loss
 
         loss.backward()

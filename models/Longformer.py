@@ -193,6 +193,7 @@ class Longformer:
         end_idxs = torch.argmax(outputs.end_logits, axis=1)
 
         answers = []
+        answ_confidence = []
         for batch_idx in range(len(input_tokens)):
             context_tokens = self.tokenizer.convert_ids_to_tokens(input_tokens[batch_idx].tolist())
 
@@ -204,7 +205,17 @@ class Longformer:
             answer = answer.strip()  # remove space prepending space token
             answers.append(answer)
 
-        return answers
+            conf_mat = np.matmul(
+                np.expand_dims(outputs.start_logits.softmax(dim=1)[batch_idx].unsqueeze(dim=0).cpu(), -1),
+                np.expand_dims(outputs.end_logits.softmax(dim=1)[batch_idx].unsqueeze(dim=0).cpu(), 1)).squeeze(axis=0)
+
+            answ_confidence.append(
+                # (outputs.start_logits[batch_idx, start_idxs[batch_idx]].item() + outputs.end_logits[batch_idx, start_idxs[batch_idx]].item()) / 2
+                # torch.matmul(outputs.start_logits[batch_idx], outputs.end_logits[batch_idx]).cpu()
+                conf_mat[start_idxs[batch_idx], end_idxs[batch_idx]].item()
+            )
+
+        return answers, answ_confidence
 
     # def to(self, device):
     #     self.model.to(device)
