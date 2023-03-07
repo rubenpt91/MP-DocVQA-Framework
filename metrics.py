@@ -54,7 +54,7 @@ class Evaluator:
     def _calculate_accuracy(self, gt, pred, answer_type):
 
         if answer_type == 'not-answerable':
-            return 1 if pred == '' or pred == None else 0
+            return 1 if pred in ['', 'none', 'NA', None, []] else 0
 
         if pred == 'none' and answer_type != 'not-answerable':
             return 0
@@ -70,7 +70,7 @@ class Evaluator:
             return 0
 
         if answer_type == 'not-answerable':
-            return 1 if pred == '' or pred == None else 0
+            return 1 if pred in ['', 'none', 'NA', None, []] else 0
 
         if pred == 'none' and answer_type != 'not-answerable':
             return 0
