@@ -64,7 +64,7 @@ class DUDE(MPDocVQA):
 
                     words.extend([word.lower() for word in record['ocr_tokens'][p]])
 
-                    mod_boxes = record['ocr_normalized_boxes'][p]
+                    mod_boxes = np.array(record['ocr_normalized_boxes'][p])
                     mod_boxes[:, 1] = mod_boxes[:, 1]/num_pages + p/num_pages
                     mod_boxes[:, 3] = mod_boxes[:, 3]/num_pages + p/num_pages
 
@@ -85,7 +85,7 @@ class DUDE(MPDocVQA):
 
             if self.get_raw_ocr_data:
                 words = []
-                boxes = record['ocr_normalized_boxes']
+                boxes = [np.array(page_boxes) for page_boxes in record['ocr_normalized_boxes']]
                 for p in range(num_pages):
                     words.append([word.lower() for word in record['ocr_tokens'][p]])
 

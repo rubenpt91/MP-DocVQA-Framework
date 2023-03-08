@@ -6,6 +6,7 @@ import torch.nn as nn
 from transformers import LayoutLMv3Processor, LayoutLMv3ForQuestionAnswering
 from PIL import Image
 from utils import correct_alignment
+from utils import create_grid_image
 
 # from transformers.models.layoutlmv3.modeling_layoutlmv3 import LayoutLMv3Model  # TODO Remove
 # from transformers.models.layoutlmv3.processing_layoutlmv3 import LayoutLMv3Processor    # TODO Remove
@@ -37,7 +38,7 @@ class LayoutLMv3:
             outputs = []
             pred_answers = []
             pred_answer_pages = []
-
+            answ_confidence = []
             for batch_idx in range(bs):
                 images = [Image.open(img_path).convert("RGB") for img_path in batch['image_names'][batch_idx]]
                 boxes = [(bbox * 1000).astype(int) for bbox in batch['boxes'][batch_idx]]
@@ -56,19 +57,23 @@ class LayoutLMv3:
                     # end_pos = torch.LongTensor(end_idxs).to(self.model.device) if end_idxs else None
 
                     page_outputs = self.model(**page_inputs)
+                    pred_answer, answer_conf = self.get_answer_from_model_output(page_inputs["input_ids"].unsqueeze(dim=0), page_outputs)
 
+                    """
                     start_logits_cnf = [page_outputs.start_logits[batch_ix, max_start_logits_idx.item()].item() for batch_ix, max_start_logits_idx in enumerate(page_outputs.start_logits.argmax(-1))][0]
                     end_logits_cnf = [page_outputs.end_logits[batch_ix, max_end_logits_idx.item()].item() for batch_ix, max_end_logits_idx in enumerate(page_outputs.end_logits.argmax(-1))][0]
                     page_logits = np.mean([start_logits_cnf, end_logits_cnf])
+                    """
 
-                    if page_logits > max_logits:
+                    if answer_conf[0] > max_logits:
                         answer_page = page_idx
                         document_outputs = page_outputs
-                        max_logits = page_logits
+                        max_logits = answer_conf[0]
 
                 outputs.append(None)  # outputs.append(document_outputs)  # During inference outputs are not used.
-                pred_answers.append(self.get_answer_from_model_output([document_encoding["input_ids"][answer_page]], document_outputs)[0] if return_pred_answer else None)
+                pred_answers.extend(self.get_answer_from_model_output([document_encoding["input_ids"][answer_page]], document_outputs)[0] if return_pred_answer else None)
                 pred_answer_pages.append(answer_page)
+                answ_confidence.append(max_logits)
 
         else:
 
@@ -80,6 +85,8 @@ class LayoutLMv3:
                 images = []
                 for batch_idx in range(bs):
                     images.append(self.get_concat_v_multi_resize([Image.open(img_path).convert("RGB") for img_path in batch['image_names'][batch_idx]]))  # Concatenate images vertically.
+                    # images.append(create_grid_image([Image.open(img_path).convert("RGB") for img_path in batch['image_names'][batch_idx]]))  # Create a single grid image.
+                    # images.append(Image.new(mode="RGB", size=(50, 50)))  # Empty Image.
 
             elif self.page_retrieval == 'none':
                 images = [Image.open(img_path).convert("RGB") for img_path in batch['image_names']]
@@ -89,7 +96,7 @@ class LayoutLMv3:
 
             start_pos, end_pos = self.get_start_end_idx(encoding, context, answers)
             outputs = self.model(**encoding, start_positions=start_pos, end_positions=end_pos)
-            pred_answers = self.get_answer_from_model_output(encoding.input_ids, outputs) if return_pred_answer else None
+            pred_answers, answ_confidence = self.get_answer_from_model_output(encoding.input_ids, outputs) if return_pred_answer else None
 
             # from transformers import LayoutLMv3Tokenizer, LayoutLMv3FeatureExtractor
             # x = LayoutLMv3Processor.from_pretrained('microsoft/layoutlmv3-base', apply_ocr=True)
@@ -141,7 +148,7 @@ class LayoutLMv3:
         #     for start_p, end_p, pred_start_p, pred_end_p in zip(start_pos, end_pos, outputs.start_logits.argmax(-1), outputs.end_logits.argmax(-1)):
         #         print("GT: {:d}-{:d} \t Pred: {:d}-{:d}".format(start_p.item(), end_p.item(), pred_start_p, pred_end_p))
 
-        return outputs, pred_answers, pred_answer_pages
+        return outputs, pred_answers, pred_answer_pages, answ_confidence
 
     def get_concat_v_multi_resize(self, im_list, resample=Image.BICUBIC):
         min_width = min(im.width for im in im_list)
@@ -188,5 +195,17 @@ class LayoutLMv3:
         end_idxs = torch.argmax(outputs.end_logits, axis=1)
 
         answers = [self.processor.tokenizer.decode(input_tokens[batch_idx][start_idxs[batch_idx]: end_idxs[batch_idx]+1]).strip() for batch_idx in range(len(input_tokens))]
+        # answers_conf = ((outputs.start_logits.max(dim=1).values + outputs.end_logits.max(dim=1).values) / 2).tolist()
 
-        return answers
+        answ_confidence = []
+        for batch_idx in range(len(input_tokens)):
+            conf_mat = np.matmul(np.expand_dims(outputs.start_logits.softmax(dim=1)[batch_idx].unsqueeze(dim=0).cpu(), -1),
+                                 np.expand_dims(outputs.end_logits.softmax(dim=1)[batch_idx].unsqueeze(dim=0).cpu(), 1)).squeeze(axis=0)
+
+            answ_confidence.append(
+                # (outputs.start_logits[batch_idx, start_idxs[batch_idx]].item() + outputs.end_logits[batch_idx, start_idxs[batch_idx]].item()) / 2
+                # torch.matmul(outputs.start_logits[batch_idx], outputs.end_logits[batch_idx]).cpu()
+                conf_mat[start_idxs[batch_idx], end_idxs[batch_idx]].item()
+            )
+
+        return answers, answ_confidence
