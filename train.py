@@ -45,7 +45,7 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
         if hasattr(outputs, 'ret_loss'):
             log_dict['Train/Batch retrieval loss'] = outputs.ret_loss.item()
 
-        if 'answer_page_idx' in batch:
+        if 'answer_page_idx' in batch and None not in batch['answer_page_idx']:
             ret_metric = evaluator.get_retrieval_metric(batch.get('answer_page_idx', None), pred_answer_page)
             batch_ret_prec = np.mean(ret_metric)
             log_dict['Train/Batch Ret. Prec.'] = batch_ret_prec
