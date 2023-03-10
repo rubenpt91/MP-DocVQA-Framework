@@ -1,4 +1,5 @@
 import ast, random
+from PIL import Image
 
 import os, yaml, json
 import argparse
@@ -50,6 +51,11 @@ def parse_multitype2list_arg(argument):
 def save_json(path, data):
     with open(path, 'w+') as f:
         json.dump(data, f)
+
+
+def save_yaml(path, data):
+    with open(path, 'w+') as f:
+        yaml.dump(data, f)
 
 
 """
@@ -153,3 +159,6 @@ def time_stamp_to_hhmmss(timestamp, string=True):
     time = "{:02d}:{:02d}:{:02d}".format(hh, mm, ss) if string else [hh, mm, ss]
 
     return time
+
+
+
