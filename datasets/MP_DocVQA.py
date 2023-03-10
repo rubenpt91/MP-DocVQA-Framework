@@ -148,7 +148,7 @@ class MPDocVQA(Dataset):
         sample_info = {'question_id': record['question_id'],
                        'questions': question,
                        'contexts': context,
-                       # 'context_page_corresp': context_page_corresp,
+                       'context_page_corresp': context_page_corresp,
                        'answers': answers,
                        'answer_page_idx': answer_page_idx
                        }
@@ -163,7 +163,6 @@ class MPDocVQA(Dataset):
             sample_info['num_pages'] = num_pages
 
         else:  # Information for extractive models
-            sample_info['context_page_corresp'] = context_page_corresp
             sample_info['start_indxs'] = start_idxs
             sample_info['end_indxs'] = end_idxs
 

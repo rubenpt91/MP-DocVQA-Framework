@@ -97,7 +97,7 @@ class LayoutLMv3:
             start_pos, end_pos = self.get_start_end_idx(encoding, context, answers)
             outputs = self.model(**encoding, start_positions=start_pos, end_positions=end_pos)
             pred_answers, answ_confidence = self.get_answer_from_model_output(encoding.input_ids, outputs) if return_pred_answer else None
-
+            a = 0
             # from transformers import LayoutLMv3Tokenizer, LayoutLMv3FeatureExtractor
             # x = LayoutLMv3Processor.from_pretrained('microsoft/layoutlmv3-base', apply_ocr=True)
             # encoding = x(images, question, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
@@ -194,17 +194,17 @@ class LayoutLMv3:
         start_idxs = torch.argmax(outputs.start_logits, axis=1)
         end_idxs = torch.argmax(outputs.end_logits, axis=1)
 
-        answers = [self.processor.tokenizer.decode(input_tokens[batch_idx][start_idxs[batch_idx]: end_idxs[batch_idx]+1]).strip() for batch_idx in range(len(input_tokens))]
+        answers = [self.processor.tokenizer.decode(input_tokens[batch_idx][start_idxs[batch_idx]: end_idxs[batch_idx]+1], skip_special_tokens=True).strip() for batch_idx in range(len(input_tokens))]
         # answers_conf = ((outputs.start_logits.max(dim=1).values + outputs.end_logits.max(dim=1).values) / 2).tolist()
 
+        start_logits = outputs.start_logits.softmax(dim=1).detach().cpu()
+        end_logits = outputs.end_logits.softmax(dim=1).detach().cpu()
         answ_confidence = []
         for batch_idx in range(len(input_tokens)):
-            conf_mat = np.matmul(np.expand_dims(outputs.start_logits.softmax(dim=1)[batch_idx].unsqueeze(dim=0).cpu(), -1),
-                                 np.expand_dims(outputs.end_logits.softmax(dim=1)[batch_idx].unsqueeze(dim=0).cpu(), 1)).squeeze(axis=0)
+            conf_mat = np.matmul(np.expand_dims(start_logits[batch_idx].unsqueeze(dim=0), -1),
+                                 np.expand_dims(end_logits[batch_idx].unsqueeze(dim=0), 1)).squeeze(axis=0)
 
             answ_confidence.append(
-                # (outputs.start_logits[batch_idx, start_idxs[batch_idx]].item() + outputs.end_logits[batch_idx, start_idxs[batch_idx]].item()) / 2
-                # torch.matmul(outputs.start_logits[batch_idx], outputs.end_logits[batch_idx]).cpu()
                 conf_mat[start_idxs[batch_idx], end_idxs[batch_idx]].item()
             )
 

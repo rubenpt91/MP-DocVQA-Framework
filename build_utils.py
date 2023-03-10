@@ -106,9 +106,9 @@ def build_dataset(config, split):
         from datasets.DUDE import DUDE
         dataset = DUDE(config['imdb_dir'], config['images_dir'], config['page_retrieval'], split, dataset_kwargs)
 
-    elif config['dataset_name'] == 'CLEF-ELSA':
-        from datasets.CLEF_ELSA import CLEF_ELSA
-        dataset = CLEF_ELSA(config['imdb_dir'], config['images_dir'], config['page_retrieval'], split, dataset_kwargs)
+    elif config['dataset_name'] == 'DocILE-ELSA':
+        from datasets.DocILE_ELSA import DocILE_ELSA
+        dataset = DocILE_ELSA(config['imdb_dir'], config['images_dir'], config['page_retrieval'], split, dataset_kwargs)
 
     else:
         raise ValueError

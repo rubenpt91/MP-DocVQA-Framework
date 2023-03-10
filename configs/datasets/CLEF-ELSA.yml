@@ -1,4 +1,0 @@
-dataset_name: CLEF-ELSA
-imdb_dir: /SSD/Datasets/CLEF/elsa_imdb  # /imdb/collection/imdb_train.npy
-images_dir: /SSD/Datasets/CLEF/images
-page_retrieval: Concat  # Oracle / Concat / Logits / Custom (for Hierarchical methods (Hi-LayoutLMv3, Hi-LT5, Hi-VT5) TODO: First

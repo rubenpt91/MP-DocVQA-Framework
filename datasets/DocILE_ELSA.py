@@ -7,14 +7,14 @@ import numpy as np
 from datasets.MP_DocVQA import MPDocVQA
 
 
-class CLEF_ELSA(MPDocVQA):
+class DocILE_ELSA(MPDocVQA):
 
     def __init__(self, imbd_dir, images_dir, page_retrieval, split, kwargs):
 
-        super(CLEF_ELSA, self).__init__(imbd_dir, images_dir, page_retrieval, split, kwargs)
+        super(DocILE_ELSA, self).__init__(imbd_dir, images_dir, page_retrieval, split, kwargs)
 
         if self.page_retrieval == 'oracle':
-            raise ValueError("'Oracle' set-up is not valid for CLEF-ELSA, since there is no GT for the answer page.")
+            raise ValueError("'Oracle' set-up is not valid for DocILE-ELSA, since there is no GT for the answer page.")
 
     def __getitem__(self, idx):
 
@@ -26,7 +26,7 @@ class CLEF_ELSA(MPDocVQA):
         num_pages = record['total_doc_pages']
 
         if self.page_retrieval == 'oracle':
-            raise ValueError("'Oracle' set-up is not valid for DUDE, since there is no GT for the answer page.")
+            raise ValueError("'Oracle' set-up is not valid for DocILE-ELSA, since there is no GT for the answer page.")
 
             """
             context = ' '.join([word.lower() for word in record['ocr_tokens'][answer_page_idx]])
@@ -156,4 +156,4 @@ class CLEF_ELSA(MPDocVQA):
 
 
 if __name__ == '__main__':
-    dude_dataset = CLEF_ELSA("/SSD/Datasets/CLEF/elsa_imdb/", split='val')
+    dude_dataset = DocILE_ELSA("/SSD/Datasets/DocILE/elsa_imdb/", split='val')
