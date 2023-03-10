@@ -5,8 +5,8 @@ import torch
 import torch.nn as nn
 from transformers import LayoutLMv3Processor, LayoutLMv3ForQuestionAnswering
 from PIL import Image
-from utils import correct_alignment
-from utils import create_grid_image
+# from utils import correct_alignment
+# from utils import create_grid_image
 
 # from transformers.models.layoutlmv3.modeling_layoutlmv3 import LayoutLMv3Model  # TODO Remove
 # from transformers.models.layoutlmv3.processing_layoutlmv3 import LayoutLMv3Processor    # TODO Remove
@@ -77,19 +77,17 @@ class LayoutLMv3:
 
         else:
 
-            if self.page_retrieval in ['oracle', None]:
+            if self.page_retrieval in ['oracle', "none", None]:
                 images = batch['images']
 
             elif self.page_retrieval == 'concat':
 
                 images = []
                 for batch_idx in range(bs):
-                    images.append(self.get_concat_v_multi_resize([Image.open(img_path).convert("RGB") for img_path in batch['image_names'][batch_idx]]))  # Concatenate images vertically.
+                    images.append(self.get_concat_v_multi_resize(batch['images'][batch_idx]))  # Concatenate images vertically.
+                    # images.append(self.get_concat_v_multi_resize([Image.open(img_path).convert("RGB") for img_path in batch['image_names'][batch_idx]]))  # Concatenate images vertically.
                     # images.append(create_grid_image([Image.open(img_path).convert("RGB") for img_path in batch['image_names'][batch_idx]]))  # Create a single grid image.
                     # images.append(Image.new(mode="RGB", size=(50, 50)))  # Empty Image.
-
-            elif self.page_retrieval == 'none':
-                images = [Image.open(img_path).convert("RGB") for img_path in batch['image_names']]
 
             boxes = [(bbox * 1000).astype(int) for bbox in batch['boxes']]  # Scale boxes 0->1 to 0-->1000.
             encoding = self.processor(images, question, batch["words"], boxes=boxes, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
