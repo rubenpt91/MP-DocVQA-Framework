@@ -20,7 +20,7 @@ def parse_args():
     parser.add_argument('--no-eval-start', dest='eval_start', action='store_false')
 
     # Overwrite config parameters
-    parser.add_argument('-p', '--page-retrieval', type=int, help='Page retrieval set-up.')
+    parser.add_argument('-p', '--page-retrieval', type=str, help='Page retrieval set-up.')
     parser.add_argument('-bs', '--batch-size', type=int, help='DataLoader batch size.')
     parser.add_argument('--seed', type=int, help='Seed to allow reproducibility.')
 
@@ -160,5 +160,4 @@ def time_stamp_to_hhmmss(timestamp, string=True):
     time = "{:02d}:{:02d}:{:02d}".format(hh, mm, ss) if string else [hh, mm, ss]
 
     return time
-
 
