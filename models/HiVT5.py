@@ -4,19 +4,13 @@ from typing import Any, Dict, Optional
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-
 from torch.nn import CrossEntropyLoss
-from torch.nn import LayerNorm as BertLayerNorm
 
-from transformers import T5Config, T5Tokenizer, T5ForConditionalGeneration
-from transformers import ViTModel, ViTFeatureExtractor
-
-from transformers import AutoFeatureExtractor, AutoModel
+from transformers import T5Tokenizer, T5ForConditionalGeneration
 
 from transformers.modeling_outputs import Seq2SeqLMOutput, ModelOutput, BaseModelOutput
+from _modules import CustomT5Config, SpatialEmbeddings, VisualEmbeddings, RetrievalModule
 
-from models.HiLT5 import SpatialEmbeddings, MLP, RetrievalModule
 import transformers.models.t5.modeling_t5
 
 """ START - FOR GREEDY SEARCH """
@@ -26,48 +20,6 @@ from transformers.generation_utils import GreedySearchOutput, GreedySearchEncode
 from transformers.generation_logits_process import LogitsProcessorList
 from transformers.generation_stopping_criteria import StoppingCriteriaList, validate_stopping_criteria
 """ END - FOR GREEDY SEARCH """
-
-
-class LayoutT5Config(T5Config):
-    def __init__(self, max_2d_position_embeddings=1024,  **kwargs):
-        super().__init__(**kwargs)
-        self.max_2d_position_embeddings = max_2d_position_embeddings
-        self.hidden_dropout_prob = 0.1
-        self.layer_norm_eps = 1e-12
-
-
-class VisualEmbeddings(nn.Module):
-
-    def __init__(self, config, finetune=False):
-        super(VisualEmbeddings, self).__init__()
-
-        self.feature_extractor = AutoFeatureExtractor.from_pretrained(config.visual_module_config['model_weights'])
-        self.image_model = AutoModel.from_pretrained(config.visual_module_config['model_weights'])
-        self.visual_emb_matcher = MLP(self.image_model.config.hidden_size, 0, self.image_model.config.hidden_size, 1)
-
-        if not finetune:
-            self.freeze()
-
-    def freeze(self):
-        for p in self.image_model.parameters():
-            p.requires_grad = False
-
-    def get_visual_boxes(self, num_pages=1, scale=1):
-        boxes = torch.tensor([[0, 0, 1, 1]] + [[x / 14, y / 14, (x + 1) / 14, (y + 1) / 14] for y in range(0, 14) for x in range(0, 14)], dtype=torch.float32)
-        boxes = boxes.unsqueeze(dim=0).expand([num_pages, -1, -1])
-        boxes = boxes * scale
-        return boxes
-
-    def forward(self, images, page_idx_mask):
-        inputs = self.feature_extractor(images=images, return_tensors="pt")
-        vis_embeddings = self.image_model(inputs.pixel_values.to(self.image_model.device))
-        vis_embeddings = vis_embeddings.last_hidden_state  # BS; 14x14+CLS (197); 768 (hidden size)
-        vis_embeddings = self.visual_emb_matcher(vis_embeddings)
-
-        vis_attention_mask = torch.zeros(vis_embeddings.shape[:2]).to(self.image_model.device)
-        vis_attention_mask[page_idx_mask] = 1
-
-        return vis_embeddings, vis_attention_mask
 
 
 class HiVT5(T5ForConditionalGeneration):
@@ -493,9 +445,9 @@ class HiVT5(T5ForConditionalGeneration):
                 visual_emb, vis_mask = self.visual_embeddings([doc_images[page_idx] for doc_images in images], page_idx_mask=page_idx_mask)
 
                 # TODO: Try with / without.
-                vis_boxes = self.visual_embeddings.get_visual_boxes(num_pages=len(visual_emb), scale=1000)
-                vis_boxes_emb = self.spatial_embeddings(vis_boxes.long().to(self.device))
-                visual_emb = visual_emb + vis_boxes_emb
+                vis_boxes = self.visual_embeddings.get_visual_boxes(num_pages=len(visual_emb), scale=1000)  # Get visual boxes.
+                vis_boxes_emb = self.spatial_embeddings(vis_boxes.long().to(self.device))  # Get the spatial embeddings from the boxes.
+                visual_emb = visual_emb + vis_boxes_emb  # Sum both visual-spatial representation.
 
                 inputs_embeds = torch.cat((text_embeds, visual_emb), dim=1)
                 inputs_mask = torch.cat((attention_mask[:, page_idx], vis_mask), dim=1)
@@ -639,12 +591,12 @@ class Proxy_HiVT5:
         self.page_tokens = config.get('page_tokens', 10)
         self.max_doc_pages = config.get('max_pages', 1)
 
-        config_x = LayoutT5Config.from_pretrained(config['model_weights'])
+        config_x = CustomT5Config.from_pretrained(config['model_weights'])
         config_x.page_tokens = self.page_tokens
         config_x.max_doc_pages = self.max_doc_pages
         config_x.use_spatial_features = config.get('use_spatial_features', True)
         config_x.page_retrieval_config = config['retrieval_module']
-        config_x.use_visual_features = config.get('use_spatial_features', True)
+        config_x.use_visual_features = config.get('use_visual_features', True)
         config_x.visual_module_config = config['visual_module']
         self.tokenizer = T5Tokenizer.from_pretrained(config['model_weights'])
         # self.tokenizer.add_tokens("[PAGE]")  # Single representation

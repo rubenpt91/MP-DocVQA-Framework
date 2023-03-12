@@ -17,6 +17,16 @@ class T5:
     def parallelize(self):
         self.model = nn.DataParallel(self.model)
 
+    def prepare_inputs_for_vqa(self, question, context, answers):
+        input_text = ["question: {:s}  context: {:s}".format(q, c) for q, c in zip(question, context)]
+        tokens = self.tokenizer(input_text, return_tensors='pt', padding=True, truncation=True).to(self.model.device)
+
+        answers = [random.choice(answer) for answer in answers]
+        labels = self.tokenizer(answers, return_tensors='pt', padding=True)
+        labels.input_ids[labels.input_ids[:] == self.tokenizer.pad_token_id] = -100
+        labels = labels.input_ids.to(self.model.device)
+        return tokens.input_ids, tokens.attention_mask, labels
+
     def forward(self, batch, return_pred_answer=False):
         question = batch['questions']
         context = batch['contexts']
@@ -45,16 +55,9 @@ class T5:
                 pred_answer_pages.append(answer_page)
 
         else:
-            input_text = ["question: {:s}  context: {:s}".format(q, c) for q, c in zip(question, context)]
-            tokens = self.tokenizer(input_text, return_tensors='pt', padding=True, truncation=True).to(self.model.device)
-
-            answers = [random.choice(answer) for answer in answers]
-            labels = self.tokenizer(answers, return_tensors='pt', padding=True)
-            labels.input_ids[labels.input_ids[:] == self.tokenizer.pad_token_id] = -100
-            labels = labels.input_ids.to(self.model.device)
-
-            outputs = self.model(input_ids=tokens.input_ids, attention_mask=tokens.attention_mask, labels=labels)
-            pred_answers, logits = self.get_answer_from_model_output(tokens) if return_pred_answer else None
+            input_ids, attention_mask, labels = self.prepare_inputs_for_vqa(question, context, answers)
+            outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+            pred_answers, logits = self.get_answer_from_model_output(input_ids, attention_mask) if return_pred_answer else None
 
             if self.page_retrieval == 'oracle':
                 pred_answer_pages = batch['answer_page_idx']
@@ -62,12 +65,12 @@ class T5:
             else:
                 pred_answer_pages = None
 
-        return outputs, pred_answers, pred_answer_pages
+        return outputs, pred_answers, pred_answer_pages, [0 for batch_idx in range(len(context))]
 
-    def get_answer_from_model_output(self, input_tokens):
-        bs = input_tokens.input_ids.shape[0]
+    def get_answer_from_model_output(self, input_ids, attention_mask):
+        bs = input_ids.shape[0]
         # output = self.model.generate(**input_tokens, output_scores=True, return_dict_in_generate=True)
-        output = self.model.generate(**input_tokens, output_scores=True, return_dict_in_generate=True, output_attentions=True)
+        output = self.model.generate(input_ids, attention_mask, output_scores=True, return_dict_in_generate=True, output_attentions=True)
         pred_answers = self.tokenizer.batch_decode(output['sequences'], skip_special_tokens=True)
 
         all_logits = torch.stack(output.scores)
