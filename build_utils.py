@@ -49,7 +49,7 @@ def build_model(config):
         model = T5(config)
 
     elif config['model_name'].lower() == 'lt5':
-        from models.LT5 import Proxy_LT5 as LT5
+        from models.LT5 import ProxyLT5 as LT5
         model = LT5(config)
 
     elif config['model_name'].lower() in ['hilt5', 'hi-lt5']:

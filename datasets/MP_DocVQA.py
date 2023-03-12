@@ -150,7 +150,8 @@ class MPDocVQA(Dataset):
                        'contexts': context,
                        'context_page_corresp': context_page_corresp,
                        'answers': answers,
-                       'answer_page_idx': answer_page_idx
+                       'answer_page_idx': answer_page_idx,
+                       'num_pages': num_pages
                        }
 
         if self.use_images:
@@ -160,7 +161,6 @@ class MPDocVQA(Dataset):
         if self.get_raw_ocr_data:
             sample_info['words'] = words
             sample_info['boxes'] = boxes
-            sample_info['num_pages'] = num_pages
 
         else:  # Information for extractive models
             sample_info['start_indxs'] = start_idxs
