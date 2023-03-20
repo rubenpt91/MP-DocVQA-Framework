@@ -16,6 +16,7 @@ class ProxyVT5:
         self.tokenizer = T5Tokenizer.from_pretrained(config['model_weights'])
         self.model = T5ForConditionalGeneration.from_pretrained(config['model_weights'])
         self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
+        self.max_source_length = config.get('max_source_length', 512)
 
         t5_config = CustomT5Config.from_pretrained(config['model_weights'])
         t5_config.visual_module_config = config['visual_module']
@@ -48,9 +49,9 @@ class ProxyVT5:
                 input_ids.extend(tokenized_word)
                 input_boxes.extend([box]*len(tokenized_word))  # Repeat the box for each token corresponding to the word.
 
-            batch_input_ids.append(input_ids + [self.tokenizer.eos_token_id])  # Append the eos_token at the end.
-            batch_input_boxes.append(np.concatenate([input_boxes,  np.array([eos_box])]))  # Append a bounding box corresponding to the eos_token.
-            longest_seq = max(longest_seq, len(input_ids) + 1)
+            batch_input_ids.append(input_ids[:self.max_source_length-1] + [self.tokenizer.eos_token_id])  # Append the eos_token at the end.
+            batch_input_boxes.append(np.concatenate([input_boxes[:self.max_source_length-1],  np.array([eos_box])]))  # Append a bounding box corresponding to the eos_token.
+            longest_seq = min(max(longest_seq, len(input_ids) + 1), self.max_source_length)
 
         # Convert to tensors and pad. Actually, a pad tensor is created and it's filled with corresponding values.
         tensor_input_ids = torch.full([bs, longest_seq], fill_value=self.tokenizer.pad_token_id, dtype=torch.long)

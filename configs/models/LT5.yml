@@ -3,6 +3,7 @@ model_name: LT5
 # model_weights: t5-base
 # model_weights: weights/t5_oracle_mp-docvqa__best.ckpt
 model_weights: weights/lt5_oracle_mp-docvqa__best.ckpt
+max_source_length: 512
 device: cuda
 data_parallel: False
 
