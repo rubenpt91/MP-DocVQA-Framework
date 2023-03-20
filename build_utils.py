@@ -18,7 +18,7 @@ def build_optimizer(model, length_train_loader, config):
 
 def build_model(config):
 
-    available_models = ['BertQA', 'LayoutLMv2', 'LayoutLMv3', 'Longformer', 'BigBird', 'T5', 'LT5', 'Hi-LT5', 'Hi-VT5']
+    available_models = ['BertQA', 'LayoutLMv2', 'LayoutLMv3', 'Longformer', 'BigBird', 'Donut', 'T5', 'LT5', 'Hi-LT5', 'Hi-VT5']
     if config['model_name'].lower() == 'bert' or config['model_name'].lower() == 'bertqa':
         from models.BertQA import BertQA
         model = BertQA(config)
@@ -52,6 +52,10 @@ def build_model(config):
         from models.LT5 import ProxyLT5 as LT5
         model = LT5(config)
 
+    elif config['model_name'].lower() == 'vt5':
+        from models.VT5 import ProxyVT5 as VT5
+        model = VT5(config)
+
     elif config['model_name'].lower() in ['hilt5', 'hi-lt5']:
         from models.HiLT5 import Proxy_HiLT5 as HiLT5
         model = HiLT5(config)
@@ -63,6 +67,10 @@ def build_model(config):
     elif config['model_name'].lower() in ['hilayoutlmv3', 'hi-layoutlmv3']:
         from models.HiLayoutLMv3 import Proxy_HiLayoutLMv3 as HiLayoutLMv3
         model = HiLayoutLMv3(config)
+
+    elif config['model_name'].lower() == 'donut':
+        from models.Donut import Donut
+        model = Donut(config)
 
     else:
         raise ValueError("Value '{:s}' for model selection not expected. Please choose one of {:}".format(config['model_name'], ', '.join(available_models)))
@@ -79,10 +87,10 @@ def build_dataset(config, split):
     # Specify special params for data processing depending on the model used.
     dataset_kwargs = {}
 
-    if config['model_name'].lower() in ['layoutlmv2', 'layoutlmv3', 'hilayoutlmv3', 'hi-layoutlmv3', 'lt5', 'hilt5', 'hi-lt5', 'hivt5', 'hi-vt5']:
+    if config['model_name'].lower() in ['layoutlmv2', 'layoutlmv3', 'hilayoutlmv3', 'hi-layoutlmv3', 'lt5', 'vt5', 'hilt5', 'hi-lt5', 'hivt5', 'hi-vt5']:
         dataset_kwargs['get_raw_ocr_data'] = True
 
-    if config['model_name'].lower() in ['layoutlmv2', 'layoutlmv3', 'hilayoutlmv3', 'hi-layoutlmv3', 'hivt5', 'hi-vt5']:
+    if config['model_name'].lower() in ['layoutlmv2', 'layoutlmv3', 'hilayoutlmv3', 'donut', 'vt5', 'hi-layoutlmv3', 'hivt5', 'hi-vt5']:
         dataset_kwargs['use_images'] = True
 
     if config['model_name'].lower() in ['hilayoutlmv3', 'hi-layoutlmv3', 'hilt5', 'hi-lt5', 'hivt5', 'hi-vt5']:

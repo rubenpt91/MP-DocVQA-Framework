@@ -1,9 +1,9 @@
 
 import os
-import random
 from PIL import Image
 
 import numpy as np
+import utils
 from datasets.MP_DocVQA import MPDocVQA
 
 
@@ -52,10 +52,6 @@ class DUDE(MPDocVQA):
             context = context.strip()
             context_page_corresp = context_page_corresp[1:]
 
-            if self.use_images:
-                image_names = [os.path.join(self.images_dir, "{:s}".format(image_name)) for image_name in record['image_name']]
-                images = [Image.open(img_path).convert("RGB") for img_path in image_names]
-
             if self.get_raw_ocr_data:
                 words, boxes = [], []
                 for p in range(num_pages):
@@ -64,12 +60,21 @@ class DUDE(MPDocVQA):
 
                     words.extend([word.lower() for word in record['ocr_tokens'][p]])
 
+                    """
                     mod_boxes = np.array(record['ocr_normalized_boxes'][p])
                     mod_boxes[:, 1] = mod_boxes[:, 1]/num_pages + p/num_pages
                     mod_boxes[:, 3] = mod_boxes[:, 3]/num_pages + p/num_pages
 
                     boxes.extend(mod_boxes)  # bbox in l,t,r,b
+                    """
+                boxes = record['ocr_normalized_boxes']
 
+            if self.use_images:
+                image_names = [os.path.join(self.images_dir, "{:s}".format(image_name)) for image_name in record['image_name']]
+                images = [Image.open(img_path).convert("RGB") for img_path in image_names]
+                images, boxes = utils.create_grid_image(images, boxes)
+
+            else:
                 boxes = np.array(boxes)
 
         elif self.page_retrieval == 'logits':

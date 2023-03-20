@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from transformers import T5Config
 from transformers import AutoFeatureExtractor, AutoModel
-
+from torch.nn import CrossEntropyLoss
 from torch.nn import LayerNorm as BertLayerNorm
 
 
@@ -105,14 +105,17 @@ class VisualEmbeddings(nn.Module):
         boxes = boxes * scale
         return boxes
 
-    def forward(self, images, page_idx_mask):
+    def forward(self, images, page_idx_mask=None):
         inputs = self.feature_extractor(images=images, return_tensors="pt")
         vis_embeddings = self.image_model(inputs.pixel_values.to(self.image_model.device))
         vis_embeddings = vis_embeddings.last_hidden_state  # BS; 14x14+CLS (197); 768 (hidden size)
         vis_embeddings = self.visual_emb_matcher(vis_embeddings)
 
-        vis_attention_mask = torch.zeros(vis_embeddings.shape[:2]).to(self.image_model.device)
-        vis_attention_mask[page_idx_mask] = 1
+        if page_idx_mask is not None:
+            vis_attention_mask = torch.zeros(vis_embeddings.shape[:2]).to(self.image_model.device)
+            vis_attention_mask[page_idx_mask] = 1
+        else:
+            vis_attention_mask = torch.ones(vis_embeddings.shape[:-1], dtype=torch.long).to(self.image_model.device)
 
         return vis_embeddings, vis_attention_mask
 
@@ -129,7 +132,6 @@ class RetrievalModule(nn.Module):
             self.retrieval_criterion = CrossEntropyLoss()
 
         self.retrieval_loss_weight = config.page_retrieval_config['loss_weight']
-
 
     def forward(self, document_embeddings, answer_page_idx):
         document_embeddings = document_embeddings.view([len(document_embeddings), -1])

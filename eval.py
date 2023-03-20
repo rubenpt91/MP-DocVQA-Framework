@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from datasets.SP_DocVQA import SPDocVQA, singlepage_docvqa_collate_fn
+from datasets.SP_DocVQA import singlepage_docvqa_collate_fn
 from logger import Logger
 from metrics import Evaluator
 from utils import parse_args, time_stamp_to_hhmmss, load_config, save_json
