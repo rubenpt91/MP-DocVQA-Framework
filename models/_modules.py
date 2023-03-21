@@ -112,10 +112,10 @@ class VisualEmbeddings(nn.Module):
         vis_embeddings = self.visual_emb_matcher(vis_embeddings)
 
         if page_idx_mask is not None:
-            vis_attention_mask = torch.zeros(vis_embeddings.shape[:2]).to(self.image_model.device)
+            vis_attention_mask = torch.zeros(vis_embeddings.shape[:2], dtype=torch.long).to(self.image_model.device)
             vis_attention_mask[page_idx_mask] = 1
         else:
-            vis_attention_mask = torch.ones(vis_embeddings.shape[:-1], dtype=torch.long).to(self.image_model.device)
+            vis_attention_mask = torch.ones(vis_embeddings.shape[:2], dtype=torch.long).to(self.image_model.device)
 
         return vis_embeddings, vis_attention_mask
 

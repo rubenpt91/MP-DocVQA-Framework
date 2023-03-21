@@ -9,16 +9,23 @@ from torch.nn import CrossEntropyLoss
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 
 from transformers.modeling_outputs import Seq2SeqLMOutput, ModelOutput, BaseModelOutput
-from _modules import CustomT5Config, SpatialEmbeddings, VisualEmbeddings, RetrievalModule
+from models._modules import CustomT5Config, SpatialEmbeddings, VisualEmbeddings, RetrievalModule
 
 import transformers.models.t5.modeling_t5
+""" START - FOR GREEDY SEARCH """
+# import torch.distributed as dist
+# from typing import Union
+# from transformers.generation_utils import GreedySearchOutput, GreedySearchEncoderDecoderOutput, GreedySearchDecoderOnlyOutput
+# from transformers.generation_logits_process import LogitsProcessorList
+# from transformers.generation_stopping_criteria import StoppingCriteriaList, validate_stopping_criteria
+""" END - FOR GREEDY SEARCH """
 
 """ START - FOR GREEDY SEARCH """
 import torch.distributed as dist
 from typing import Union
-from transformers.generation_utils import GreedySearchOutput, GreedySearchEncoderDecoderOutput, GreedySearchDecoderOnlyOutput
-from transformers.generation_logits_process import LogitsProcessorList
-from transformers.generation_stopping_criteria import StoppingCriteriaList, validate_stopping_criteria
+from transformers.generation.utils import GreedySearchOutput, GreedySearchEncoderDecoderOutput, GreedySearchDecoderOnlyOutput
+from transformers.generation.logits_process import LogitsProcessorList
+from transformers.generation.stopping_criteria import StoppingCriteriaList, validate_stopping_criteria
 """ END - FOR GREEDY SEARCH """
 
 
@@ -638,8 +645,8 @@ class Proxy_HiVT5:
         for batch_idx in range(bs):
 
             # Do directly the three loops in once. Then, trim the tensors to the: 1 longest sequence or max_seq_length.
-            page_tokens = ''.join([f"[PAGE_{i}]" for i in range(self.page_tokens)])
-            input_text = [f"{page_tokens}: question: {question[batch_idx]}  context: {c}" for c in context[batch_idx]]  # Multiple representation
+            page_tokens = ''.join([f"[PAGE_{i}]" for i in range(self.page_tokens)])  # Multiple representation
+            input_text = [f"{page_tokens}: question: {question[batch_idx]}  context: {c}" for c in context[batch_idx]]
             tokens = self.tokenizer(input_text, return_tensors='pt', padding=True, truncation=True)
             all_input_ids[batch_idx, :num_pages[batch_idx], :tokens.input_ids.shape[-1]] = tokens.input_ids
             all_attention_masks[batch_idx, :num_pages[batch_idx], :tokens.attention_mask.shape[-1]] = tokens.attention_mask
@@ -682,6 +689,8 @@ class Proxy_HiVT5:
 
         bs = len(question_id)
         if self.page_retrieval == 'oracle':
+            input_ids, input_boxes, attention_mask = self.prepare_vqa_input_ids(batch)
+
             raise ValueError("Oracle set-up not available for Hi-VT5. Instead, specify 'max_pages: 1' in dataset config with 'page_retrieval: custom'.")
 
         elif self.page_retrieval in ['logits', 'concat']:
@@ -706,7 +715,8 @@ class Proxy_HiVT5:
             if self.page_retrieval == 'oracle':
                 pred_answer_pages = batch['answer_page_idx']
 
-        return outputs, pred_answers, pred_answer_pages
+        pred_answer_conf = [-1 for _ in range(len(pred_answers))]
+        return outputs, pred_answers, pred_answer_pages, pred_answer_conf
 
     def get_answer_from_model_output(self, input_ids, boxes, images, attention_mask, num_pages):
         output = self.model.generate(input_ids=input_ids, bbox=boxes, images=images, attention_mask=attention_mask, num_pages=num_pages, max_length=self.decoding_max_length, output_attentions=True, return_dict_in_generate=True)

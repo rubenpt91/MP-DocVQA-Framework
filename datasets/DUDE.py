@@ -72,6 +72,7 @@ class DUDE(MPDocVQA):
             if self.use_images:
                 image_names = [os.path.join(self.images_dir, "{:s}".format(image_name)) for image_name in record['image_name']]
                 images = [Image.open(img_path).convert("RGB") for img_path in image_names]
+                images += [Image.new('RGB', (2, 2)) for i in range(self.max_pages - len(image_names))]  # Pad with 2x2 images.
                 images, boxes = utils.create_grid_image(images, boxes)
 
             else:
