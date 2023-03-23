@@ -196,6 +196,10 @@ def create_grid_image(images, boxes=None):
 
     # Squeeze bounding boxes to the dimension of a single grid.
     for page_ix in range(len(boxes)):
+
+        if len(boxes[page_ix]) == 0:
+            continue
+
         page_row, page_col = get_page_position_in_grid(page_ix, cols)
         boxes[page_ix][:, [0, 2]] = boxes[page_ix][:, [0, 2]] / cols * (page_col+1)  # Resize width
         boxes[page_ix][:, [1, 3]] = boxes[page_ix][:, [1, 3]] / rows * (page_row+1)  # Resize height
