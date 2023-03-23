@@ -17,7 +17,6 @@ class DocILE_ELSA(MPDocVQA):
             raise ValueError("'Oracle' set-up is not valid for DocILE-ELSA, since there is no GT for the answer page.")
 
     def __getitem__(self, idx):
-
         record = self.imdb[idx]
 
         question = "What is the {:s}?".format(record['question'].replace('_', ' '))
@@ -54,21 +53,13 @@ class DocILE_ELSA(MPDocVQA):
 
             if self.get_raw_ocr_data:
                 words, boxes = [], []
-                for p in range(num_pages):
-                    if len(record['ocr_tokens'][p]) == 0:
+                for page_ix in range(num_pages):
+                    if len(record['ocr_tokens'][page_ix]) == 0:
+                        boxes.append(np.empty([0, 4]))
                         continue
 
-                    words.extend([word.lower() for word in record['ocr_tokens'][p]])
-
-                    """
-                    mod_boxes = np.array(record['ocr_normalized_boxes'][p])
-                    mod_boxes[:, 1] = mod_boxes[:, 1]/num_pages + p/num_pages
-                    mod_boxes[:, 3] = mod_boxes[:, 3]/num_pages + p/num_pages
-                    
-                    boxes.extend(mod_boxes)  # bbox in l,t,r,b
-                    """
-
-                boxes = [np.array(page_boxes) for page_boxes in record['ocr_normalized_boxes']]
+                    words.extend([word.lower() for word in record['ocr_tokens'][page_ix]])
+                    boxes.append(np.array(record['ocr_normalized_boxes'][page_ix]))
 
             if self.use_images:
                 image_names = [os.path.join(self.images_dir, "{:s}.jpg".format(image_name)) for image_name in record['image_name']]
