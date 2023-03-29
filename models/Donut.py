@@ -7,6 +7,8 @@ import models._model_utils as model_utils
 import transformers.models.donut.modeling_donut_swin
 import transformers.models.donut.processing_donut
 
+# https://github.com/NielsRogge/Transformers-Tutorials/tree/master/Donut
+
 
 class Donut:
     def __init__(self, config):
@@ -26,7 +28,7 @@ class Donut:
         if answers is not None:
             task_prompt_with_labels = ["<s_docvqa><s_question>{:s}</s_question><s_answer>{:s}</s_answer>".format(q, random.choice(a)) for q, a in zip(question, answers)]
             decoder_encoding = self.processor.tokenizer(task_prompt_with_labels, add_special_tokens=False, return_tensors="pt", padding=True, truncation=True)
-            labels = decoder_encoding.input_ids
+            labels = decoder_encoding.input_ids.clone()
             labels[labels == self.processor.tokenizer.pad_token_id] = self.ignore_id  # Model doesn't need to predict pad token
 
             # Model doesn't need to predict prompt (for VQA)
@@ -38,6 +40,7 @@ class Donut:
             # decoder_encoding.input_ids = decoder_encoding  # TODO: Check and probably remove...
             # decoder_encoding.input_ids = decoder_encoding.input_ids.to(self.model.device)
             decoder_encoding.to(self.model.device)
+            labels = labels.to(self.model.device)
 
         else:
             task_prompt = ["<s_docvqa><s_question>{:s}</s_question><s_answer>".format(q) for q in question]
