@@ -21,7 +21,7 @@ class DocILE_ELSA(MPDocVQA):
 
         question = "What is the {:s}?".format(record['question'].replace('_', ' '))
         answers = list(set(answer.lower() for answer in record['answers']))
-        answer_page_idx = None
+        answer_page_idx = -1
         num_pages = record['total_doc_pages']
 
         if self.page_retrieval == 'oracle':
@@ -85,7 +85,6 @@ class DocILE_ELSA(MPDocVQA):
 
         elif self.page_retrieval == 'custom':
             first_page, last_page = self.get_pages(record)
-            answer_page_idx = answer_page_idx - first_page
             num_pages = len(range(first_page, last_page))
 
             words = []
@@ -147,6 +146,13 @@ class DocILE_ELSA(MPDocVQA):
             sample_info['doc_id'] = [record['image_name'][page_ix] for page_ix in range(first_page, last_page)]
 
         return sample_info
+
+    def get_pages(self, sample_info):
+        # Most of the documents have only 1 page, and maximum 3. Therefore, use always all the pages.
+        first_page = sample_info['pages'][0]
+        last_page = sample_info['pages'][-1]
+        return first_page, last_page
+
 
 
 if __name__ == '__main__':

@@ -5,6 +5,10 @@ import torch
 import torch.nn as nn
 from transformers import LayoutLMv3Processor, LayoutLMv3ForQuestionAnswering
 from PIL import Image
+import models._model_utils as model_utils
+import utils
+
+
 # from utils import correct_alignment
 # from utils import create_grid_image
 
@@ -29,11 +33,12 @@ class LayoutLMv3:
 
     def forward(self, batch, return_pred_answer=False):
 
+        bs = len(batch['question_id'])
         question = batch['questions']
         context = batch['contexts']
         answers = batch['answers']
+        images = batch['images']
 
-        bs = len(batch['question_id'])
         if self.page_retrieval == 'logits':
             outputs = []
             pred_answers = []
@@ -77,55 +82,12 @@ class LayoutLMv3:
 
         else:
 
-            if self.page_retrieval in ['oracle', "none", None]:
-                images = batch['images']
-
-            elif self.page_retrieval == 'concat':
-
-                images = []
-                for batch_idx in range(bs):
-                    images.append(self.get_concat_v_multi_resize(batch['images'][batch_idx]))  # Concatenate images vertically.
-                    # images.append(self.get_concat_v_multi_resize([Image.open(img_path).convert("RGB") for img_path in batch['image_names'][batch_idx]]))  # Concatenate images vertically.
-                    # images.append(create_grid_image([Image.open(img_path).convert("RGB") for img_path in batch['image_names'][batch_idx]]))  # Create a single grid image.
-                    # images.append(Image.new(mode="RGB", size=(50, 50)))  # Empty Image.
-
             boxes = [(bbox * 1000).astype(int) for bbox in batch['boxes']]  # Scale boxes 0->1 to 0-->1000.
             encoding = self.processor(images, question, batch["words"], boxes=boxes, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
 
             start_pos, end_pos = self.get_start_end_idx(encoding, context, answers)
             outputs = self.model(**encoding, start_positions=start_pos, end_positions=end_pos)
             pred_answers, answ_confidence = self.get_answer_from_model_output(encoding.input_ids, outputs) if return_pred_answer else None
-            a = 0
-            # from transformers import LayoutLMv3Tokenizer, LayoutLMv3FeatureExtractor
-            # x = LayoutLMv3Processor.from_pretrained('microsoft/layoutlmv3-base', apply_ocr=True)
-            # encoding = x(images, question, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
-
-            """ DEBUG
-            # print(pred_answers)
-            for batch_idx in range(len(question)):
-                if pred_answers[batch_idx] in batch['answers'][batch_idx]:
-                    pred_start_pos = outputs.start_logits.argmax(-1)[batch_idx].item()
-                    pred_end_pos = outputs.end_logits.argmax(-1)[batch_idx].item()
-
-                    wrong = False
-                    if pred_start_pos != start_pos[batch_idx]:
-                        print("GT start pos {:} and pred start pos {:} are different!!!".format(start_pos[batch_idx], pred_start_pos))
-                        wrong = True
-                    if pred_end_pos != end_pos[batch_idx]:
-                        print("GT end pos {:} and pred end pos {:} are different!!!".format(end_pos[batch_idx], pred_end_pos))
-                        wrong = True
-
-                    if wrong:
-                        print("Answers - GT: {:} \t\t Pred: {:s}".format(batch['answers'][batch_idx], pred_answers[batch_idx]))
-                        pred_span = self.processor.tokenizer.decode(encoding.input_ids[batch_idx][pred_start_pos:pred_end_pos+1])
-                        gt_span = self.processor.tokenizer.decode(encoding.input_ids[batch_idx][start_pos[batch_idx]:end_pos[batch_idx]+1])
-                        print("GT Span: {:s} \t Pred span: {:s}".format(pred_span, gt_span))
-
-                        start_pos, end_pos = self.get_start_end_idx(encoding, context, answers)
-
-                        # for token_pos, token in enumerate(encoding.input_ids[batch_idx]):
-                        #     print(self.processor.tokenizer.decode(token))
-            END DEBUG """
 
             if self.page_retrieval == 'oracle':
                 pred_answer_pages = batch['answer_page_idx']
@@ -133,18 +95,8 @@ class LayoutLMv3:
             elif self.page_retrieval == 'concat':
                 pred_answer_pages = [batch['context_page_corresp'][batch_idx][pred_start_idx] if len(batch['context_page_corresp'][batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
 
-            # elif self.page_retrieval is None:
-            #     pred_answer_pages = None
-
             elif self.page_retrieval == 'none':
                 pred_answer_pages = None
-
-        if random.randint(0, 1000) == 0:
-            for question_id, gt_answer, pred_answer in zip(batch['question_id'], answers, pred_answers):
-                print("ID: {:}  GT: {:}  -  Pred: {:s}".format(question_id, gt_answer, pred_answer))
-        #
-        #     for start_p, end_p, pred_start_p, pred_end_p in zip(start_pos, end_pos, outputs.start_logits.argmax(-1), outputs.end_logits.argmax(-1)):
-        #         print("GT: {:d}-{:d} \t Pred: {:d}-{:d}".format(start_p.item(), end_p.item(), pred_start_p, pred_end_p))
 
         return outputs, pred_answers, pred_answer_pages, answ_confidence
 
@@ -205,5 +157,7 @@ class LayoutLMv3:
             answ_confidence.append(
                 conf_mat[start_idxs[batch_idx], end_idxs[batch_idx]].item()
             )
+
+        aansw_confidence = model_utils.get_extractive_confidence(outputs)
 
         return answers, answ_confidence

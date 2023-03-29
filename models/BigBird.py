@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 from transformers import BigBirdTokenizerFast, BigBirdForQuestionAnswering
 from utils import correct_alignment
+import models._model_utils as model_utils
 
 
 class BigBird:
@@ -65,7 +66,9 @@ class BigBird:
             input_ids = encoding["input_ids"].to(self.model.device)
             attention_mask = encoding["attention_mask"].to(self.model.device)
 
-            start_pos, end_pos, context_page_token_correspondent = self.get_start_end_idx(encoding, context, answers, batch['context_page_corresp'])
+            context_encoding = self.tokenizer.batch_encode_plus(context, padding=True, truncation=True)
+            # start_pos_x, end_pos_x, context_page_token_correspondent_x = self.get_start_end_idx(encoding, context, answers, batch['context_page_corresp'])
+            start_pos, end_pos, context_page_token_correspondent = model_utils.get_start_end_idx('BigBird', encoding, context, context_encoding, answers, batch['context_page_corresp'], self.page_retrieval, self.tokenizer.sep_token_id, self.tokenizer.pad_token_id, self.ignore_index, self.model.device)
 
             outputs = self.model(input_ids, attention_mask=attention_mask, start_positions=start_pos, end_positions=end_pos)
             # pred_start_idxs = torch.argmax(outputs.start_logits, axis=1)
@@ -166,11 +169,10 @@ class BigBird:
         end_idxs = torch.argmax(outputs.end_logits, axis=1)
 
         answers = []
-        answ_confidence = []
         for batch_idx in range(len(input_tokens)):
             context_tokens = self.tokenizer.convert_ids_to_tokens(input_tokens[batch_idx].tolist())
 
-            answer_tokens = context_tokens[start_idxs[batch_idx]: end_idxs[batch_idx]]
+            answer_tokens = context_tokens[start_idxs[batch_idx]: end_idxs[batch_idx] + 1]
             answer = self.tokenizer.decode(
                 self.tokenizer.convert_tokens_to_ids(answer_tokens)
             )
@@ -178,14 +180,6 @@ class BigBird:
             answer = answer.strip()  # remove space prepending space token
             answers.append(answer)
 
-            conf_mat = np.matmul(
-                np.expand_dims(outputs.start_logits.softmax(dim=1)[batch_idx].unsqueeze(dim=0).cpu(), -1),
-                np.expand_dims(outputs.end_logits.softmax(dim=1)[batch_idx].unsqueeze(dim=0).cpu(), 1)).squeeze(axis=0)
-
-            answ_confidence.append(
-                # (outputs.start_logits[batch_idx, start_idxs[batch_idx]].item() + outputs.end_logits[batch_idx, start_idxs[batch_idx]].item()) / 2
-                # torch.matmul(outputs.start_logits[batch_idx], outputs.end_logits[batch_idx]).cpu()
-                conf_mat[start_idxs[batch_idx], end_idxs[batch_idx]].item()
-            )
+        answ_confidence = model_utils.get_extractive_confidence(outputs)
 
         return answers, answ_confidence
