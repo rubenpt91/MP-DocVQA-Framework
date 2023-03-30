@@ -22,7 +22,9 @@ def parse_args():
     # Overwrite config parameters
     parser.add_argument('-p', '--page-retrieval', type=str, help='Page retrieval set-up.')
     parser.add_argument('-bs', '--batch-size', type=int, help='DataLoader batch size.')
+    parser.add_argument('-msl', '--max-sequence-length', type=int, help='Max input sequence length of the model.')
     parser.add_argument('--seed', type=int, help='Seed to allow reproducibility.')
+    parser.add_argument('--save-dir', type=str, help='Seed to allow reproducibility.')
 
     parser.add_argument('--data-parallel', action='store_true', help='Boolean to overwrite data-parallel arg in config parallelize the execution.')
     parser.add_argument('--no-data-parallel', action='store_false', dest='data_parallel', help='Boolean to overwrite data-parallel arg in config to indicate to parallelize the execution.')
@@ -99,6 +101,13 @@ def check_config(config):
 
     elif page_retrieval == 'none' and config['dataset_name'] not in ['SP-DocVQA']:
         print("Page retrieval can't be none for dataset '{:s}'. This is intended only for single page datasets. Please specify in the method config file the 'page_retrieval' setup to one of the following: [oracle, concat, logits, custom] ".format(config['dataset_name']))
+
+    if 'save_dir' in config:
+        if not config['save_dir'].endswith('/'):
+            config['save_dir'] = config['save_dir'] + '/'
+
+        if not os.path.exists(config['save_dir']):
+            os.makedirs(config['save_dir'])
 
     return True
 
