@@ -14,6 +14,8 @@ class LongT5:
         self.tokenizer = AutoTokenizer.from_pretrained(config['model_weights'])
         self.model = LongT5ForConditionalGeneration.from_pretrained(config['model_weights'])
         self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
+
+        self.max_sequence_length = config.get('max_sequence_length', 4096)
         self.ignore_index = 9999  # 0
 
     def parallelize(self):
@@ -21,7 +23,7 @@ class LongT5:
 
     def prepare_inputs_for_vqa(self, question, context, answers=None):
         input_text = ["question: {:s}  context: {:s}".format(q, c) for q, c in zip(question, context)]
-        tokens = self.tokenizer(input_text, return_tensors='pt', padding=True, truncation=True).to(self.model.device)
+        tokens = self.tokenizer(input_text, padding=True, truncation=True, max_length=self.max_sequence_length, return_tensors='pt').to(self.model.device)
 
         if answers is not None:
             answers = [random.choice(answer) for answer in answers]

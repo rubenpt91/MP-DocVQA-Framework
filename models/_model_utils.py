@@ -89,8 +89,8 @@ def get_extractive_confidence(outputs):
 
     answ_confidence = []
     for batch_idx in range(bs):
-        conf_mat = np.matmul(np.expand_dims(outputs.start_logits.softmax(dim=1)[batch_idx].unsqueeze(dim=0).cpu(), -1),
-                             np.expand_dims(outputs.end_logits.softmax(dim=1)[batch_idx].unsqueeze(dim=0).cpu(), 1)).squeeze(axis=0)
+        conf_mat = np.matmul(np.expand_dims(outputs.start_logits.softmax(dim=1)[batch_idx].unsqueeze(dim=0).detach().cpu(), -1),
+                             np.expand_dims(outputs.end_logits.softmax(dim=1)[batch_idx].unsqueeze(dim=0).detach().cpu(), 1)).squeeze(axis=0)
 
         answ_confidence.append(
             conf_mat[start_idxs[batch_idx], end_idxs[batch_idx]].item()
