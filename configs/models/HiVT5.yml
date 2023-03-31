@@ -1,9 +1,8 @@
 save_dir: save/
 model_name: Hi-VT5
 # model_weights: t5-base
-# model_weights: weights/t5_oracle_mp-docvqa__best.ckpt
-# model_weights: weights/lt5_oracle_mp-docvqa__best.ckpt
-model_weights: weights/hilt5_custom_mp-docvqa__best.ckpt
+# model_weights: weights/hivt5_custom_mp-docvqa__best.ckpt
+model_weights: rubentito/hivt5-base-mpdocvqa
 freeze_encoder: False
 page_tokens: 10
 device: cuda
@@ -18,7 +17,8 @@ retrieval_module:
 
 visual_module:
   model: 'dit'  # 'vit' / 'dit'
-  model_weights: 'microsoft/dit-base-finetuned-rvlcdip'  # 'google/vit-base-patch16-224-in21k' / 'microsoft/dit-base-finetuned-rvlcdip'
+  # model_weights: microsoft/dit-base-finetuned-rvlcdip  # 'google/vit-base-patch16-224-in21k' / 'microsoft/dit-base-finetuned-rvlcdip'
+  model_weights: rubentito/hivt5-base-mpdocvqa
 
 training_parameters:
   max_pages: 2

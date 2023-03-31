@@ -7,8 +7,12 @@ def save_model(model, epoch, update_best=False, **kwargs):
     model.model.save_pretrained(os.path.join(save_dir, "model__{:d}.ckpt".format(epoch)))
 
     tokenizer = model.tokenizer if hasattr(model, 'tokenizer') else model.processor if hasattr(model, 'processor') else None
+    if tokenizer is not None:
+        tokenizer.save_pretrained(os.path.join(save_dir, "model__{:d}.ckpt".format(epoch)))
 
-    tokenizer.save_pretrained(os.path.join(save_dir, "model__{:d}.ckpt".format(epoch)))
+    if hasattr(model.model, 'visual_embeddings'):
+        model.model.visual_embeddings.feature_extractor.save_pretrained(os.path.join(save_dir, "model__{:d}.ckpt".format(epoch)))
+
     save_yaml(os.path.join(save_dir, "model__{:d}.ckpt".format(epoch), "experiment_config.yml"), kwargs)
 
     if update_best:

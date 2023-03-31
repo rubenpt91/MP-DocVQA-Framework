@@ -13,7 +13,7 @@ dependencies:
   - torchaudio
   - cudatoolkit=11.0
   - sentencepiece
-  - transformers=4.20.0
+  - transformers=4.26.1
   - editdistance
 
 # conda install pytorch torchvision cudatoolkit=11.2 -c pytorch
