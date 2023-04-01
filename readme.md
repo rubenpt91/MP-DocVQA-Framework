@@ -2,7 +2,9 @@
 
 This repository implements the baselines and Hi-VT5 methods for the paper [Hierarchical multimodal transformers for Multipage DocVQA](https://arxiv.org/abs/2212.05935).
 
-**DISCLAIMER:** The Hi-VT5 method was originally trained in [MMF framework](https://mmf.sh/). Althought it's a very optimized framework, it's very complex and we had to modify some core functions and classes to make the project work. Hence, we decided to move it outside such complex framework and build a simpler version. The code for Hi-VT5 is exactly the same, but the weights are not transferable. Hence, we are working to provide to the community the most similar weight we obtained on the MMF framework.
+**DISCLAIMER:** 
+1. The Hi-VT5 method was originally trained in [MMF framework](https://mmf.sh/). Although it is a very optimized framework, is very complex and we had to modify some core functions and classes to make the project work. In consequence, we decided to move it outside such complex framework and build a simpler version. The code for Hi-VT5 is exactly the same, but the weights are not transferable. The current released weights achieve lower performance, but we are currently working on getting the same results as the obtained with MMF framework.
+2. The framework is constantly evolving, and we can't test all the features for each update we perform. Please, if you find any error / bug / inconsistency in the framework open an issue an we'll try to fix it as soon as posible.
 
 ## How to use
 To use the framework please check [How to use](framework_documentation/how_to_use.md#how-to-use) instructions.
@@ -12,9 +14,13 @@ To use the framework please check [How to use](framework_documentation/how_to_us
 
 The dataset is aimed to perform Visual Question Answering on multipage industry scanned documents. The questions and answers are reused from Single Page DocVQA (SP-DocVQA) dataset. The images also corresponds to the same in original dataset with previous and posterior pages with a limit of up to 20 pages per document.
 
-If you want  to download the dataset, you can do so in the DocVQA challenge in the [RRC portal](https://rrc.cvc.uab.es/?ch=17&com=introduction), downloads section.
-<span style="color:red">**TODO:** Provide the imdb files</span>.
+If you want to download the dataset, you can do so in the DocVQA challenge in the [RRC portal](https://rrc.cvc.uab.es/?ch=17&com=introduction), downloads section. For this framework, you will need to download the IMDBs (which contains processed QAs and OCR) and the images. All the downloads must be performed through the RRC portal.
 
+| Dataset 		   | Link	                                                                          |
+|--------------|--------------------------------------------------------------------------------|
+| SP-DocVQA 	  | [Link](https://rrc.cvc.uab.es/?ch=17&com=downloads)	SP-DocVQA (Task 1) section |
+| MP-DocVQA 	  | [Link](https://rrc.cvc.uab.es/?ch=17&com=downloads)	MP-DocVQA (Task 4) section |
+| DUDE 		      | [Link](https://rrc.cvc.uab.es/?ch=23&com=downloads)	                           |
 
 ## Metrics
 
