@@ -1,5 +1,0 @@
-dataset_name: DocILE-ELSA
-imdb_dir: /SSD/Datasets/DocILE/elsa_imdb
-# images_dir: /SSD/Datasets/DocILE/images
-images_dir: /SSD/Datasets/DocILE/images_dpi300
-page_retrieval: Custom  # Oracle / Concat / Logits / Custom (for Hierarchical methods (Hi-LayoutLMv3, Hi-LT5, Hi-VT5) TODO: First

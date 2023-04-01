@@ -18,23 +18,18 @@ def build_optimizer(model, length_train_loader, config):
 
 def build_model(config):
 
-    available_models = ['BertQA', 'LayoutLMv2', 'LayoutLMv3', 'Longformer', 'BigBird', 'Donut', 'T5', 'LT5', 'Hi-LT5', 'Hi-VT5']
+    available_models = ['bertqa', 'longformer', 'bigbird', 'layoutlmv2', 'layoutlmv3', 't5', 'lt5', 'vt5', 'hi-lt5', 'hi-vt5']
     if config['model_name'].lower() == 'bert' or config['model_name'].lower() == 'bertqa':
         from models.BertQA import BertQA
         model = BertQA(config)
 
     elif config['model_name'].lower() == 'longformer':
         from models.Longformer import Longformer
-        # from models.Longformer_SQuAD import Longformer
         model = Longformer(config)
 
     elif config['model_name'].lower() == 'bigbird':
         from models.BigBird import BigBird
         model = BigBird(config)
-
-    elif config['model_name'].lower() == 'longt5':
-        from models.LongT5 import LongT5
-        model = LongT5(config)
 
     elif config['model_name'].lower() == 'layoutlmv2':
         from models.LayoutLMv2 import LayoutLMv2
@@ -64,14 +59,6 @@ def build_model(config):
         from models.HiVT5 import Proxy_HiVT5 as HiVT5
         model = HiVT5(config)
 
-    elif config['model_name'].lower() in ['hilayoutlmv3', 'hi-layoutlmv3']:
-        from models.HiLayoutLMv3 import Proxy_HiLayoutLMv3 as HiLayoutLMv3
-        model = HiLayoutLMv3(config)
-
-    elif config['model_name'].lower() == 'donut':
-        from models.Donut import Donut
-        model = Donut(config)
-
     else:
         raise ValueError("Value '{:s}' for model selection not expected. Please choose one of {:}".format(config['model_name'], ', '.join(available_models)))
 
@@ -87,22 +74,18 @@ def build_dataset(config, split):
     # Specify special params for data processing depending on the model used.
     dataset_kwargs = {}
 
-    if config['model_name'].lower() in ['layoutlmv2', 'layoutlmv3', 'hilayoutlmv3', 'hi-layoutlmv3', 'lt5', 'vt5', 'hilt5', 'hi-lt5', 'hivt5', 'hi-vt5']:
+    if config['model_name'].lower() in ['layoutlmv2', 'layoutlmv3', 'lt5', 'vt5', 'hilt5', 'hi-lt5', 'hivt5', 'hi-vt5']:
         dataset_kwargs['get_raw_ocr_data'] = True
 
-    if config['model_name'].lower() in ['layoutlmv2', 'layoutlmv3', 'hilayoutlmv3', 'donut', 'vt5', 'hi-layoutlmv3', 'hivt5', 'hi-vt5']:
+    if config['model_name'].lower() in ['layoutlmv2', 'layoutlmv3', 'vt5', 'hivt5', 'hi-vt5']:
         dataset_kwargs['use_images'] = True
 
-    if config['model_name'].lower() in ['hilayoutlmv3', 'hi-layoutlmv3', 'hilt5', 'hi-lt5', 'hivt5', 'hi-vt5']:
+    if config['model_name'].lower() in ['hilt5', 'hi-lt5', 'hivt5', 'hi-vt5']:
         dataset_kwargs['max_pages'] = config.get('max_pages', 1)
         dataset_kwargs['hierarchical_method'] = True
 
     # Build dataset
-    if config['dataset_name'] == 'SQuAD':
-        from datasets.SQuAD import SQuAD
-        dataset = SQuAD(config['imdb_dir'], split)
-
-    elif config['dataset_name'] == 'SP-DocVQA':
+    if config['dataset_name'] == 'SP-DocVQA':
         from datasets.SP_DocVQA import SPDocVQA
         dataset = SPDocVQA(config['imdb_dir'], config['images_dir'], split, dataset_kwargs)
 
@@ -113,10 +96,6 @@ def build_dataset(config, split):
     elif config['dataset_name'] == 'DUDE':
         from datasets.DUDE import DUDE
         dataset = DUDE(config['imdb_dir'], config['images_dir'], config['page_retrieval'], split, dataset_kwargs)
-
-    elif config['dataset_name'] == 'DocILE-ELSA':
-        from datasets.DocILE_ELSA import DocILE_ELSA
-        dataset = DocILE_ELSA(config['imdb_dir'], config['images_dir'], config['page_retrieval'], split, dataset_kwargs)
 
     else:
         raise ValueError
