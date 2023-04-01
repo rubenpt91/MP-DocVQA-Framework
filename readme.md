@@ -32,14 +32,14 @@ Check [Hierarchical multimodal transformers for Multi-Page DocVQA](https://arxiv
 Extended experimentation can be found in Table 2 of [Hierarchical multimodal transformers for Multi-Page DocVQA](https://arxiv.org/pdf/2212.05935.pdf).
 You can also check the live leaderboard at the [RRC Portal](https://rrc.cvc.uab.es/?ch=17&com=evaluation&task=4).
 
-| Model 		    | Weights HF name								                                                                                                                             | Parameters 	|	ANLS 		| APPA		|
-|:-----------------|:----------------------------------------------------------------------------------------------------------------------------------------------------|:-------------:|:-------------:|:---------:|
-| Bert large	    | [rubentito/bert-large-mpdocvqa](https://huggingface.co/rubentito/bert-large-mpdocvqa)			                  | 334M 			| 0.4183 		| 51.6177 	|
-| Longformer base	| [rubentito/longformer-base-mpdocvqa](https://huggingface.co/rubentito/longformer-base-mpdocvqa)	          | 148M			| 0.5287		| 71.1696 	|
-| BigBird ITC base | [rubentito/bigbird-base-itc-mpdocvqa](https://huggingface.co/rubentito/bigbird-base-itc-mpdocvqa)	          | 131M			| 0.4929		| 67.5433 	|
-| LayoutLMv3 base	| [rubentito/layoutlmv3-base-mpdocvqa](https://huggingface.co/rubentito/layoutlmv3-base-mpdocvqa)	          | 125M 			| 0.4538		| 51.9426 	|
-| T5 base			| [rubentito/t5-base-mpdocvqa](https://huggingface.co/rubentito/t5-base-mpdocvqa)			                  | 223M 			| 0.5050		| 0.0000 	|
-| Hi-VT5 			| TBA 									          | 316M 			| **0.6201**	| **79.23**	|
+| Model 		    | Weights HF name								                                                    | Parameters 	|	ANLS 		| APPA		|
+|:-----------------|:--------------------------------------------------------------------------------------------------|:-------------:|:-------------:|:---------:|
+| Bert large	    | [rubentito/bert-large-mpdocvqa](https://huggingface.co/rubentito/bert-large-mpdocvqa)			    | 334M 			| 0.4183 		| 51.6177 	|
+| Longformer base	| [rubentito/longformer-base-mpdocvqa](https://huggingface.co/rubentito/longformer-base-mpdocvqa)	| 148M			| 0.5287		| 71.1696 	|
+| BigBird ITC base | [rubentito/bigbird-base-itc-mpdocvqa](https://huggingface.co/rubentito/bigbird-base-itc-mpdocvqa) | 131M			| 0.4929		| 67.5433 	|
+| LayoutLMv3 base	| [rubentito/layoutlmv3-base-mpdocvqa](https://huggingface.co/rubentito/layoutlmv3-base-mpdocvqa)	| 125M 			| 0.4538		| 51.9426 	|
+| T5 base			| [rubentito/t5-base-mpdocvqa](https://huggingface.co/rubentito/t5-base-mpdocvqa)		            | 223M 			| 0.5050		| 0.0000 	|
+| Hi-VT5 			| [rubentito/hivt5-base-mpdocvqa](https://huggingface.co/rubentito/hivt5-base-mpdocvqa)             | 316M 			| **0.6201**	| **79.23**	|
 
 
 ## Limitations
