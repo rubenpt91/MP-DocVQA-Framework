@@ -16,9 +16,9 @@ retrieval_module:
   loss_weight: 0.25
 
 visual_module:
-  model: 'dit'  # 'vit' / 'dit'
-  # model_weights: microsoft/dit-base-finetuned-rvlcdip  # 'google/vit-base-patch16-224-in21k' / 'microsoft/dit-base-finetuned-rvlcdip'
-  model_weights: rubentito/hivt5-base-mpdocvqa
+  model: dit  # 'vit' / 'dit'
+  model_weights: microsoft/dit-base-finetuned-rvlcdip  # 'google/vit-base-patch16-224-in21k' / 'microsoft/dit-base-finetuned-rvlcdip'
+  # model_weights: rubentito/hivt5-base-mpdocvqa
 
 training_parameters:
   max_pages: 2
