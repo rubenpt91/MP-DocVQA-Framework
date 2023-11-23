@@ -1,17 +1,12 @@
 save_dir: save/
 model_name: BertQA
-# model_weights: bert-base-uncased
-# model_weights: bert-large-uncased-whole-word-masking-finetuned-squad
-# model_weights: save/bert_weights/bert-large-squad-docvqa-finetuned
-# model_weights: weights/bertQA_oracle_mp-docvqa__epoch4
-# model_weights: weights/checkpoint-5000
 model_weights: rubentito/bert-large-mpdocvqa
 device: cuda
 data_parallel: False
 max_sequence_length: 512
 
 training_parameters:
-  lr: 2e-4  # 2e-4
-  batch_size: 3
+  lr: 5e-5
+  batch_size: 32
   train_epochs: 10
   warmup_iterations: 1000

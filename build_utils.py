@@ -18,7 +18,7 @@ def build_optimizer(model, length_train_loader, config):
 
 def build_model(config):
 
-    available_models = ['bertqa', 'longformer', 'bigbird', 'layoutlmv2', 'layoutlmv3', 't5', 'lt5', 'vt5', 'hi-lt5', 'hi-vt5']
+    available_models = ['bertqa', 'longformer', 'bigbird', 'layoutlmv2', 'layoutlmv3', 't5', 'vt5', 'hi-vt5']
     if config['model_name'].lower() == 'bert' or config['model_name'].lower() == 'bertqa':
         from models.BertQA import BertQA
         model = BertQA(config)
@@ -43,17 +43,9 @@ def build_model(config):
         from models.T5 import T5
         model = T5(config)
 
-    elif config['model_name'].lower() == 'lt5':
-        from models.LT5 import ProxyLT5 as LT5
-        model = LT5(config)
-
     elif config['model_name'].lower() == 'vt5':
         from models.VT5 import ProxyVT5 as VT5
         model = VT5(config)
-
-    elif config['model_name'].lower() in ['hilt5', 'hi-lt5']:
-        from models.HiLT5 import Proxy_HiLT5 as HiLT5
-        model = HiLT5(config)
 
     elif config['model_name'].lower() in ['hivt5', 'hi-vt5']:
         from models.HiVT5 import Proxy_HiVT5 as HiVT5

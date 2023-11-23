@@ -1,14 +1,11 @@
 save_dir: save/
 model_name: BigBird
-# model_weights: abhinavkulkarni/bigbird-roberta-base-finetuned-squad
-# model_weights: google/bigbird-base-trivia-itc  # TriviaQA
-# model_weights: weights/bigbird_oracle_mp-docvqa__best.ckpt
 model_weights: rubentito/bigbird-base-itc-mpdocvqa
 device: cuda
 data_parallel: False
 
 training_parameters:
-  lr: 1e-4  # 2e-4
-  batch_size: 3
+  lr: 3e-5
+  batch_size: 8
   train_epochs: 10
   warmup_iterations: 1000

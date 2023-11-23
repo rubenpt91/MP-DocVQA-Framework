@@ -8,6 +8,6 @@ data_parallel: False
 
 training_parameters:
   lr: 2e-4  # 2e-4
-  batch_size: 3
+  batch_size: 20
   train_epochs: 10
   warmup_iterations: 1000
