@@ -21,8 +21,8 @@ class ProxyVT5:
         t5_config = CustomT5Config.from_pretrained(config['model_weights'])
         t5_config.visual_module_config = config['visual_module']
 
-        self.spatial_embedding = SpatialEmbeddings(t5_config).to(config['device'])
-        self.visual_embedding = VisualEmbeddings(t5_config).to(config['device'])
+        self.spatial_embedding = SpatialEmbeddings(t5_config)
+        self.visual_embedding = VisualEmbeddings(t5_config)
 
     def parallelize(self):
         self.model = nn.DataParallel(self.model)

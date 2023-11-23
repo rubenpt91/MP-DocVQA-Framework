@@ -85,14 +85,14 @@ class MLP(nn.Module):
 
 class VisualEmbeddings(nn.Module):
 
-    def __init__(self, config, finetune=False):
+    def __init__(self, config):
         super(VisualEmbeddings, self).__init__()
 
         self.feature_extractor = AutoFeatureExtractor.from_pretrained(config.visual_module_config['model_weights'])
         self.image_model = AutoModel.from_pretrained(config.visual_module_config['model_weights'])
         self.visual_emb_matcher = MLP(self.image_model.config.hidden_size, 0, self.image_model.config.hidden_size, 1)
 
-        if not finetune:
+        if not config.visual_module_config.get('finetune', False):
             self.freeze()
 
     def freeze(self):

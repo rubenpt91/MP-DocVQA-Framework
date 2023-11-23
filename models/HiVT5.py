@@ -35,7 +35,7 @@ class HiVT5(T5ForConditionalGeneration):
         super().__init__(config)
         self.config = config
         self.spatial_embeddings = SpatialEmbeddings(config)
-        self.visual_embeddings = VisualEmbeddings(config, finetune=False)
+        self.visual_embeddings = VisualEmbeddings(config)
 
         self.retrieval_module = RetrievalModule(config)
 
