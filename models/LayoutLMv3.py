@@ -1,16 +1,10 @@
 import random
-import numpy as np
 
 import torch
 import torch.nn as nn
 from transformers import LayoutLMv3Processor, LayoutLMv3ForQuestionAnswering
 from PIL import Image
 import models._model_utils as model_utils
-import utils
-
-
-# from utils import correct_alignment
-# from utils import create_grid_image
 
 # from transformers.models.layoutlmv3.modeling_layoutlmv3 import LayoutLMv3Model  # TODO Remove
 # from transformers.models.layoutlmv3.processing_layoutlmv3 import LayoutLMv3Processor    # TODO Remove
@@ -19,14 +13,10 @@ import utils
 class LayoutLMv3:
 
     def __init__(self, config):
-        # self.batch_size = config['batch_size']
         self.processor = LayoutLMv3Processor.from_pretrained(config.model_weights, apply_ocr=False)  # Check that this do not fuck up the code.
         self.model = LayoutLMv3ForQuestionAnswering.from_pretrained(config.model_weights)
         self.page_retrieval = config.page_retrieval.lower()
         self.ignore_index = 9999  # 0
-
-        # img = Image.open('/SSD2/MP-DocVQA/images/nkkh0227_p2.jpg')
-        # self.processor(img, 'question', ['words'], boxes=[[1, 2, 3, 4]])
 
     def parallelize(self):
         self.model = nn.DataParallel(self.model)
