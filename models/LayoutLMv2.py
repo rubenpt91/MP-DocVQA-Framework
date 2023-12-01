@@ -1,11 +1,11 @@
 import random
-import numpy as np
 
 import torch
 import torch.nn as nn
 from transformers import LayoutLMv2Processor, LayoutLMv2ForQuestionAnswering
 from PIL import Image
 import cv2
+import models._model_utils as model_utils
 
 # from transformers.models.layoutlmv2.modeling_layoutlmv2 import LayoutLMv2Model    # TODO Remove
 # from transformers.models.layoutlmv2.processing_layoutlmv2 import LayoutLMv2Processor    # TODO Remove
@@ -15,38 +15,35 @@ import cv2
 class LayoutLMv2:
 
     def __init__(self, config):
-        self.batch_size = config['batch_size']
+        self.batch_size = config.batch_size
         # self.processor = LayoutLMv2Processor.from_pretrained(config['model_weights'])  # Check that this do not fuck up the code.
-        self.processor = LayoutLMv2Processor.from_pretrained(config['model_weights'], apply_ocr=False)  # Check that this do not fuck up the code.
-        self.model = LayoutLMv2ForQuestionAnswering.from_pretrained(config['model_weights'])
-        self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
+        self.processor = LayoutLMv2Processor.from_pretrained(config.model_weights, apply_ocr=False)  # Check that this do not fuck up the code.
+        self.model = LayoutLMv2ForQuestionAnswering.from_pretrained(config.model_weights)
+        self.page_retrieval = config.page_retrieval.lower()
         self.ignore_index = 9999  # 0
 
-        # img = Image.open('/SSD2/MP-DocVQA/images/nkkh0227_p2.jpg')
-        # self.processor(img, 'question', ['words'], boxes=[[1, 2, 3, 4]])
 
     def parallelize(self):
         self.model = nn.DataParallel(self.model)
 
     def forward(self, batch, return_pred_answer=False):
-
+        bs = len(batch['question_id'])
         question = batch['questions']
         context = batch['contexts']
         answers = batch['answers']
+        images = batch['images']
 
-        bs = len(question)
         if self.page_retrieval == 'logits':
             outputs = []
             pred_answers = []
             pred_answer_pages = []
+            answ_confidence = []
             for batch_idx in range(bs):
-                images = [Image.open(img_path).convert("RGB") for img_path in batch['image_names'][batch_idx]]
                 boxes = [(bbox * 1000).astype(int) for bbox in batch['boxes'][batch_idx]]
-                document_encoding = self.processor(images, [question[batch_idx]] * len(images), batch["words"][batch_idx], boxes=boxes, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
+                document_encoding = self.processor(images[batch_idx], [question[batch_idx]] * len(images[batch_idx]), batch["words"][batch_idx], boxes=boxes, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
 
                 max_logits = -999999
-                answer_page = None
-                document_outputs = None
+                pred_answer_page = None
                 for page_idx in range(len(document_encoding['input_ids'])):
                     # input_ids = document_encoding["input_ids"][page_idx].to(self.model.device)
                     # attention_mask = document_encoding["attention_mask"][page_idx].to(self.model.device)
@@ -57,74 +54,25 @@ class LayoutLMv2:
                     # end_pos = torch.LongTensor(end_idxs).to(self.model.device) if end_idxs else None
 
                     page_outputs = self.model(**page_inputs)
+                    pred_answer, answer_conf = self.get_answer_from_model_output(page_inputs["input_ids"].unsqueeze(dim=0), page_outputs)
 
-                    start_logits_cnf = [page_outputs.start_logits[batch_ix, max_start_logits_idx.item()].item() for batch_ix, max_start_logits_idx in enumerate(page_outputs.start_logits.argmax(-1))][0]
-                    end_logits_cnf = [page_outputs.end_logits[batch_ix, max_end_logits_idx.item()].item() for batch_ix, max_end_logits_idx in enumerate(page_outputs.end_logits.argmax(-1))][0]
-                    page_logits = np.mean([start_logits_cnf, end_logits_cnf])
-
-                    if page_logits > max_logits:
-                        answer_page = page_idx
-                        document_outputs = page_outputs
-                        max_logits = page_logits
+                    if answer_conf[0] > max_logits:
+                        final_answer = pred_answer
+                        pred_answer_page = page_idx
+                        max_logits = answer_conf[0]
 
                 outputs.append(None)  # outputs.append(document_outputs)  # During inference outputs are not used.
-                pred_answers.append(self.get_answer_from_model_output([document_encoding["input_ids"][answer_page]], document_outputs)[0] if return_pred_answer else None)
-                pred_answer_pages.append(answer_page)
+                pred_answers.append(final_answer if return_pred_answer else None)
+                pred_answer_pages.append(pred_answer_page)
 
         else:
-
-            if self.page_retrieval in ['oracle', None]:
-                images = [Image.open(img_path).convert("RGB") for img_path in batch['image_names']]
-                # encoding = self.processor(images, question, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
-                # outputs = self.model(**encoding)
-                # pred_answers = self.get_answer_from_model_output(encoding.input_ids, outputs) if return_pred_answer else None
-
-                # images = [Image.open('/SSD2/MP-DocVQA/images/snyc0227_p220.jpg') for img_path in batch['image_names']]
-                # images = [cv2.imread(img_path) for img_path in batch['image_names']]
-
-            elif self.page_retrieval == 'concat':
-
-                images = []
-                for batch_idx in range(bs):
-                    images.append(self.get_concat_v_multi_resize([Image.open(img_path).convert("RGB") for img_path in batch['image_names'][batch_idx]]))  # Concatenate images vertically.
-
-            elif self.page_retrieval == 'none':
-                images = [Image.open(img_path).convert("RGB") for img_path in batch['image_names']]
-
             boxes = [(bbox * 1000).astype(int) for bbox in batch['boxes']]
             encoding = self.processor(images, question, batch["words"], boxes=boxes, return_tensors="pt", padding=True, truncation=True).to(self.model.device)
             # encoding = self.processor(images, question, return_tensors="pt", padding=True, truncation=True).to(self.model.device)  # Apply OCR
 
             start_pos, end_pos = self.get_start_end_idx(encoding, context, answers)
             outputs = self.model(**encoding, start_positions=start_pos, end_positions=end_pos)
-            pred_answers = self.get_answer_from_model_output(encoding.input_ids, outputs) if return_pred_answer else None
-
-            """ DEBUG
-            # print(pred_answers)
-            for batch_idx in range(len(question)):
-                if pred_answers[batch_idx] in batch['answers'][batch_idx]:
-                    pred_start_pos = outputs.start_logits.argmax(-1)[batch_idx].item()
-                    pred_end_pos = outputs.end_logits.argmax(-1)[batch_idx].item()
-
-                    wrong = False
-                    if pred_start_pos != start_pos[batch_idx]:
-                        print("GT start pos {:} and pred start pos {:} are different!!!".format(start_pos[batch_idx], pred_start_pos))
-                        wrong = True
-                    if pred_end_pos != end_pos[batch_idx]:
-                        print("GT end pos {:} and pred end pos {:} are different!!!".format(end_pos[batch_idx], pred_end_pos))
-                        wrong = True
-
-                    if wrong:
-                        print("Answers - GT: {:} \t\t Pred: {:s}".format(batch['answers'][batch_idx], pred_answers[batch_idx]))
-                        pred_span = self.processor.tokenizer.decode(encoding.input_ids[batch_idx][pred_start_pos:pred_end_pos+1])
-                        gt_span = self.processor.tokenizer.decode(encoding.input_ids[batch_idx][start_pos[batch_idx]:end_pos[batch_idx]+1])
-                        print("GT Span: {:s} \t Pred span: {:s}".format(pred_span, gt_span))
-
-                        start_pos, end_pos = self.get_start_end_idx(encoding, context, answers)
-
-                        # for token_pos, token in enumerate(encoding.input_ids[batch_idx]):
-                        #     print(self.processor.tokenizer.decode(token))
-            END DEBUG """
+            pred_answers, answ_confidence = self.get_answer_from_model_output(encoding.input_ids, outputs) if return_pred_answer else None
 
             if self.page_retrieval == 'oracle':
                 pred_answer_pages = batch['answer_page_idx']
@@ -138,27 +86,9 @@ class LayoutLMv2:
         if random.randint(0, 1000) == 0:
             for question_id, gt_answer, pred_answer in zip(batch['question_id'], answers, pred_answers):
                 print("ID: {:5d}  GT: {:}  -  Pred: {:s}".format(question_id, gt_answer, pred_answer))
-        #
-        #     for start_p, end_p, pred_start_p, pred_end_p in zip(start_pos, end_pos, outputs.start_logits.argmax(-1), outputs.end_logits.argmax(-1)):
-        #         print("GT: {:d}-{:d} \t Pred: {:d}-{:d}".format(start_p.item(), end_p.item(), pred_start_p, pred_end_p))
 
-        return outputs, pred_answers, pred_answer_pages
+        return outputs, pred_answers, pred_answer_pages, answ_confidence
 
-    def get_concat_v_multi_resize(self, im_list, resample=Image.BICUBIC):
-        min_width = min(im.width for im in im_list)
-        im_list_resize = [im.resize((min_width, int(im.height * min_width / im.width)), resample=resample) for im in im_list]
-
-        # Fix equal height for all images (breaks the aspect ratio).
-        heights = [im.height for im in im_list]
-        im_list_resize = [im.resize((im.height, max(heights)), resample=resample) for im in im_list_resize]
-
-        total_height = sum(im.height for im in im_list_resize)
-        dst = Image.new('RGB', (min_width, total_height))
-        pos_y = 0
-        for im in im_list_resize:
-            dst.paste(im, (0, pos_y))
-            pos_y += im.height
-        return dst
 
     def get_start_end_idx(self, encoding, context, answers):
         pos_idx = []
@@ -189,5 +119,7 @@ class LayoutLMv2:
         end_idxs = torch.argmax(outputs.end_logits, axis=1)
 
         answers = [self.processor.tokenizer.decode(input_tokens[batch_idx][start_idxs[batch_idx]: end_idxs[batch_idx]+1]).strip() for batch_idx in range(len(input_tokens))]
+        # answ_confidence = np.mean([outputs.start_logits.softmax(dim=1).detach().cpu(), outputs.end_logits.softmax(dim=1).detach().cpu()])
 
-        return answers
+        answ_confidence = model_utils.get_extractive_confidence(outputs)
+        return answers, answ_confidence

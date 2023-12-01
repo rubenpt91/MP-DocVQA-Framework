@@ -1,3 +1,4 @@
 dataset_name: SP-DocVQA
 imdb_dir: /SSD2/Datasets/DocVQA/Task1/pythia_data/imdb/docvqa  # /imdb/collection/imdb_train.npy
 images_dir: /SSD2/Datasets/DocVQA/Task1/images
+multipage_dataset: False

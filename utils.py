@@ -81,33 +81,38 @@ def seed_everything(seed):
 
 
 def check_config(config):
-    model_name = config['model_name'].lower()
+    model_name = config.model_name.lower()
+    dataset_name = config.dataset_name.lower()
 
     if 'page_retrieval' not in config:
-        config['page_retrieval'] = 'none'
+        config.page_retrieval = 'none'
 
-    page_retrieval = config['page_retrieval'].lower()
-    if model_name not in ['hi-layoutlmv3', 'hi-lt5', 'hi-vt5'] and page_retrieval == 'custom':
+    page_retrieval = config.page_retrieval.lower()
+    max_pages = getattr(config, 'max_pages', None)
+    if model_name not in ['hi-vt5'] and page_retrieval == 'custom':
         raise ValueError("'Custom' retrieval is not allowed for {:}".format(model_name))
 
-    elif model_name in ['hi-layoutlmv3, hilt5', 'hi-lt5', 'hivt5', 'hi-vt5'] and page_retrieval in ['concat', 'logits']:
+    elif model_name in ['hi-vt5'] and page_retrieval in ['concat', 'logits']:
         raise ValueError("Hierarchical model {:} can't run on {:} retrieval type. Only 'oracle' and 'custom' are allowed.".format(model_name, page_retrieval))
 
-    if page_retrieval == 'custom' and model_name not in ['hi-layoutlmv3', 'hi-lt5', 'hi-vt5']:
-        raise ValueError("'Custom' page retrieval only allowed for Heirarchical methods ('hi-layoutlmv3', 'hi-lt5', 'hi-vt5').")
+    if page_retrieval == 'oracle' and dataset_name == 'dude':
+        raise ValueError("'Oracle' set-up is not valid for DUDE, since there is no GT for the answer page.")
 
-    elif page_retrieval in ['concat', 'logits'] and config.get('max_pages') is not None:
-        print("WARNING - Max pages ({:}) value is ignored for {:} page-retrieval setting.".format(config.get('max_pages'), page_retrieval))
+    elif page_retrieval == 'custom' and model_name not in ['hi-vt5']:
+        raise ValueError("'Custom' page retrieval only allowed for Heirarchical methods ('hi-vt5').")
 
-    elif page_retrieval == 'none' and config['dataset_name'] not in ['SP-DocVQA']:
-        print("Page retrieval can't be none for dataset '{:s}'. This is intended only for single page datasets. Please specify in the method config file the 'page_retrieval' setup to one of the following: [oracle, concat, logits, custom] ".format(config['dataset_name']))
+    elif page_retrieval in ['concat', 'logits'] and max_pages is not None:
+        print("WARNING - Max pages ({:}) value is ignored for {:} page-retrieval setting.".format(max_pages, page_retrieval))
+
+    elif page_retrieval == 'none' and config.multipage_dataset:
+        print("Page retrieval can't be 'none' for dataset '{:s}'. This is intended only for single page datasets. Please specify in the method config file the 'page_retrieval' setup to one of the following: [oracle, concat, logits, custom] ".format(config.dataset_name))
 
     if 'save_dir' in config:
-        if not config['save_dir'].endswith('/'):
-            config['save_dir'] = config['save_dir'] + '/'
+        if not config.save_dir.endswith('/'):
+            config.save_dir = config.save_dir + '/'
 
-        if not os.path.exists(config['save_dir']):
-            os.makedirs(config['save_dir'])
+        if not os.path.exists(config.save_dir):
+            os.makedirs(config.save_dir)
 
     return True
 
@@ -132,6 +137,7 @@ def load_config(args):
         print("Seed not specified. Setting default seed to '{:d}'".format(42))
         config['seed'] = 42
 
+    config = argparse.Namespace(**config)
     check_config(config)
 
     return config
@@ -207,11 +213,12 @@ def create_grid_image(images, boxes=None):
     for page_ix in range(len(boxes)):
 
         if len(boxes[page_ix]) == 0:
-            continue
+            boxes[page_ix] = np.empty((0,4))
 
-        page_row, page_col = get_page_position_in_grid(page_ix, cols)
-        boxes[page_ix][:, [0, 2]] = boxes[page_ix][:, [0, 2]] / cols * (page_col+1)  # Resize width
-        boxes[page_ix][:, [1, 3]] = boxes[page_ix][:, [1, 3]] / rows * (page_row+1)  # Resize height
+        else:
+            page_row, page_col = get_page_position_in_grid(page_ix, cols)
+            boxes[page_ix][:, [0, 2]] = boxes[page_ix][:, [0, 2]] / cols * (page_col+1)  # Resize width
+            boxes[page_ix][:, [1, 3]] = boxes[page_ix][:, [1, 3]] / rows * (page_row+1)  # Resize height
 
     boxes = np.concatenate(boxes)
     return grid, boxes

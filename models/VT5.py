@@ -2,30 +2,33 @@ import random
 import numpy as np
 
 import torch
-import torch.nn as nn
-from click.core import batch
 from transformers import T5Tokenizer, T5ForConditionalGeneration
-import models._model_utils as model_utils
+from transformers import PreTrainedModel
 from models._modules import CustomT5Config, SpatialEmbeddings, VisualEmbeddings
+import models._model_utils as model_utils
 import transformers.models.t5.modeling_t5
 
 
-class ProxyVT5:
-    def __init__(self, config):
-        self.batch_size = config['batch_size']
-        self.tokenizer = T5Tokenizer.from_pretrained(config['model_weights'])
-        self.model = T5ForConditionalGeneration.from_pretrained(config['model_weights'])
-        self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
-        self.max_source_length = config.get('max_source_length', 512)
+class HF_VT5(PreTrainedModel):
 
-        t5_config = CustomT5Config.from_pretrained(config['model_weights'])
-        t5_config.visual_module_config = config['visual_module']
+    def __init__(self, t5_config):
+        super().__init__(t5_config)
 
+        self.language_backbone = T5ForConditionalGeneration(t5_config)
         self.spatial_embedding = SpatialEmbeddings(t5_config)
         self.visual_embedding = VisualEmbeddings(t5_config)
 
-    def parallelize(self):
-        self.model = nn.DataParallel(self.model)
+
+class VT5:
+    def __init__(self, config):
+        self.page_retrieval = config.page_retrieval.lower()
+        self.max_source_length = getattr(config, 'max_source_length', 512)
+
+        t5_config = CustomT5Config.from_pretrained(config.model_weights)
+        t5_config.visual_module_config = config.visual_module
+
+        self.tokenizer = T5Tokenizer.from_pretrained(config.model_weights)
+        self.model = HF_VT5.from_pretrained(config.model_weights, config=t5_config)
 
     def prepare_inputs_for_vqa(self, question, words, boxes, images, answers=None):
         bs = len(words)
@@ -63,34 +66,20 @@ class ProxyVT5:
             tensor_boxes[batch_idx, :len(batch_input_boxes[batch_idx])] = torch.from_numpy(batch_input_boxes[batch_idx][:len(batch_input_boxes[batch_idx])])
             tensor_attention_mask[batch_idx, :len(batch_input_ids[batch_idx])] = 1
 
-        """
-        context = [(' ').join(doc_words) for doc_words in words]
-        input_text = ["question: {:s}  context: {:s}".format(q, c) for q, c in zip(question, context)]
-        tokens = self.tokenizer(input_text, return_tensors='pt', padding=True, truncation=True).to(self.model.device)
-        input_embeds = self.model.shared(tokens.input_ids)
-        """
-
         # Send everything to GPU
         tensor_input_ids = tensor_input_ids.to(self.model.device)
         tensor_boxes = tensor_boxes.to(self.model.device)
         tensor_attention_mask = tensor_attention_mask.to(self.model.device)
 
         # Get semantic and spatial embeddings
-        semantic_embedding = self.model.shared(tensor_input_ids)
-        spatial_embedding = self.spatial_embedding(tensor_boxes)
-        visual_embedding, visual_emb_mask = self.visual_embedding(images)
+        semantic_embedding = self.model.language_backbone.shared(tensor_input_ids)
+        spatial_embedding = self.model.spatial_embedding(tensor_boxes)
+        visual_embedding, visual_emb_mask = self.model.visual_embedding(images)
 
         # input_embeds = semantic_embedding
         input_embeds = torch.add(semantic_embedding, spatial_embedding)
         input_embeds = torch.cat([input_embeds, visual_embedding], dim=1)  # Concatenate semantic + visual embeddings TODO: Provide visual bounding boxes.
         tensor_attention_mask = torch.cat([tensor_attention_mask, visual_emb_mask], dim=1)
-
-        """
-        context = [' '.join(doc_words) for doc_words in words]
-        input_text = ["question: {:s}  context: {:s}".format(q, c) for q, c in zip(question, context)]
-        tokens = self.tokenizer(input_text, return_tensors='pt', padding=True, truncation=True).to(self.model.device)
-        x = self.model.shared(tokens.input_ids)
-        """
 
         # Tokenize answers
         if answers is not None:
@@ -119,7 +108,7 @@ class ProxyVT5:
             pred_answers_conf = []
 
             for batch_idx in range(bs):
-                input_embeds, attention_mask, _ = self.prepare_inputs_for_vqa([question[batch_idx]]*num_pages[batch_idx], words[batch_idx], boxes[batch_idx])  # Answers are not considered. Logits set-up is made only for inference.
+                input_embeds, attention_mask, _ = self.prepare_inputs_for_vqa([question[batch_idx]]*num_pages[batch_idx], words[batch_idx], boxes[batch_idx], images[batch_idx])  # Answers are not considered. Logits set-up is made only for inference.
                 pred_answer, logits = self.get_answer_from_model_output(input_embeds, attention_mask)
                 # input_text = ["question: {:s}  context: {:s}".format(q, c) for q, c in zip([question[batch_idx]]*len(context[batch_idx]), context[batch_idx])]
                 # tokens = self.tokenizer(input_text, return_tensors='pt', padding=True, truncation=True).to(self.model.device)
@@ -140,19 +129,15 @@ class ProxyVT5:
 
         else:
             input_embeds, attention_mask, labels = self.prepare_inputs_for_vqa(question, words, boxes, images, answers)
-            outputs = self.model(inputs_embeds=input_embeds, attention_mask=attention_mask, labels=labels)
+
+            outputs = self.model.language_backbone(inputs_embeds=input_embeds, attention_mask=attention_mask, labels=labels) if labels is not None else None
             pred_answers, pred_answers_conf = self.get_answer_from_model_output(input_embeds, attention_mask) if return_pred_answer else None
-
-            if self.page_retrieval == 'oracle':
-                pred_answer_pages = batch['answer_page_idx']
-
-            elif self.page_retrieval == 'concat':
-                pred_answer_pages = None
+            pred_answer_pages = batch['answer_page_idx'] if self.page_retrieval else None
 
         return outputs, pred_answers, pred_answer_pages, pred_answers_conf
 
     def get_answer_from_model_output(self, input_embeds, attention_mask):
-        output = self.model.generate(inputs_embeds=input_embeds, attention_mask=attention_mask, output_scores=True, return_dict_in_generate=True, output_attentions=True)
+        output = self.model.language_backbone.generate(inputs_embeds=input_embeds, attention_mask=attention_mask, output_scores=True, return_dict_in_generate=True, output_attentions=True)
         pred_answers = self.tokenizer.batch_decode(output['sequences'], skip_special_tokens=True)
         pred_answers_conf = model_utils.get_generative_confidence(output)
 

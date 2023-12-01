@@ -15,6 +15,7 @@ class MPDocVQA(Dataset):
         self.header = data[0]
         self.imdb = data[1:]
 
+        self.has_answer = self.header['has_answer']
         self.page_retrieval = page_retrieval.lower()
         assert(self.page_retrieval in ['oracle', 'concat', 'logits', 'custom'])
 
@@ -156,14 +157,15 @@ class MPDocVQA(Dataset):
         else:
             start_idxs, end_idxs = None, None
 
-        sample_info = {'question_id': record['question_id'],
-                       'questions': question,
-                       'contexts': context,
-                       'context_page_corresp': context_page_corresp,
-                       'answers': answers,
-                       'answer_page_idx': answer_page_idx,
-                       'num_pages': num_pages
-                       }
+        sample_info = {
+            'question_id': record['question_id'],
+            'questions': question,
+            'contexts': context,
+            'context_page_corresp': context_page_corresp,
+            'answers': answers,
+            'answer_page_idx': answer_page_idx,
+            'num_pages': num_pages
+        }
 
         if self.use_images:
             sample_info['image_names'] = image_names
@@ -184,6 +186,9 @@ class MPDocVQA(Dataset):
 
     def _get_start_end_idx(self, context, answers):
 
+        if answers is None:
+            return None, None
+
         answer_positions = []
         for answer in answers:
             start_idx = context.find(answer)
@@ -200,6 +205,12 @@ class MPDocVQA(Dataset):
         return start_idx, end_idx
 
     def get_pages(self, sample_info):
+        # If there isn't information about the answer page, return all the pages.
+        if 'answer_page_idx' not in sample_info:
+            first_page = 0
+            last_page = sample_info['num_pages']
+            return first_page, last_page
+
         # TODO implement margins
         answer_page = sample_info['answer_page_idx']
         document_pages = sample_info['imdb_doc_pages']
@@ -217,24 +228,14 @@ class MPDocVQA(Dataset):
                 first_page = last_page-self.max_pages
 
             try:
-                assert(answer_page in range(first_page, last_page))  # answer page is in selected range.
-                assert(last_page-first_page == self.max_pages)  # length of selected range is correct.
+                assert (answer_page in range(first_page, last_page))  # answer page is in selected range.
+                assert (last_page-first_page == self.max_pages)  # length of selected range is correct.
             except:
                 assert (answer_page in range(first_page, last_page))  # answer page is in selected range.
                 assert (last_page - first_page == self.max_pages)  # length of selected range is correct.
         # print("[{:d} <= {:d} < {:d}][{:d} + {:d}]".format(first_page, answer_page, last_page, len(range(first_page, last_page)), padding_pages))
-        assert(answer_page in range(first_page, last_page))
-        assert(first_page >= 0)
-        assert(last_page <= document_pages)
+        assert (answer_page in range(first_page, last_page))
+        assert (first_page >= 0)
+        assert (last_page <= document_pages)
 
         return first_page, last_page
-
-
-def mpdocvqa_collate_fn(batch):  # It's actually the same as in SP-DocVQA...
-    batch = {k: [dic[k] for dic in batch] for k in batch[0]}  # List of dictionaries to dict of lists.
-    return batch
-
-
-if __name__ == '__main__':
-
-    mp_docvqa = MPDocVQA("/SSD/Datasets/DocVQA/Task1/pythia_data/imdb/collection", split='val')

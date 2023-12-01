@@ -44,7 +44,7 @@ class HiVT5(T5ForConditionalGeneration):
         self.page_tokens = config.page_tokens
         self.max_doc_pages = config.max_doc_pages
 
-    def _prepare_encoder_decoder_kwargs_for_generation(self, inputs_tensor: torch.Tensor, model_kwargs, model_input_name: Optional[str] = None) -> Dict[str, Any]:
+    def _prepare_encoder_decoder_kwargs_for_generation(self, inputs_tensor, model_kwargs, model_input_name) -> Dict[str, Any]:
         # 1. get encoder
         encoder = self.get_encoder()
 
@@ -593,34 +593,33 @@ class HiVT5(T5ForConditionalGeneration):
 class Proxy_HiVT5:
 
     def __init__(self, config):
-        self.batch_size = config['batch_size']
-        self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
-        self.page_tokens = config.get('page_tokens', 10)
-        self.max_doc_pages = config.get('max_pages', 1)
+        self.page_retrieval = config.page_retrieval.lower()
+        self.page_tokens = getattr(config, 'page_tokens', 10)
+        self.max_doc_pages = getattr(config, 'max_pages', 1)
 
-        config_x = CustomT5Config.from_pretrained(config['model_weights'])
+        config_x = CustomT5Config.from_pretrained(config.model_weights)
         config_x.page_tokens = self.page_tokens
         config_x.max_doc_pages = self.max_doc_pages
-        config_x.use_spatial_features = config.get('use_spatial_features', True)
-        config_x.page_retrieval_config = config['retrieval_module']
-        config_x.use_visual_features = config.get('use_visual_features', True)
-        config_x.visual_module_config = config['visual_module']
-        self.tokenizer = T5Tokenizer.from_pretrained(config['model_weights'])
+        config_x.use_spatial_features = getattr(config, 'use_spatial_features', True)
+        config_x.page_retrieval_config = config.retrieval_module
+        config_x.use_visual_features = getattr(config, 'use_visual_features', True)
+        config_x.visual_module_config = config.visual_module
+        self.tokenizer = T5Tokenizer.from_pretrained(config.model_weights)
         # self.tokenizer.add_tokens("[PAGE]")  # Single representation
         [self.tokenizer.add_tokens(f"[PAGE_{i}]") for i in range(self.page_tokens)]  # Multiple representation
-        self.max_text_tokens = config.get('max_text_tokens', self.tokenizer.model_max_length)
+        self.max_text_tokens = getattr(config, 'max_text_tokens', self.tokenizer.model_max_length)
         self.decoding_max_length = config_x.max_length
         # [self.tokenizer.add_tokens("[PAGE_{:d}]".format(p)) for p in range(self.num_doc_cls_tokens)]  # Different representation
 
         # Whenever the number of [PAGE] tokens or Max pages per document changes, the architecture also changes and therefore, it needs to be fine-tuned.
-        self.model = HiVT5.from_pretrained(config['model_weights'], config=config_x, ignore_mismatched_sizes=True)
+        self.model = HiVT5.from_pretrained(config.model_weights, config=config_x, ignore_mismatched_sizes=True)
 
-        if config.get('freeze_encoder', False):
+        if getattr(config, 'freeze_encoder', False):
             for n, p in self.model.named_parameters():
                 if not (n.startswith('decoder') or n.startswith('retrieval_module')):
                     p.requires_grad = False
 
-        self.device = config['device']
+        self.device = config.device
 
     def parallelize(self):
         self.model = nn.DataParallel(self.model)
@@ -631,7 +630,20 @@ class Proxy_HiVT5:
         num_pages = batch['num_pages']
 
         question = batch['questions']
-        context = batch['contexts']
+
+        if self.page_retrieval == 'none':
+            words = batch['words']
+            context = [[c] for c in batch['contexts']]  # Wrap context within mock page 1
+            boxes = batch['boxes']
+        elif self.page_retrieval == 'oracle':
+            words = [[page_words] for page_words in batch['words']]
+            context = [[c] for c in batch['contexts']]  # Wrap context within mock page 1
+            boxes = [[page_boxes] for page_boxes in batch['boxes']]  # Wrap boxes within mock page 1
+        elif self.page_retrieval == 'custom':
+            words = batch['words']
+            context = batch['contexts']
+            boxes = batch['boxes']
+
         page_token_box = [0, 0, 1000, 1000]
         question_box = [0, 0, 1000, 1000]
         padding_box = [0, 0, 0, 0]
@@ -647,17 +659,18 @@ class Proxy_HiVT5:
             # Do directly the three loops in once. Then, trim the tensors to the: 1 longest sequence or max_seq_length.
             page_tokens = ''.join([f"[PAGE_{i}]" for i in range(self.page_tokens)])  # Multiple representation
             input_text = [f"{page_tokens}: question: {question[batch_idx]}  context: {c}" for c in context[batch_idx]]
+
             tokens = self.tokenizer(input_text, return_tensors='pt', padding=True, truncation=True)
             all_input_ids[batch_idx, :num_pages[batch_idx], :tokens.input_ids.shape[-1]] = tokens.input_ids
             all_attention_masks[batch_idx, :num_pages[batch_idx], :tokens.attention_mask.shape[-1]] = tokens.attention_mask
 
             longest_sequence = max(longest_sequence, tokens.input_ids.shape[-1])
 
-            length_pretext = len(self.tokenizer("question: {:s}  context: ".format(question[batch_idx])).input_ids[:-1])
-            pretext_boxes = torch.tensor([question_box] * length_pretext)
+            pretext_length = len(self.tokenizer("question: {:s}  context: ".format(question[batch_idx])).input_ids[:-1])
+            pretext_boxes = torch.tensor([question_box] * pretext_length)
             for page_idx in range(num_pages[batch_idx]):
-                if len(batch['boxes'][batch_idx][page_idx]) >= 1:
-                    context_boxes = torch.tensor(np.array([box for word, word_box in zip(batch['words'][batch_idx][page_idx], batch['boxes'][batch_idx][page_idx]) for box in [word_box] * len(self.tokenizer(word).input_ids[:-1])]))
+                if len(boxes[batch_idx][page_idx]) >= 1:
+                    context_boxes = torch.tensor(np.array([box for word, word_box in zip(words[batch_idx][page_idx], boxes[batch_idx][page_idx]) for box in [word_box] * len(self.tokenizer(word).input_ids[:-1])]))
                     context_boxes = context_boxes[:self.tokenizer.model_max_length - self.page_tokens - len(pretext_boxes) - 1]  # Remove boxes out of model max length.
 
                 else:
@@ -665,10 +678,9 @@ class Proxy_HiVT5:
 
                 all_boxes[batch_idx, page_idx, :self.page_tokens] = torch.tensor(page_token_box)
                 all_boxes[batch_idx, page_idx, self.page_tokens: self.page_tokens + len(pretext_boxes)] = pretext_boxes
-                # all_boxes[batch_idx, page_idx, self.page_tokens + length_pretext: self.page_tokens + length_pretext + len(context_boxes)] = context_boxes * 1000
-                all_boxes[batch_idx, page_idx, self.page_tokens + length_pretext: self.page_tokens + length_pretext + len(context_boxes)] = context_boxes * 1000
+                all_boxes[batch_idx, page_idx, self.page_tokens + pretext_length: self.page_tokens + pretext_length + len(context_boxes)] = context_boxes * 1000
 
-                all_boxes[batch_idx, page_idx, self.page_tokens + length_pretext + len(context_boxes)] = torch.tensor(eos_box)
+                all_boxes[batch_idx, page_idx, self.page_tokens + pretext_length + len(context_boxes)] = torch.tensor(eos_box)
 
         max_seq = min(longest_sequence, self.max_text_tokens)
         all_input_ids = all_input_ids[:, :, :max_seq]
@@ -682,38 +694,31 @@ class Proxy_HiVT5:
         return all_input_ids, all_boxes, all_attention_masks
 
     def forward(self, batch, output_attentions=False, return_pred_answer=False):
-        question_id = batch['question_id']
         answers = batch['answers']
         num_pages = batch['num_pages']
-        answer_page_idx = torch.LongTensor(batch['answer_page_idx']).to(self.device)
+        answer_page_idx = torch.LongTensor(batch['answer_page_idx']).to(self.device) if batch['answer_page_idx'] is not None else None
 
-        bs = len(question_id)
         if self.page_retrieval == 'oracle':
-            input_ids, input_boxes, attention_mask = self.prepare_vqa_input_ids(batch)
+            images = [[page_image] for page_image in batch['images']]
+        else:
+            images = batch['images']
 
-            raise ValueError("Oracle set-up not available for Hi-VT5. Instead, specify 'max_pages: 1' in dataset config with 'page_retrieval: custom'.")
+        input_ids, input_boxes, attention_mask = self.prepare_vqa_input_ids(batch)
+        if self.model.training or output_attentions:  # TODO: Output attentions should be for inference (generate). But I can't output encoder attentions..
+        # if self.model.training:  # TODO: Output attentions should be for inference (generate). But I can't output encoder attentions..
+            answers = [random.choice(answer) for answer in answers]
+            labels = self.tokenizer(answers, return_tensors='pt', padding=True)
+            labels.input_ids[labels.input_ids[:] == self.tokenizer.pad_token_id] = -100
+            labels = labels.input_ids.to(self.device)
 
-        elif self.page_retrieval in ['logits', 'concat']:
-            raise ValueError("{:s} set-up not available for Hi-LT5".format(self.page_retrieval.capitalize()))
+            outputs = self.model(input_ids=input_ids, bbox=input_boxes, images=images, attention_mask=attention_mask, labels=labels, num_pages=num_pages, answer_page_idx=answer_page_idx, output_attentions=output_attentions)
+            _, pred_answers, pred_answer_pages = self.get_answer_from_model_output(input_ids, input_boxes, images, attention_mask, num_pages) if return_pred_answer else None
 
         else:
-            input_ids, input_boxes, attention_mask = self.prepare_vqa_input_ids(batch)
+            outputs, pred_answers, pred_answer_pages = self.get_answer_from_model_output(input_ids, input_boxes, images, attention_mask, num_pages)
 
-            if self.model.training or output_attentions:  # TODO: Output attentions should be for inference (generate). But I can't output encoder attentions..
-            # if self.model.training:  # TODO: Output attentions should be for inference (generate). But I can't output encoder attentions..
-                answers = [random.choice(answer) for answer in answers]
-                labels = self.tokenizer(answers, return_tensors='pt', padding=True)
-                labels.input_ids[labels.input_ids[:] == self.tokenizer.pad_token_id] = -100
-                labels = labels.input_ids.to(self.device)
-
-                outputs = self.model(input_ids=input_ids, bbox=input_boxes, images=batch['images'], attention_mask=attention_mask, labels=labels, num_pages=num_pages, answer_page_idx=answer_page_idx, output_attentions=output_attentions)
-                _, pred_answers, pred_answer_pages = self.get_answer_from_model_output(input_ids, input_boxes, batch['images'], attention_mask, num_pages) if return_pred_answer else None
-
-            else:
-                outputs, pred_answers, pred_answer_pages = self.get_answer_from_model_output(input_ids, input_boxes, batch['images'], attention_mask, num_pages)
-
-            if self.page_retrieval == 'oracle':
-                pred_answer_pages = batch['answer_page_idx']
+        if self.page_retrieval == 'oracle' or self.page_retrieval == 'none':
+            pred_answer_pages = batch['answer_page_idx']
 
         pred_answer_conf = [-1 for _ in range(len(pred_answers))]
         return outputs, pred_answers, pred_answer_pages, pred_answer_conf

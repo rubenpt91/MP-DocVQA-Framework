@@ -6,41 +6,41 @@ class Logger:
 
     def __init__(self, config):
 
-        self.log_folder = config['save_dir']
+        self.log_folder = config.save_dir
 
         experiment_date = datetime.datetime.now().strftime('%Y.%m.%d_%H.%M.%S')
-        self.experiment_name = "{:s}__{:}".format(config['model_name'], experiment_date)
+        self.experiment_name = "{:s}__{:}".format(config.model_name, experiment_date)
 
         machine_dict = {'cvc117': 'Local', 'cudahpc16': 'DAG', 'cudahpc25': 'DAG-A40'}
         machine = machine_dict.get(socket.gethostname(), socket.gethostname())
 
-        dataset = config['dataset_name']
-        page_retrieval = config.get('page_retrieval', '-').capitalize()
-        visual_encoder = config.get('visual_module', {}).get('model', '-').upper()
+        dataset = config.dataset_name
+        page_retrieval = getattr(config, 'page_retrieval', '-').capitalize()
+        visual_encoder = getattr(config, 'visual_module', {}).get('model', '-').upper()
 
-        document_pages = config.get('max_pages', None)
-        page_tokens = config.get('page_tokens', None)
-        tags = [config['model_name'], dataset, machine]
-        config = {'Model': config['model_name'], 'Weights': config['model_weights'], 'Dataset': dataset,
+        document_pages = getattr(config, 'max_pages', None)
+        page_tokens = getattr(config, 'page_tokens', None)
+        tags = [config.model_name, dataset, machine]
+        config_dict = {'Model': config.model_name, 'Weights': config.model_weights, 'Dataset': dataset,
                   'Page retrieval': page_retrieval, 'Visual Encoder': visual_encoder,
-                  'Batch size': config['batch_size'], 'Max. Seq. Length': config.get('max_sequence_length', '-'),
-                  'lr': config['lr'], 'seed': config['seed']}
+                  'Batch size': config.batch_size, 'Max. Seq. Length': getattr(config, 'max_sequence_length', '-'),
+                  'lr': config.lr, 'seed': config.seed}
 
         if document_pages:
-            config['Max Pages'] = document_pages
+            config_dict['Max Pages'] = document_pages
 
         if page_tokens:
-            config['PAGE tokens'] = page_tokens
+            config_dict['PAGE tokens'] = page_tokens
 
-        self.logger = wb.init(project="MP-DocVQA", name=self.experiment_name, dir=self.log_folder, tags=tags, config=config)
-        self._print_config(config)
+        self.logger = wb.init(project="MP-DocVQA", name=self.experiment_name, dir=self.log_folder, tags=tags, config=config_dict)
+        self._print_config(config_dict)
 
         self.current_epoch = 0
         self.len_dataset = 0
 
-    def _print_config(self, config):
-        print("{:s}: {:s} \n{{".format(config['Model'], config['Weights']))
-        for k, v in config.items():
+    def _print_config(self, config_dict):
+        print("{:s}: {:s} \n{{".format(config_dict['Model'], config_dict['Weights']))
+        for k, v in config_dict.items():
             if k != 'Model' and k != 'Weights':
                 print("\t{:}: {:}".format(k, v))
         print("}\n")

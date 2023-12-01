@@ -7,10 +7,9 @@ import transformers.models.t5.modeling_t5
 
 class T5:
     def __init__(self, config):
-        self.batch_size = config['batch_size']
-        self.tokenizer = T5Tokenizer.from_pretrained(config['model_weights'])
-        self.model = T5ForConditionalGeneration.from_pretrained(config['model_weights'])
-        self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
+        self.tokenizer = T5Tokenizer.from_pretrained(config.model_weights)
+        self.model = T5ForConditionalGeneration.from_pretrained(config.model_weights)
+        self.page_retrieval = config.page_retrieval.lower()
 
     def parallelize(self):
         self.model = nn.DataParallel(self.model)
@@ -60,14 +59,11 @@ class T5:
 
         else:
             input_ids, attention_mask, labels = self.prepare_inputs_for_vqa(question, context, answers)
-            outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+
+            outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels) if labels is not None else None
             pred_answers, pred_answers_conf = self.get_answer_from_model_output(input_ids, attention_mask) if return_pred_answer else None
+            pred_answer_pages = batch['answer_page_idx'] if self.page_retrieval == 'oracle' else None
 
-            if self.page_retrieval == 'oracle':
-                pred_answer_pages = batch['answer_page_idx']
-
-            else:
-                pred_answer_pages = None
 
         return outputs, pred_answers, pred_answer_pages, pred_answers_conf
 

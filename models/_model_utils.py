@@ -5,6 +5,10 @@ from utils import correct_alignment
 
 
 def get_start_end_idx(model, encoding, context, context_encoding, answers, context_page_char_correspondent, page_retrieval, sep_token_id, pad_token_id, ignore_id, device):
+
+    if answers is None:
+        return None, None, None
+
     pos_idx = []
     context_page_token_correspondent = []
     for batch_idx in range(len(context)):

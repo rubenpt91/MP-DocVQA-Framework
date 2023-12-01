@@ -48,13 +48,14 @@ class SPDocVQA(Dataset):
 
         start_idxs, end_idxs = self._get_start_end_idx(context, answers)
 
-        sample_info = {'question_id': record['question_id'],
-                       'questions': question,
-                       'contexts': context,
-                       'answers': answers,
-                       'start_indxs': start_idxs,
-                       'end_indxs': end_idxs
-                       }
+        sample_info = {
+            'question_id': record['question_id'],
+            'questions': question,
+            'contexts': context,
+            'answers': answers,
+            'start_indxs': start_idxs,
+            'end_indxs': end_idxs
+        }
 
         if self.use_images:
             sample_info['image_names'] = image_name
@@ -89,11 +90,6 @@ class SPDocVQA(Dataset):
             start_idx, end_idx = 0, 0  # If the indices are out of the sequence length they are ignored. Therefore, we set them as a very big number.
 
         return start_idx, end_idx
-
-
-def singlepage_docvqa_collate_fn(batch):
-    batch = {k: [dic[k] for dic in batch] for k in batch[0]}  # List of dictionaries to dict of lists.
-    return batch
 
 
 if __name__ == '__main__':

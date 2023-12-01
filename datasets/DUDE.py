@@ -21,25 +21,21 @@ class DUDE(MPDocVQA):
         record = self.imdb[idx]
 
         question = record['question']
-        answers = list(set(answer.lower() for answer in record['answers']))
+
+        if self.has_answer:
+            answers = list(set(answer.lower() for answer in record['answers']))
+
+            # How to handle non-answerable questions.
+            if record['extra']['answer_type'] == 'not-answerable' and len(answers) == 0:
+                answers = ['not-answerable']
+        else:
+            answers = None
+
         answer_page_idx = None
         num_pages = record['num_pages']
-
         if self.page_retrieval == 'oracle':
+            # num_pages = 1
             raise ValueError("'Oracle' set-up is not valid for DUDE, since there is no GT for the answer page.")
-
-            """
-            context = ' '.join([word.lower() for word in record['ocr_tokens'][answer_page_idx]])
-            context_page_corresp = None
-
-            if self.use_images:
-                image_names = os.path.join(self.images_dir, "{:s}".format(record['image_name'][answer_page_idx]))
-                images = Image.open(image_names).convert("RGB")
-
-            if self.get_raw_ocr_data:
-                words = [word.lower() for word in record['ocr_tokens'][answer_page_idx]]
-                boxes = np.array([bbox for bbox in record['ocr_normalized_boxes'][answer_page_idx]])
-            """
 
         elif self.page_retrieval == 'concat':
             context = ""
@@ -67,16 +63,20 @@ class DUDE(MPDocVQA):
 
                     boxes.extend(mod_boxes)  # bbox in l,t,r,b
                     """
-                boxes = record['ocr_normalized_boxes']
+                boxes = [np.array(box, dtype=np.float32) for box in record['ocr_normalized_boxes']]
+
+            else:
+                words, boxes = None, None
 
             if self.use_images:
-                image_names = [os.path.join(self.images_dir, "{:s}".format(image_name)) for image_name in record['image_name']]
+                # TODO: Fix DUDE IMDB
+                image_names = [os.path.join(self.images_dir, "{:s}".format(image_name.split('/')[-1])) for image_name in record['image_name']]
                 images = [Image.open(img_path).convert("RGB") for img_path in image_names]
                 images += [Image.new('RGB', (2, 2)) for i in range(self.max_pages - len(image_names))]  # Pad with 2x2 images.
                 images, boxes = utils.create_grid_image(images, boxes)
 
             else:
-                boxes = np.array(boxes)
+                boxes = np.array(boxes, dtype=np.float32)
 
         elif self.page_retrieval == 'logits':
             context = []
@@ -86,7 +86,8 @@ class DUDE(MPDocVQA):
             context_page_corresp = None
 
             if self.use_images:
-                image_names = [os.path.join(self.images_dir, "{:s}".format(image_name)) for image_name in record['image_name']]
+                # TODO: Fix DUDE IMDB
+                image_names = [os.path.join(self.images_dir, "{:s}".format(image_name.split('/')[-1])) for image_name in record['image_name']]
                 images = [Image.open(img_path).convert("RGB") for img_path in image_names]
 
             if self.get_raw_ocr_data:
@@ -97,7 +98,7 @@ class DUDE(MPDocVQA):
 
         elif self.page_retrieval == 'custom':
             first_page, last_page = self.get_pages(record)
-            answer_page_idx = answer_page_idx - first_page
+            # answer_page_idx = answer_page_idx - first_page
             num_pages = len(range(first_page, last_page))
 
             words = []
@@ -109,7 +110,7 @@ class DUDE(MPDocVQA):
                 words.append([word.lower() for word in record['ocr_tokens'][page_ix]])
                 boxes.append(np.array(record['ocr_normalized_boxes'][page_ix], dtype=np.float32))
                 context.append(' '.join([word.lower() for word in record['ocr_tokens'][page_ix]]))
-                image_names.append(os.path.join(self.images_dir, "{:s}".format(record['image_name'][page_ix])))
+                image_names.append(os.path.join(self.images_dir, "{:s}".format(record['image_name'][page_ix].split('/')[-1])))
 
             context_page_corresp = None
 
@@ -139,6 +140,7 @@ class DUDE(MPDocVQA):
             'context_page_corresp': context_page_corresp,
             'answers': answers,
             'answer_page_idx': answer_page_idx,
+            'num_pages': num_pages,
             'answer_type': record['extra']['answer_type']
         }
 
@@ -160,7 +162,3 @@ class DUDE(MPDocVQA):
             sample_info['doc_id'] = [record['image_name'][page_ix] for page_ix in range(first_page, last_page)]
 
         return sample_info
-
-
-if __name__ == '__main__':
-    dude_dataset = DUDE("/SSD/Datasets/DUDE/imdb/", split='val')

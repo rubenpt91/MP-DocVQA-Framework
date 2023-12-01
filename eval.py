@@ -5,17 +5,17 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from datasets.SP_DocVQA import singlepage_docvqa_collate_fn
+from datasets.dataset_utils import docvqa_collate_fn
 from logger import Logger
 from metrics import Evaluator
 from utils import parse_args, time_stamp_to_hhmmss, load_config, save_json
 from build_utils import build_model, build_dataset
 
 
-def evaluate(data_loader, model, evaluator, **kwargs):
+def evaluate(data_loader, model, evaluator, config):
 
-    return_scores_by_sample = kwargs.get('return_scores_by_sample', False)
-    return_answers = kwargs.get('return_answers', False)
+    return_scores_by_sample = getattr(config, 'return_scores_by_sample', False)
+    return_answers = getattr(config, 'return_answers', False)
 
     if return_scores_by_sample:
         scores_by_samples = {}
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     start_time = time.time()
 
     dataset = build_dataset(config, 'test')
-    val_data_loader = DataLoader(dataset, batch_size=config['batch_size'], shuffle=False, collate_fn=singlepage_docvqa_collate_fn)
+    val_data_loader = DataLoader(dataset, batch_size=config['batch_size'], shuffle=False, collate_fn=docvqa_collate_fn)
 
     model = build_model(config)
 

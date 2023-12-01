@@ -10,12 +10,11 @@ import models._model_utils as model_utils
 class LongT5:
 
     def __init__(self, config):
-        self.batch_size = config['batch_size']
-        self.tokenizer = AutoTokenizer.from_pretrained(config['model_weights'])
-        self.model = LongT5ForConditionalGeneration.from_pretrained(config['model_weights'])
-        self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
+        self.tokenizer = AutoTokenizer.from_pretrained(config.model_weights)
+        self.model = LongT5ForConditionalGeneration.from_pretrained(config.model_weights)
+        self.page_retrieval = config.page_retrieval.lower()
 
-        self.max_sequence_length = config.get('max_sequence_length', 4096)
+        self.max_sequence_length = getattr(config, 'max_sequence_length', 4096)
         self.ignore_index = 9999  # 0
 
     def parallelize(self):
@@ -66,14 +65,10 @@ class LongT5:
 
         else:
             input_ids, attention_mask, labels = self.prepare_inputs_for_vqa(question, context, answers)
-            outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+
+            outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels) if labels is not None else None
             pred_answers, logits = self.get_answer_from_model_output(input_ids, attention_mask) if return_pred_answer else None
-
-            if self.page_retrieval == 'oracle':
-                pred_answer_pages = batch['answer_page_idx']
-
-            else:
-                pred_answer_pages = None
+            pred_answer_pages = batch['answer_page_idx'] if self.page_retrieval == 'oracle' else None
 
         return outputs, pred_answers, pred_answer_pages, logits
 

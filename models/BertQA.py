@@ -1,8 +1,6 @@
-import re, random
 import torch
 import torch.nn as nn
 
-import numpy as np
 from transformers import AutoModelForQuestionAnswering, AutoTokenizer
 import models._model_utils as model_utils
 from utils import correct_alignment
@@ -11,12 +9,11 @@ from utils import correct_alignment
 class BertQA:
 
     def __init__(self, config):
-        self.batch_size = config['batch_size']
-        self.model = AutoModelForQuestionAnswering.from_pretrained(config['model_weights'])
-        self.tokenizer = AutoTokenizer.from_pretrained(config['model_weights'])
-        self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
+        self.model = AutoModelForQuestionAnswering.from_pretrained(config.model_weights)
+        self.tokenizer = AutoTokenizer.from_pretrained(config.model_weights)
+        self.page_retrieval = config.page_retrieval.lower()
 
-        self.max_sequence_length = config.get('max_sequence_length', 512)
+        self.max_sequence_length = getattr(config, 'max_sequence_length', 512)
         self.ignore_index = 9999  # 0
 
     def parallelize(self):
@@ -28,11 +25,7 @@ class BertQA:
         attention_mask = encoding["attention_mask"].to(self.model.device)
 
         context_encoding = self.tokenizer.batch_encode_plus(context, padding=True, truncation=True, max_length=self.max_sequence_length)
-
-        if answers is not None:
-            start_pos, end_pos, context_page_token_correspondent = model_utils.get_start_end_idx('BertQA', encoding, context, context_encoding, answers, context_page_corresp, self.page_retrieval, self.tokenizer.sep_token_id, self.tokenizer.pad_token_id, self.ignore_index, self.model.device)
-        else:
-            start_pos, end_pos, context_page_token_correspondent = None, None, None
+        start_pos, end_pos, context_page_token_correspondent = model_utils.get_start_end_idx('BertQA', encoding, context, context_encoding, answers, context_page_corresp, self.page_retrieval, self.tokenizer.sep_token_id, self.tokenizer.pad_token_id, self.ignore_index, self.model.device)
 
         return input_ids, attention_mask, context_encoding, start_pos, end_pos, context_page_token_correspondent
 
@@ -72,15 +65,7 @@ class BertQA:
             input_ids, attention_mask, context_encoding, start_pos, end_pos, context_page_token_correspondent = self.prepare_inputs_for_vqa(question, context, batch['context_page_corresp'], answers)
             outputs = self.model(input_ids, attention_mask=attention_mask, start_positions=start_pos, end_positions=end_pos)
             pred_answers, answ_confidence = self.get_answer_from_model_output(input_ids, outputs) if return_pred_answer else None
-
-            if self.page_retrieval == 'oracle':
-                pred_answer_pages = batch['answer_page_idx']
-
-            elif self.page_retrieval == 'concat':
-                pred_answer_pages = [context_page_token_correspondent[batch_idx][pred_start_idx].item() if len(context_page_token_correspondent[batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
-
-            elif self.page_retrieval == 'none':
-                pred_answer_pages = None
+            pred_answer_pages = self.get_pred_answer_page(outputs.start_logits, batch.get('answer_page_idx', None), context_page_token_correspondent)
 
         return outputs, pred_answers, pred_answer_pages, answ_confidence
 
@@ -103,3 +88,15 @@ class BertQA:
         answ_confidence = model_utils.get_extractive_confidence(outputs)
 
         return answers, answ_confidence
+
+    def get_pred_answer_page(self, start_logits, answer_page_idx, context_page_token_correspondent):
+        if answer_page_idx is None or self.page_retrieval == 'none':
+            pred_answer_pages = None
+
+        elif self.page_retrieval == 'oracle':
+            pred_answer_pages = answer_page_idx
+
+        elif self.page_retrieval == 'concat':
+            pred_answer_pages = [context_page_token_correspondent[batch_idx][pred_start_idx].item() if len(context_page_token_correspondent[batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(start_logits.argmax(-1).tolist())]
+
+        return pred_answer_pages

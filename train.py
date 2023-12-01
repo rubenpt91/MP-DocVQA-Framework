@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from datasets.SP_DocVQA import SPDocVQA, singlepage_docvqa_collate_fn
+from datasets.dataset_utils import docvqa_collate_fn
 from models.Longformer import Longformer
 from eval import evaluate
 from metrics import Evaluator
@@ -16,7 +16,7 @@ from logger import Logger
 from checkpoint import save_model
 
 
-def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, **kwargs):
+def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, config):
     model.model.train()
 
     for batch_idx, batch in enumerate(tqdm(data_loader)):
@@ -61,45 +61,43 @@ def train_epoch(data_loader, model, optimizer, lr_scheduler, evaluator, logger, 
 #     np.seed(worker_seed)
 
 
-def train(model, **kwargs):
+def train(model, config):
 
-    epochs = kwargs['train_epochs']
-    # device = kwargs['device']
-    batch_size = kwargs['batch_size']
-    seed_everything(kwargs['seed'])
+    epochs = config.train_epochs
+    seed_everything(config.seed)
 
     evaluator = Evaluator(case_sensitive=False)
-    logger = Logger(config=kwargs)
+    logger = Logger(config)
     logger.log_model_parameters(model)
 
     train_dataset = build_dataset(config, 'train')
     val_dataset   = build_dataset(config, 'val')
 
     # g = torch.Generator()
-    # g.manual_seed(kwargs['seed'])
+    # g.manual_seed(config.seed)
 
-    train_data_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, collate_fn=singlepage_docvqa_collate_fn)
-    val_data_loader   = DataLoader(val_dataset, batch_size=config['batch_size'], shuffle=False, collate_fn=singlepage_docvqa_collate_fn)
+    train_data_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, collate_fn=docvqa_collate_fn)
+    val_data_loader   = DataLoader(val_dataset, batch_size=config.batch_size, shuffle=False, collate_fn=docvqa_collate_fn)
     # train_data_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, collate_fn=singledocvqa_collate_fn, worker_init_fn=seed_worker, generator=g)
     # val_data_loader   = DataLoader(val_dataset, batch_size=config['batch_size'],  shuffle=False, collate_fn=singledocvqa_collate_fn, worker_init_fn=seed_worker, generator=g)
 
     logger.len_dataset = len(train_data_loader)
-    optimizer, lr_scheduler = build_optimizer(model, length_train_loader=len(train_data_loader), config=kwargs)
+    optimizer, lr_scheduler = build_optimizer(model, length_train_loader=len(train_data_loader), config=config)
 
-    if kwargs.get('eval_start', False):
+    if getattr(config, 'eval_start', False):
         logger.current_epoch = -1
-        accuracy, anls, ret_prec, _, _ = evaluate(val_data_loader, model, evaluator, return_scores_by_sample=False, return_pred_answers=False, **kwargs)
+        accuracy, anls, ret_prec, _, _ = evaluate(val_data_loader, model, evaluator, return_scores_by_sample=False, return_pred_answers=False, config=config)
         is_updated = evaluator.update_global_metrics(accuracy, anls, -1)
         logger.log_val_metrics(accuracy, anls, ret_prec, update_best=is_updated)
 
     for epoch_ix in range(epochs):
         logger.current_epoch = epoch_ix
-        train_epoch(train_data_loader, model, optimizer, lr_scheduler, evaluator, logger, **kwargs)
-        accuracy, anls, ret_prec, _, _ = evaluate(val_data_loader, model, evaluator, return_scores_by_sample=False, return_pred_answers=False, **kwargs)
+        train_epoch(train_data_loader, model, optimizer, lr_scheduler, evaluator, logger, config)
+        accuracy, anls, ret_prec, _, _ = evaluate(val_data_loader, model, evaluator, return_scores_by_sample=False, return_pred_answers=False, config=config)
 
         is_updated = evaluator.update_global_metrics(accuracy, anls, epoch_ix)
         logger.log_val_metrics(accuracy, anls, ret_prec, update_best=is_updated)
-        save_model(model, epoch_ix, update_best=is_updated, **kwargs)
+        save_model(model, epoch_ix, update_best=is_updated, config=config)
 
 
 if __name__ == '__main__':
@@ -108,5 +106,5 @@ if __name__ == '__main__':
 
     model = build_model(config)
 
-    train(model, **config)
+    train(model, config)
 

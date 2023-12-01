@@ -11,10 +11,9 @@ import models._model_utils as model_utils
 class BigBird:
 
     def __init__(self, config):
-        self.batch_size = config['batch_size']
-        self.tokenizer = BigBirdTokenizerFast.from_pretrained(config['model_weights'])
-        self.model = BigBirdForQuestionAnswering.from_pretrained(config['model_weights'])
-        self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None
+        self.tokenizer = BigBirdTokenizerFast.from_pretrained(config.model_weights)
+        self.model = BigBirdForQuestionAnswering.from_pretrained(config.model_weights)
+        self.page_retrieval = config.page_retrieval.lower()
         self.ignore_index = 9999  # 0
 
     def parallelize(self):
@@ -64,18 +63,9 @@ class BigBird:
 
             outputs = self.model(input_ids, attention_mask=attention_mask, start_positions=start_pos, end_positions=end_pos)
             pred_answers, answ_confidence = self.get_answer_from_model_output(input_ids, outputs) if return_pred_answer else None
-
-            if self.page_retrieval == 'oracle':
-                pred_answer_pages = batch['answer_page_idx']
-
-            elif self.page_retrieval == 'concat':
-                pred_answer_pages = [context_page_token_correspondent[batch_idx][pred_start_idx] if len(context_page_token_correspondent[batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(outputs.start_logits.argmax(-1).tolist())]
-
-            elif self.page_retrieval == 'none':
-                pred_answer_pages = None
+            pred_answer_pages = self.get_pred_answer_page(outputs.start_logits, batch.get('answer_page_idx', None), context_page_token_correspondent)
 
         return outputs, pred_answers, pred_answer_pages, answ_confidence
-
 
     def get_answer_from_model_output(self, input_tokens, outputs):
         start_idxs = torch.argmax(outputs.start_logits, axis=1)
@@ -96,3 +86,15 @@ class BigBird:
         answ_confidence = model_utils.get_extractive_confidence(outputs)
 
         return answers, answ_confidence
+
+    def get_pred_answer_page(self, start_logits, answer_page_idx, context_page_token_correspondent):
+        if answer_page_idx is None or self.page_retrieval == 'none':
+            pred_answer_pages = None
+
+        elif self.page_retrieval == 'oracle':
+            pred_answer_pages = answer_page_idx
+
+        elif self.page_retrieval == 'concat':
+            pred_answer_pages = [context_page_token_correspondent[batch_idx][pred_start_idx].item() if len(context_page_token_correspondent[batch_idx]) > pred_start_idx else -1 for batch_idx, pred_start_idx in enumerate(start_logits.argmax(-1).tolist())]
+
+        return pred_answer_pages
