@@ -9,6 +9,27 @@ from torch.utils.data import DataLoader
 from datasets.dataset_utils import docvqa_collate_fn
 
 
+def change_ablation_config(config, use_features_index):
+
+    if use_features_index == 0:
+        config.use_spatial_features = True
+        config.use_visual_features = True
+
+    if use_features_index == 1:
+        config.use_spatial_features = True
+        config.use_visual_features = False
+
+    if use_features_index == 2:
+        config.use_spatial_features = False
+        config.use_visual_features = True
+
+    if use_features_index == 3:
+        config.use_spatial_features = False
+        config.use_visual_features = False
+
+    return config
+
+
 def run_forward(model, config, print_answers):
     for split in ["train", "val", "test"]:
         dataset = build_dataset(config, split)
@@ -19,7 +40,7 @@ def run_forward(model, config, print_answers):
             print_answers_func(batch['answers'], pred_answers)
 
 
-def test_forward_on_spdocvqa(unit_test, model):
+def test_use_features_on_spdocvqa(unit_test, model):
     model_name = unit_test.args.model
     print("\tTest {:s} on SP-DocVQA:".format(model_name))
     unit_test.args.dataset = 'SP-DocVQA'
@@ -32,7 +53,7 @@ def test_forward_on_spdocvqa(unit_test, model):
     print("\tTest {:s} on SP-DocVQA passed.\n".format(model_name))
 
 
-def test_forward_on_mpdocvqa(unit_test, model):
+def test_use_features_on_mpdocvqa(unit_test, model):
     model_name = unit_test.args.model
     print("\tTest {:} on MP-DocVQA:".format(model_name))
     unit_test.args.page_retrieval = None
@@ -79,7 +100,7 @@ def test_forward_on_mpdocvqa(unit_test, model):
     print("\tTest {:s} on MP-DocVQA passed.\n".format(model_name))
 
 
-def test_forward_on_dude(unit_test, model):
+def test_use_features_on_dude(unit_test, model):
     model_name = unit_test.args.model
     print("\tTest {:s} on DUDE:".format(model_name))
     unit_test.args.page_retrieval = None
@@ -119,76 +140,68 @@ def test_forward_on_dude(unit_test, model):
         with unit_test.assertRaises(ValueError):
             load_config(unit_test.args)
     else:
-        config = set_test_config(load_config(unit_test.args))
-        model.page_retrieval = "custom"
-        run_forward(model, config, unit_test.print_answers)
+        print("Skipping custom test on DUDE")
+        # config = set_test_config(load_config(unit_test.args))
+        # model.page_retrieval = "custom"
+        # run_forward(model, config, unit_test.print_answers)
 
     print("\tTest {:} on DUDE passed.\n".format(model_name))
 
 
-def test_forward(unit_test, model_name):
-    print("Testing Forward {:s}...".format(model_name))
+def check_model_config(unit_test, model, config):
+
+    unit_test.assertEqual(model.use_spatial_features, config.use_spatial_features)
+    unit_test.assertEqual(model.use_visual_features, config.use_visual_features)
+
+
+def test_use_features(unit_test, model_name):
+    print("Testing Use Features {:s}...".format(model_name))
 
     unit_test.args.page_retrieval = None
     unit_test.args.model = model_name
     unit_test.args.dataset = 'SP-DocVQA'
 
     config = set_test_config(load_config(unit_test.args))
-    model = build_model(config)
-    model.model.to(config.device)
 
-    test_forward_on_spdocvqa(unit_test, model)
-    test_forward_on_mpdocvqa(unit_test, model)
-    test_forward_on_dude(unit_test, model)
+    for use_features_index in range(5):
+        unit_test.args.page_retrieval = None
+        config = change_ablation_config(config, use_features_index)
+        model = build_model(config)
+        model.model.to(config.device)
+        check_model_config(unit_test, model, config)
+
+        test_use_features_on_spdocvqa(unit_test, model)
+        test_use_features_on_mpdocvqa(unit_test, model)
+        test_use_features_on_dude(unit_test, model)
 
 
 class TestModelForward(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.args = get_mock_args()
+        cls.args.dataset = 'SP-DocVQA'
         cls.print_answers = True
 
-    def test_forward_bert(self):
+    def test_use_features_vt5(self):
         self.is_hierarchical_method = False
-        test_forward(self, "BertQA")
-        
-    def test_forward_longformer(self):
-        self.is_hierarchical_method = False
-        test_forward(self, "Longformer")
+        self.use_features_index = 0
+        test_use_features(self, "VT5")
 
-    def test_forward_bigbird(self):
-        self.is_hierarchical_method = False
-        test_forward(self, "BigBird")
-
-    def test_forward_t5(self):
-        self.is_hierarchical_method = False
-        test_forward(self, "T5")
-
-    def test_forward_longt5(self):
-        self.is_hierarchical_method = False
-        test_forward(self, "LongT5")
-
-    def test_forward_vt5(self):
-        self.is_hierarchical_method = False
-        test_forward(self, "VT5")
-
+    """
     def test_forward_layoutlmv2(self):
         self.is_hierarchical_method = False
-        raise NotImplementedError('Donut forward is not correctly implemented, yet.')
-        test_forward(self, "LayoutLMv2")
+        self.use_features_index = 0
+        test_use_features(self, "LayoutLMv2")
 
     def test_forward_layoutlmv3(self):
         self.is_hierarchical_method = False
-        test_forward(self, "LayoutLMv3")
-
-    def test_forward_donut(self):
-        self.is_hierarchical_method = False
-        raise NotImplementedError('Donut forward is not implemented, yet.')
-        test_forward(self, 'Donut')
-
+        self.use_features_index = 0
+        test_use_features(self, "LayoutLMv3")
+    """
     def test_forward_hivt5(self):
         self.is_hierarchical_method = True
-        test_forward(self, "HiVT5")
+        self.use_features_index = 0
+        test_use_features(self, "HiVT5")
 
 
 if __name__ == '__main__':

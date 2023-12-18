@@ -84,6 +84,9 @@ def check_config(config):
     if 'page_retrieval' not in config:
         config.page_retrieval = 'none'
 
+    if 'ablation' not in config:
+        config.ablation = None
+
     page_retrieval = config.page_retrieval.lower()
     max_pages = getattr(config, 'max_pages', None)
     if model_name not in ['hi-vt5'] and page_retrieval == 'custom':
@@ -114,6 +117,20 @@ def check_config(config):
     return True
 
 
+def parse_config(config, args):
+    # Import included configs.
+    for included_config_path in config.get('includes', []):
+        config = load_config(included_config_path, args) | config
+
+    return config
+
+
+def config_to_Namespace(config):
+    config = argparse.Namespace(**config)
+    # config = argparse.Namespace(**{k: config_to_Namespace(v) if isinstance(v, dict) else v for k,v in config.items()})
+    return config
+
+
 def load_config(args):
     model_config_path = "configs/models/{:}.yml".format(args.model)
     dataset_config_path = "configs/datasets/{:}.yml".format(args.dataset)
@@ -134,18 +151,12 @@ def load_config(args):
         print("Seed not specified. Setting default seed to '{:d}'".format(42))
         config['seed'] = 42
 
-    config = argparse.Namespace(**config)
+    config = config_to_Namespace(config)
     check_config(config)
-
     return config
 
 
-def parse_config(config, args):
-    # Import included configs.
-    for included_config_path in config.get('includes', []):
-        config = load_config(included_config_path, args) | config
 
-    return config
 
 
 def correct_alignment(context, answer, start_idx, end_idx):

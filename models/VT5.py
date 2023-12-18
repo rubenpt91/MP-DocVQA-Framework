@@ -15,8 +15,8 @@ class HF_VT5(PreTrainedModel):
         super().__init__(t5_config)
 
         self.language_backbone = T5ForConditionalGeneration(t5_config)
-        self.spatial_embedding = SpatialEmbeddings(t5_config)
-        self.visual_embedding = VisualEmbeddings(t5_config)
+        self.spatial_embedding = SpatialEmbeddings(t5_config) if t5_config.use_spatial_features else None
+        self.visual_embedding = VisualEmbeddings(t5_config) if t5_config.use_visual_features else None
 
 
 class VT5:
@@ -24,8 +24,12 @@ class VT5:
         self.page_retrieval = config.page_retrieval.lower()
         self.max_source_length = getattr(config, 'max_source_length', 512)
 
+        self.use_spatial_features = getattr(config, 'use_spatial_features', True)
+        self.use_visual_features = getattr(config, 'use_visual_features', True)
         t5_config = CustomT5Config.from_pretrained(config.model_weights)
         t5_config.visual_module_config = config.visual_module
+        t5_config.use_spatial_features = self.use_spatial_features
+        t5_config.use_visual_features = self.use_visual_features
 
         self.tokenizer = T5Tokenizer.from_pretrained(config.model_weights)
         self.model = HF_VT5.from_pretrained(config.model_weights, config=t5_config)
@@ -73,13 +77,24 @@ class VT5:
 
         # Get semantic and spatial embeddings
         semantic_embedding = self.model.language_backbone.shared(tensor_input_ids)
-        spatial_embedding = self.model.spatial_embedding(tensor_boxes)
-        visual_embedding, visual_emb_mask = self.model.visual_embedding(images)
 
-        # input_embeds = semantic_embedding
-        input_embeds = torch.add(semantic_embedding, spatial_embedding)
-        input_embeds = torch.cat([input_embeds, visual_embedding], dim=1)  # Concatenate semantic + visual embeddings TODO: Provide visual bounding boxes.
-        tensor_attention_mask = torch.cat([tensor_attention_mask, visual_emb_mask], dim=1)
+        if self.use_visual_features:
+            visual_embedding, visual_emb_mask = self.model.visual_embedding(images)
+
+        if self.use_spatial_features:
+            spatial_embedding = self.model.spatial_embedding(tensor_boxes) if self.use_spatial_features else None
+
+            if self.use_visual_features:
+                vis_boxes = self.model.visual_embedding.get_visual_boxes(num_pages=len(visual_embedding), scale=1000).to(semantic_embedding.device)  # Get visual boxes.
+                vis_boxes_emb = self.model.spatial_embedding(vis_boxes.long())  # Get the spatial embeddings from the boxes.
+                visual_embedding = visual_embedding + vis_boxes_emb  # Sum both visual-spatial representation.
+
+        # Add spatial and semantic embeddings.
+        input_embeds = torch.add(semantic_embedding, spatial_embedding) if self.use_spatial_features else semantic_embedding
+
+        # Concatenate semantic + visual embeddings
+        input_embeds = torch.cat([input_embeds, visual_embedding], dim=1) if self.use_visual_features else input_embeds
+        tensor_attention_mask = torch.cat([tensor_attention_mask, visual_emb_mask], dim=1) if self.use_visual_features else tensor_attention_mask
 
         # Tokenize answers
         if answers is not None:

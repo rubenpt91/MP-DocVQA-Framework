@@ -94,7 +94,7 @@ Here we describe the main changes performed to add spatial and visual features. 
 
 #### Spatial and Visual Features
 
-* **Spatial features**: We define the [`SpatialEmbedding`](../models/HiLT5.py#L39) as four (x<sub>0</sub>, y<sub>0</sub>, x<sub>1</sub>, y<sub>1</sub>) `nn.Embedding` for 1000 (normalized bounding box coordinates scaled to 0-1000) and hidden size (512, 768, 1024). You can currently find 2 extra embeddings for width and height commented, since we didn't find any significant improvement using them.
+* **Spatial features**: We define the [`SpatialEmbedding`](../models/HiVT5.py#L39) as four (x<sub>0</sub>, y<sub>0</sub>, x<sub>1</sub>, y<sub>1</sub>) `nn.Embedding` for 1000 (normalized bounding box coordinates scaled to 0-1000) and hidden size (512, 768, 1024). You can currently find 2 extra embeddings for width and height commented, since we didn't find any significant improvement using them.
   * In [lines 487-490](../models/HiVT5.py#L487) we get the **semantic embedding** of the words from the language model `self.shared`. Then we obtain the **spatial embedding** by sending the words' boxes to the `self.spatial_embedding` and sum up both representations. 
 
 

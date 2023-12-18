@@ -1,9 +1,8 @@
-
 import os
 from PIL import Image
 
 import numpy as np
-import utils
+import datasets.dataset_utils as dataset_utils
 from datasets.MP_DocVQA import MPDocVQA
 
 
@@ -73,7 +72,7 @@ class DUDE(MPDocVQA):
                 image_names = [os.path.join(self.images_dir, "{:s}".format(image_name.split('/')[-1])) for image_name in record['image_name']]
                 images = [Image.open(img_path).convert("RGB") for img_path in image_names]
                 images += [Image.new('RGB', (2, 2)) for i in range(self.max_pages - len(image_names))]  # Pad with 2x2 images.
-                images, boxes = utils.create_grid_image(images, boxes)
+                images, boxes = dataset_utils.create_grid_image(images, boxes)
 
             else:
                 boxes = np.array(boxes, dtype=np.float32)

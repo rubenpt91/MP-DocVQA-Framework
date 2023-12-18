@@ -38,6 +38,10 @@ class TestInitModels(unittest.TestCase):
         self.args.model = 'LayoutLMv3'
         test_init_model(self)
 
+    def test_init_donut(self):
+        self.args.model = 'Donut'
+        test_init_model(self)
+
     def test_init_t5(self):
         self.args.model = 'T5'
         test_init_model(self)

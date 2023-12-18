@@ -5,6 +5,8 @@ model_name: VT5
 model_weights: rubentito/vt5-base-spdocvqa
 max_source_length: 512
 device: cuda
+use_spatial_features: True
+use_visual_features: True
 data_parallel: False
 
 training_parameters:
@@ -17,4 +19,5 @@ visual_module:
   model: 'dit'  # 'vit' / 'dit'
   finetune: false
   model_weights: 'microsoft/dit-base-finetuned-rvlcdip'  # 'google/vit-base-patch16-224-in21k' / 'microsoft/dit-base-finetuned-rvlcdip'
+
 

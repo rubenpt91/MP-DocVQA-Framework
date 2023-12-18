@@ -16,6 +16,13 @@ def get_mock_args():
     return args
 
 
+def print_answers_func(gt_answers, pred_answers):
+    if gt_answers is not None:
+        print("".join(["\t\tGT: {:} \tPred: {:}\n".format(gt_answer, pred_answer) for gt_answer, pred_answer in zip(gt_answers, pred_answers)]))
+    else:
+        print("".join(["\t\tGT: {:} \tPred: {:}\n".format(None, pred_answer) for pred_answer in pred_answers]))
+
+
 # python -m unittest discover tests/
 
     """ TODO:

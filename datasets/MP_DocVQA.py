@@ -1,11 +1,10 @@
-
 import os
 import random
 from PIL import Image
 
 import numpy as np
 from torch.utils.data import Dataset
-import utils
+import datasets.dataset_utils as dataset_utils
 
 
 class MPDocVQA(Dataset):
@@ -99,7 +98,7 @@ class MPDocVQA(Dataset):
             if self.use_images:
                 image_names = [os.path.join(self.images_dir, "{:s}.jpg".format(image_name)) for image_name in record['image_name']]
                 images = [Image.open(img_path).convert("RGB") for img_path in image_names]
-                images, boxes = utils.create_grid_image(images, boxes)
+                images, boxes = dataset_utils.create_grid_image(images, boxes)
 
             else:
                 boxes = np.array(boxes)

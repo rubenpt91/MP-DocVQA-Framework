@@ -34,13 +34,13 @@ class HiVT5(T5ForConditionalGeneration):
     def __init__(self, config):
         super().__init__(config)
         self.config = config
-        self.spatial_embeddings = SpatialEmbeddings(config)
-        self.visual_embeddings = VisualEmbeddings(config)
-
-        self.retrieval_module = RetrievalModule(config)
-
         self.use_spatial_features = config.use_spatial_features
         self.use_visual_features = config.use_visual_features
+
+        self.spatial_embeddings = SpatialEmbeddings(config) if self.use_spatial_features else None
+        self.visual_embeddings = VisualEmbeddings(config) if self.use_visual_features else None
+        self.retrieval_module = RetrievalModule(config)
+
         self.page_tokens = config.page_tokens
         self.max_doc_pages = config.max_doc_pages
 
@@ -61,14 +61,15 @@ class HiVT5(T5ForConditionalGeneration):
 
         page_embeddings = []
         page_encoder_attentions = []
+
         for p_idx in range(max(model_kwargs['num_pages'])):
 
+            semantic_emb = self.shared(inputs_tensor[:, p_idx])  # get representation from backbone T5
             if self.use_spatial_features:
-                semantic_emb = self.shared(inputs_tensor[:, p_idx])  # read from default T5
                 spatial_emb = self.spatial_embeddings(bbox[:, p_idx])
                 text_embeds = semantic_emb + spatial_emb
             else:
-                text_embeds = self.shared(inputs_tensor[:, p_idx])  # read from default T5
+                text_embeds = semantic_emb
 
             page_idx_mask = [batch_idx for batch_idx in range(len(num_pages)) if num_pages[batch_idx] >= p_idx + 1]
 
@@ -443,21 +444,32 @@ class HiVT5(T5ForConditionalGeneration):
             page_encoder_attentions = []
             # for page_idx in range(self.max_doc_pages):
             for page_idx in range(max(num_pages)):
-                semantic_emb = self.shared(input_ids[:, page_idx])  # read from default T5
-                # spatial_emb = self.spatial_emb_matcher(self.spatial_embeddings(bbox[:, page_idx]))
-                spatial_emb = self.spatial_embeddings(bbox[:, page_idx])
-                text_embeds = semantic_emb + spatial_emb
+
+                semantic_emb = self.shared(input_ids[:, page_idx])  # read from backbone T5
+                if self.use_spatial_features:
+                    spatial_emb = self.spatial_embeddings(bbox[:, page_idx])
+                    text_embeds = semantic_emb + spatial_emb
+
+                else:
+                    text_embeds = semantic_emb
 
                 page_idx_mask = [batch_idx for batch_idx in range(len(num_pages)) if num_pages[batch_idx] >= page_idx+1]
-                visual_emb, vis_mask = self.visual_embeddings([doc_images[page_idx] for doc_images in images], page_idx_mask=page_idx_mask)
 
-                # TODO: Try with / without.
-                vis_boxes = self.visual_embeddings.get_visual_boxes(num_pages=len(visual_emb), scale=1000)  # Get visual boxes.
-                vis_boxes_emb = self.spatial_embeddings(vis_boxes.long().to(self.device))  # Get the spatial embeddings from the boxes.
-                visual_emb = visual_emb + vis_boxes_emb  # Sum both visual-spatial representation.
+                if self.use_visual_features:
+                    visual_emb, vis_mask = self.visual_embeddings([doc_images[page_idx] for doc_images in images], page_idx_mask=page_idx_mask)
 
-                inputs_embeds = torch.cat((text_embeds, visual_emb), dim=1)
-                inputs_mask = torch.cat((attention_mask[:, page_idx], vis_mask), dim=1)
+                    if self.use_spatial_features:
+                        vis_boxes = self.visual_embeddings.get_visual_boxes(num_pages=len(visual_emb), scale=1000)  # Get visual boxes.
+                        vis_boxes_emb = self.spatial_embeddings(vis_boxes.long().to(self.device))  # Get the spatial embeddings from the boxes.
+                        visual_emb = visual_emb + vis_boxes_emb  # Sum both visual-spatial representation.
+
+                    inputs_embeds = torch.cat((text_embeds, visual_emb), dim=1)
+                    inputs_mask = torch.cat((attention_mask[:, page_idx], vis_mask), dim=1)
+
+                else:
+                    inputs_embeds = text_embeds
+                    inputs_mask = attention_mask[:, page_idx]
+
                 encoder_outputs = self.encoder(
                     input_ids=None,  # Input IDs must be None because input embeds is provided.
                     attention_mask=inputs_mask,
@@ -492,7 +504,7 @@ class HiVT5(T5ForConditionalGeneration):
                 attentions=encoder_outputs[2] if len(encoder_outputs) > 2 else None,
             )
 
-            hidden_states = encoder_outputs[0]  # TODO - This should be replaced by document embeddings
+            hidden_states = encoder_outputs[0]
             document_embeddings = hidden_states
 
             attention_mask = torch.zeros([hidden_states.shape[0], self.page_tokens * max(num_pages)])
@@ -601,9 +613,9 @@ class Proxy_HiVT5:
         config_x.page_tokens = self.page_tokens
         config_x.max_doc_pages = self.max_doc_pages
         config_x.use_spatial_features = getattr(config, 'use_spatial_features', True)
-        config_x.page_retrieval_config = config.retrieval_module
         config_x.use_visual_features = getattr(config, 'use_visual_features', True)
-        config_x.visual_module_config = config.visual_module
+        config_x.visual_module_config = config.visual_module if config_x.use_visual_features else None
+        config_x.page_retrieval_config = config.retrieval_module
         self.tokenizer = T5Tokenizer.from_pretrained(config.model_weights)
         # self.tokenizer.add_tokens("[PAGE]")  # Single representation
         [self.tokenizer.add_tokens(f"[PAGE_{i}]") for i in range(self.page_tokens)]  # Multiple representation
@@ -668,27 +680,29 @@ class Proxy_HiVT5:
 
             pretext_length = len(self.tokenizer("question: {:s}  context: ".format(question[batch_idx])).input_ids[:-1])
             pretext_boxes = torch.tensor([question_box] * pretext_length)
-            for page_idx in range(num_pages[batch_idx]):
-                if len(boxes[batch_idx][page_idx]) >= 1:
-                    context_boxes = torch.tensor(np.array([box for word, word_box in zip(words[batch_idx][page_idx], boxes[batch_idx][page_idx]) for box in [word_box] * len(self.tokenizer(word).input_ids[:-1])]))
-                    context_boxes = context_boxes[:self.tokenizer.model_max_length - self.page_tokens - len(pretext_boxes) - 1]  # Remove boxes out of model max length.
 
-                else:
-                    context_boxes = torch.tensor(padding_box)
+            if self.model.use_spatial_features:
+                for page_idx in range(num_pages[batch_idx]):
+                    if len(boxes[batch_idx][page_idx]) >= 1 and self.model.use_spatial_features:
+                        context_boxes = torch.tensor(np.array([box for word, word_box in zip(words[batch_idx][page_idx], boxes[batch_idx][page_idx]) for box in [word_box] * len(self.tokenizer(word).input_ids[:-1])]))
+                        context_boxes = context_boxes[:self.tokenizer.model_max_length - self.page_tokens - len(pretext_boxes) - 1]  # Remove boxes out of model max length.
 
-                all_boxes[batch_idx, page_idx, :self.page_tokens] = torch.tensor(page_token_box)
-                all_boxes[batch_idx, page_idx, self.page_tokens: self.page_tokens + len(pretext_boxes)] = pretext_boxes
-                all_boxes[batch_idx, page_idx, self.page_tokens + pretext_length: self.page_tokens + pretext_length + len(context_boxes)] = context_boxes * 1000
+                    else:
+                        context_boxes = torch.tensor(padding_box)
 
-                all_boxes[batch_idx, page_idx, self.page_tokens + pretext_length + len(context_boxes)] = torch.tensor(eos_box)
+                    all_boxes[batch_idx, page_idx, :self.page_tokens] = torch.tensor(page_token_box)
+                    all_boxes[batch_idx, page_idx, self.page_tokens: self.page_tokens + len(pretext_boxes)] = pretext_boxes
+                    all_boxes[batch_idx, page_idx, self.page_tokens + pretext_length: self.page_tokens + pretext_length + len(context_boxes)] = context_boxes * 1000
+
+                    all_boxes[batch_idx, page_idx, self.page_tokens + pretext_length + len(context_boxes)] = torch.tensor(eos_box)
 
         max_seq = min(longest_sequence, self.max_text_tokens)
         all_input_ids = all_input_ids[:, :, :max_seq]
-        all_boxes = all_boxes[:, :, :max_seq]
+        all_boxes = all_boxes[:, :, :max_seq] if self.model.use_spatial_features else None
         all_attention_masks = all_attention_masks[:, :, :max_seq]
 
         all_input_ids = all_input_ids.to(self.device)
-        all_boxes = all_boxes.to(self.device)
+        all_boxes = all_boxes.to(self.device) if self.model.use_spatial_features else None
         all_attention_masks = all_attention_masks.to(self.device)
 
         return all_input_ids, all_boxes, all_attention_masks
