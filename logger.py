@@ -26,6 +26,12 @@ class Logger:
                   'Batch size': config.batch_size, 'Max. Seq. Length': getattr(config, 'max_sequence_length', '-'),
                   'lr': config.lr, 'seed': config.seed}
 
+        if 'use_spatial_features' in config:
+            config_dict['Use Spatial Features'] = config.use_spatial_features
+
+        if 'use_visual_features' in config:
+            config_dict['Use Visual Features'] = config.use_visual_features
+
         if document_pages:
             config_dict['Max Pages'] = document_pages
 

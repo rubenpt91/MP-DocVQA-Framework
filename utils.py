@@ -5,6 +5,17 @@ import numpy as np
 import torch
 
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description='MP-DocVQA framework')
 
@@ -20,11 +31,12 @@ def parse_args():
     parser.add_argument('-p', '--page-retrieval', type=str, help='Page retrieval set-up.')
     parser.add_argument('-bs', '--batch-size', type=int, help='DataLoader batch size.')
     parser.add_argument('-msl', '--max-sequence-length', type=int, help='Max input sequence length of the model.')
+    parser.add_argument('-sf', '--use_spatial_features', type=str2bool, help='Specify whether or not use spatial features.')
+    parser.add_argument('-vf', '--use_visual_features', type=str2bool, help='Specify whether or not use vsiual features.')
     parser.add_argument('--seed', type=int, help='Seed to allow reproducibility.')
     parser.add_argument('--save-dir', type=str, help='Seed to allow reproducibility.')
 
-    parser.add_argument('--data-parallel', action='store_true', help='Boolean to overwrite data-parallel arg in config parallelize the execution.')
-    parser.add_argument('--no-data-parallel', action='store_false', dest='data_parallel', help='Boolean to overwrite data-parallel arg in config to indicate to parallelize the execution.')
+    parser.add_argument('--data-parallel', type=str2bool, help='Boolean to overwrite data-parallel arg in config parallelize the execution.')
     return parser.parse_args()
 
 
@@ -84,8 +96,11 @@ def check_config(config):
     if 'page_retrieval' not in config:
         config.page_retrieval = 'none'
 
-    if 'ablation' not in config:
-        config.ablation = None
+    if 'use_spatial_features' in config and model_name not in ['vt5', 'hivt5']:
+        print("WARNING - The ability to enable/desable spatial features is implemented only for VT5 and Hi-VT5. This will be ignored for {:}, and run with default configuration".format(config.model_name))
+
+    if 'use_visual_features' in config and model_name not in ['vt5', 'hivt5']:
+        print("WARNING - The ability to enable/desable visual features is implemented only for VT5 and Hi-VT5. This will be ignored for {:}, and run with default configuration.".format(config.model_name))
 
     page_retrieval = config.page_retrieval.lower()
     max_pages = getattr(config, 'max_pages', None)
@@ -154,9 +169,6 @@ def load_config(args):
     config = config_to_Namespace(config)
     check_config(config)
     return config
-
-
-
 
 
 def correct_alignment(context, answer, start_idx, end_idx):
