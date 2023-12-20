@@ -15,6 +15,7 @@ from utils.parallel_utils import get_distributed_sampler
 
 def evaluate(data_loader, model, evaluator, config):
 
+    dataset_has_answers = data_loader.dataset.has_answers
     return_scores_by_sample = getattr(config, 'return_scores_by_sample', False)
     return_answers = getattr(config, 'return_answers', False)
 
@@ -38,38 +39,39 @@ def evaluate(data_loader, model, evaluator, config):
             outputs, pred_answers, pred_answer_page, answer_conf = model.forward(batch, return_pred_answer=True)
             # print(pred_answers)
 
-        metric = evaluator.get_metrics(batch['answers'], pred_answers, batch.get('answer_type', None))
+        if dataset_has_answers:
+            metric = evaluator.get_metrics(batch['answers'], pred_answers, batch.get('answer_type', None))
 
-        if 'answer_page_idx' in batch and pred_answer_page is not None:
-            ret_metric = evaluator.get_retrieval_metric(batch['answer_page_idx'], pred_answer_page)
-        else:
-            ret_metric = [0 for _ in range(bs)]
+            if 'answer_page_idx' in batch and pred_answer_page is not None:
+                ret_metric = evaluator.get_retrieval_metric(batch['answer_page_idx'], pred_answer_page)
+            else:
+                ret_metric = [0 for _ in range(bs)]
 
-        if return_scores_by_sample:
-            for batch_idx in range(bs):
-                scores_by_samples[batch['question_id'][batch_idx]] = {
-                    'accuracy': metric['accuracy'][batch_idx],
-                    'anls': metric['anls'][batch_idx],
-                    'ret_prec': ret_metric[batch_idx],
-                    'pred_answer': pred_answers[batch_idx],
-                    'pred_answer_conf': answer_conf[batch_idx],
-                    'pred_answer_page': pred_answer_page[batch_idx] if pred_answer_page is not None else None
-                }
+            if return_scores_by_sample:
+                for batch_idx in range(bs):
+                    scores_by_samples[batch['question_id'][batch_idx]] = {
+                        'accuracy': metric['accuracy'][batch_idx],
+                        'anls': metric['anls'][batch_idx],
+                        'ret_prec': ret_metric[batch_idx],
+                        'pred_answer': pred_answers[batch_idx],
+                        'pred_answer_conf': answer_conf[batch_idx],
+                        'pred_answer_page': pred_answer_page[batch_idx] if pred_answer_page is not None else None
+                    }
 
-        if return_scores_by_sample:
-            total_accuracies.extend(metric['accuracy'])
-            total_anls.extend(metric['anls'])
-            total_ret_prec.extend(ret_metric)
+            if return_scores_by_sample:
+                total_accuracies.extend(metric['accuracy'])
+                total_anls.extend(metric['anls'])
+                total_ret_prec.extend(ret_metric)
 
-        else:
-            total_accuracies += sum(metric['accuracy'])
-            total_anls += sum(metric['anls'])
-            total_ret_prec += sum(ret_metric)
+            else:
+                total_accuracies += sum(metric['accuracy'])
+                total_anls += sum(metric['anls'])
+                total_ret_prec += sum(ret_metric)
 
         if return_answers:
             all_pred_answers.extend(pred_answers)
 
-    if not return_scores_by_sample:
+    if not return_scores_by_sample and dataset_has_answers:
         total_accuracies = total_accuracies/len(data_loader.dataset)
         total_anls = total_anls/len(data_loader.dataset)
         total_ret_prec = total_ret_prec/len(data_loader.dataset)
@@ -86,17 +88,17 @@ def run_evaluation(local_rank, config):
     # config.return_answers = True
     # config.return_scores_by_sample = True
 
-    config.global_rank = config.node_id * config.num_gpus + local_rank
-
     if config.distributed:
+        config.global_rank = config.node_id * config.num_gpus + local_rank
+
         torch.distributed.init_process_group(
             backend='nccl',
             world_size=config.world_size,
-            rank=args.global_rank
+            rank=config.global_rank
         )
 
-    config.local_rank = local_rank
-    config.device = "cuda:{:d}".format(local_rank)
+        config.local_rank = local_rank
+        config.device = "cuda:{:d}".format(local_rank)
 
     start_time = time.time()
 

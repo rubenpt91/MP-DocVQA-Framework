@@ -71,13 +71,11 @@ def build_dataset(config, split):
     # Specify special params for data processing depending on the model used.
     dataset_kwargs = {}
 
-    if config.model_name.lower() in ['layoutlmv2', 'layoutlmv3', 'lt5', 'vt5', 'hilt5', 'hi-lt5', 'hivt5', 'hi-vt5']:
-        dataset_kwargs['get_raw_ocr_data'] = True
-
     if config.model_name.lower() in ['layoutlmv2', 'layoutlmv3', 'vt5', 'hivt5', 'hi-vt5']:
+        dataset_kwargs['get_raw_ocr_data'] = True
         dataset_kwargs['use_images'] = True
 
-    if config.model_name.lower() in ['hilt5', 'hi-lt5', 'hivt5', 'hi-vt5']:
+    if config.model_name.lower() in ['hivt5', 'hi-vt5']:
         dataset_kwargs['max_pages'] = getattr(config, 'max_pages', 1)
         dataset_kwargs['hierarchical_method'] = True
 
@@ -85,6 +83,10 @@ def build_dataset(config, split):
     if config.dataset_name == 'SP-DocVQA':
         from datasets.SP_DocVQA import SPDocVQA
         dataset = SPDocVQA(config.imdb_dir, config.images_dir, split, dataset_kwargs)
+
+    elif config.dataset_name == 'InfographicsVQA':
+        from datasets.InfographicsVQA import InfographicsVQA
+        dataset = InfographicsVQA(config.imdb_dir, config.images_dir, split, dataset_kwargs)
 
     elif config.dataset_name == 'MP-DocVQA':
         from datasets.MP_DocVQA import MPDocVQA

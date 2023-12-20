@@ -9,9 +9,10 @@ from PIL import Image
 class SPDocVQA(Dataset):
 
     def __init__(self, imbd_dir, images_dir, split, kwargs):
-        data = np.load(os.path.join(imbd_dir, "new_imdb_{:s}.npy".format(split)), allow_pickle=True)
+        data = np.load(os.path.join(imbd_dir, "imdb_{:s}.npy".format(split)), allow_pickle=True)
         self.header = data[0]
         self.imdb = data[1:]
+        self.has_answers = self.header['has_answer']
         self.hierarchical_method = kwargs.get('hierarchical_method', False)
 
         self.max_answers = 2
@@ -29,7 +30,7 @@ class SPDocVQA(Dataset):
         context = ' '.join([word.lower() for word in record['ocr_tokens']])
         context_page_corresp = [0 for ix in range(len(context))]  # This is used to predict the answer page in MP-DocVQA. To keep it simple, use a mock list with corresponding page to 0.
 
-        answers = list(set(answer.lower() for answer in record['answers']))
+        answers = list(set(answer.lower() for answer in record['answers'])) if self.has_answers else None
 
         if self.use_images:
             image_name = os.path.join(self.images_dir, "{:s}.png".format(record['image_name']))
@@ -75,6 +76,9 @@ class SPDocVQA(Dataset):
 
     def _get_start_end_idx(self, context, answers):
 
+        if answers is None:
+            return None, None
+
         answer_positions = []
         for answer in answers:
             start_idx = context.find(answer)
@@ -89,7 +93,3 @@ class SPDocVQA(Dataset):
             start_idx, end_idx = 0, 0  # If the indices are out of the sequence length they are ignored. Therefore, we set them as a very big number.
 
         return start_idx, end_idx
-
-
-if __name__ == '__main__':
-    singlepage_docvqa = SPDocVQA("/SSD/Datasets/DocVQA/Task1/pythia_data/imdb/docvqa/", split='val')

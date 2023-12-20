@@ -1,0 +1,4 @@
+dataset_name: InfographicsVQA
+imdb_dir: /SSD2/Datasets/InfographicsVQA/imdb
+images_dir: /SSD2/Datasets/InfographicsVQA/images
+multipage_dataset: False

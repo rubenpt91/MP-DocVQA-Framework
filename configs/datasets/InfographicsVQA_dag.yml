@@ -1,0 +1,4 @@
+dataset_name: InfographicsVQA
+imdb_dir: /data/users/rperez/InfographicsVQA/imdb
+images_dir: /data/users/rperez/InfographicsVQA/images
+multipage_dataset: False

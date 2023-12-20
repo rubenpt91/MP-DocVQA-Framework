@@ -14,7 +14,7 @@ class MPDocVQA(Dataset):
         self.header = data[0]
         self.imdb = data[1:]
 
-        self.has_answer = self.header['has_answer']
+        self.has_answers = self.header['has_answer']
         self.page_retrieval = page_retrieval.lower()
         assert(self.page_retrieval in ['oracle', 'concat', 'logits', 'custom'])
 
@@ -49,7 +49,7 @@ class MPDocVQA(Dataset):
         record = self.imdb[idx]
 
         question = record['question']
-        answers = list(set(answer.lower() for answer in record['answers']))
+        answers = list(set(answer.lower() for answer in record['answers'])) if self.has_answers else None
         answer_page_idx = record['answer_page_idx']
         num_pages = record['imdb_doc_pages']
 
