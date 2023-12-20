@@ -136,8 +136,9 @@ def check_config(config):
         if not config.save_dir.endswith('/'):
             config.save_dir = config.save_dir + '/'
 
-        if not os.path.exists(config.save_dir):
-            os.makedirs(config.save_dir)
+    if not os.path.exists(config.save_dir):
+        os.makedirs(config.save_dir)
+        os.makedirs(os.path.join(config.save_dir, 'results'))
 
     return True
 
