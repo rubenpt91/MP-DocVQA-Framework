@@ -2,8 +2,7 @@ import torch
 import torch.nn as nn
 
 from transformers import AutoModelForQuestionAnswering, AutoTokenizer
-import models._model_utils as model_utils
-from utils import correct_alignment
+import utils.model_utils as model_utils
 
 
 class BertQA:

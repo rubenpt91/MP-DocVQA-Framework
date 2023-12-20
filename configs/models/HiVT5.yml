@@ -8,7 +8,6 @@ page_tokens: 10
 device: cuda
 use_spatial_features: True
 use_visual_features: True
-data_parallel: False
 max_text_tokens: 512
 
 retrieval_module:

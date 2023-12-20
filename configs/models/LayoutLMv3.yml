@@ -2,7 +2,6 @@ save_dir: save/
 model_name: LayoutLMv3
 model_weights: rubentito/layoutlmv3-base-mpdocvqa
 device: cuda
-data_parallel: False
 
 training_parameters:
   lr: 1e-4

@@ -8,8 +8,9 @@ from torch.utils.data import DataLoader
 from datasets.dataset_utils import docvqa_collate_fn
 from logger import Logger
 from metrics import Evaluator
-from utils import parse_args, time_stamp_to_hhmmss, load_config, save_json
+from utils.commons import parse_args, time_stamp_to_hhmmss, load_config, save_json
 from build_utils import build_model, build_dataset
+from utils.parallel_utils import get_distributed_sampler
 
 
 def evaluate(data_loader, model, evaluator, config):
@@ -77,17 +78,35 @@ def evaluate(data_loader, model, evaluator, config):
     return total_accuracies, total_anls, total_ret_prec, all_pred_answers, scores_by_samples
 
 
-if __name__ == '__main__':
+def run_evaluation(local_rank, config):
+# if __name__ == '__main__':
 
-    args = parse_args()
-    config = load_config(args)
-    config.return_answers = True
-    config.return_scores_by_sample = True
+    # args = parse_args()
+    # config = load_config(args)
+    # config.return_answers = True
+    # config.return_scores_by_sample = True
+
+    config.global_rank = config.node_id * config.num_gpus + local_rank
+
+    if config.distributed:
+        torch.distributed.init_process_group(
+            backend='nccl',
+            world_size=config.world_size,
+            rank=args.global_rank
+        )
+
+    config.local_rank = local_rank
+    config.device = "cuda:{:d}".format(local_rank)
 
     start_time = time.time()
 
     dataset = build_dataset(config, 'test')
-    val_data_loader = DataLoader(dataset, batch_size=config.batch_size, shuffle=False, collate_fn=docvqa_collate_fn)
+    if config.distributed:
+        dist_sampler = get_distributed_sampler(dataset, config)
+        val_data_loader = DataLoader(dataset, batch_size=config.batch_size, shuffle=False, collate_fn=docvqa_collate_fn, pin_memory=True, sampler=dist_sampler)
+
+    else:
+        val_data_loader = DataLoader(dataset, batch_size=config.batch_size, shuffle=False, collate_fn=docvqa_collate_fn)
 
     model = build_model(config)
 
@@ -120,3 +139,15 @@ if __name__ == '__main__':
     print("Results correctly saved in: {:s}".format(results_file))
 
 
+if __name__ == '__main__':
+    args = parse_args()
+    config = load_config(args)
+    config.return_answers = True
+    config.return_scores_by_sample = True
+
+    if config.distributed:
+        torch.multiprocessing.spawn(run_evaluation, nprocs=args.num_gpus, args=(config,))
+    else:
+        run_evaluation(local_rank=0, config=config)
+
+    print("\n\n\nPRINT AFTER EVALUATION\n\n\n")

@@ -3,7 +3,6 @@ import argparse
 
 def set_test_config(config):
     config.save_dir = 'test/' + config.save_dir
-    config.data_parallel = False
     config.batch_size = 2
     config.train_epochs = 1
 

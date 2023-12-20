@@ -2,7 +2,6 @@ save_dir: save/
 model_name: Longformer
 model_weights: rubentito/longformer-base-mpdocvqa
 device: cuda
-data_parallel: False
 
 training_parameters:
   lr: 1e-4  # (Longformer Colab) # 3e-5  # (Original Longformer paper) # 2e-4

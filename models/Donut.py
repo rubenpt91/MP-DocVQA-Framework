@@ -3,7 +3,7 @@ import random
 import torch
 import torch.nn as nn
 from transformers import DonutProcessor, VisionEncoderDecoderModel
-import models._model_utils as model_utils
+
 import transformers.models.donut.modeling_donut_swin
 import transformers.models.donut.processing_donut
 
@@ -12,7 +12,6 @@ import transformers.models.donut.processing_donut
 
 class Donut:
     def __init__(self, config):
-        self.batch_size = config['batch_size']
         self.processor = DonutProcessor.from_pretrained(config['model_weights'])
         self.model = VisionEncoderDecoderModel.from_pretrained(config['model_weights'])
         self.page_retrieval = config['page_retrieval'].lower() if 'page_retrieval' in config else None

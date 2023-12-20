@@ -5,7 +5,6 @@ model_name: VT5
 model_weights: rubentito/vt5-base-spdocvqa
 max_source_length: 512
 device: cuda
-data_parallel: False
 
 training_parameters:
   lr: 2e-4  # 2e-4

@@ -2,7 +2,6 @@ save_dir: save/
 model_name: BigBird
 model_weights: rubentito/bigbird-base-itc-mpdocvqa
 device: cuda
-data_parallel: False
 
 training_parameters:
   lr: 3e-5

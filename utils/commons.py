@@ -36,7 +36,11 @@ def parse_args():
     parser.add_argument('--seed', type=int, help='Seed to allow reproducibility.')
     parser.add_argument('--save-dir', type=str, help='Seed to allow reproducibility.')
 
-    parser.add_argument('--data-parallel', type=str2bool, help='Boolean to overwrite data-parallel arg in config parallelize the execution.')
+    # Parallelism
+    parser.add_argument('-dp', '--data-parallel', type=str2bool, help='Boolean to overwrite data-parallel arg in config parallelize the execution.')
+    parser.add_argument('--num_nodes', type=int, default=1, help='Number of available nodes/hosts.')
+    parser.add_argument('--node_id',   type=int, default=0, help='Unique ID too identify the current node/host.')
+    parser.add_argument('--num_gpus',  type=int, default=1, help='Number of GPUs in each node.')
     return parser.parse_args()
 
 
@@ -122,6 +126,12 @@ def check_config(config):
     elif page_retrieval == 'none' and config.multipage_dataset:
         print("Page retrieval can't be 'none' for dataset '{:s}'. This is intended only for single page datasets. Please specify in the method config file the 'page_retrieval' setup to one of the following: [oracle, concat, logits, custom] ".format(config.dataset_name))
 
+    config.world_size = config.num_gpus * config.num_nodes
+    config.distributed = True if config.world_size > 1 else False
+
+    if config.num_nodes > 1:
+        print("WARNING - This framework has been never tested using more than 1 node. Please, check that everything works as expected before blindly relying on this.")
+
     if 'save_dir' in config:
         if not config.save_dir.endswith('/'):
             config.save_dir = config.save_dir + '/'
@@ -169,22 +179,6 @@ def load_config(args):
     config = config_to_Namespace(config)
     check_config(config)
     return config
-
-
-def correct_alignment(context, answer, start_idx, end_idx):
-
-    if context[start_idx: end_idx] == answer:
-        return [start_idx, end_idx]
-
-    elif context[start_idx - 1: end_idx] == answer:
-        return [start_idx - 1, end_idx]
-
-    elif context[start_idx: end_idx + 1] == answer:
-        return [start_idx, end_idx + 1]
-
-    else:
-        print(context[start_idx: end_idx], answer)
-        return None
 
 
 def time_stamp_to_hhmmss(timestamp, string=True):

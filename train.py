@@ -2,16 +2,13 @@
 from tqdm import tqdm
 
 import numpy as np
-
-import torch
 from torch.utils.data import DataLoader
 
 from datasets.dataset_utils import docvqa_collate_fn
-from models.Longformer import Longformer
 from eval import evaluate
 from metrics import Evaluator
 from build_utils import build_model, build_optimizer, build_dataset
-from utils import parse_args, load_config, seed_everything
+from utils.commons import parse_args, load_config, seed_everything
 from logger import Logger
 from checkpoint import save_model
 

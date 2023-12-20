@@ -5,8 +5,7 @@ import torch
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 from transformers import PreTrainedModel
 from models._modules import CustomT5Config, SpatialEmbeddings, VisualEmbeddings
-import models._model_utils as model_utils
-import transformers.models.t5.modeling_t5
+import utils.model_utils as model_utils
 
 
 class HF_VT5(PreTrainedModel):

@@ -1,11 +1,7 @@
-import re, random
-import numpy as np
-
 import torch
 import torch.nn as nn
 from transformers import BigBirdTokenizerFast, BigBirdForQuestionAnswering
-from utils import correct_alignment
-import models._model_utils as model_utils
+import utils.model_utils as model_utils
 
 
 class BigBird:

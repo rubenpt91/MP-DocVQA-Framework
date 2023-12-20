@@ -2,7 +2,6 @@ save_dir: save/
 model_name: BertQA
 model_weights: rubentito/bert-large-mpdocvqa
 device: cuda
-data_parallel: False
 max_sequence_length: 512
 
 training_parameters:

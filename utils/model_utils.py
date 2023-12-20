@@ -1,7 +1,22 @@
 import random, re
 import torch
 import numpy as np
-from utils import correct_alignment
+
+
+def correct_alignment(context, answer, start_idx, end_idx):
+
+    if context[start_idx: end_idx] == answer:
+        return [start_idx, end_idx]
+
+    elif context[start_idx - 1: end_idx] == answer:
+        return [start_idx - 1, end_idx]
+
+    elif context[start_idx: end_idx + 1] == answer:
+        return [start_idx, end_idx + 1]
+
+    else:
+        print(context[start_idx: end_idx], answer)
+        return None
 
 
 def get_start_end_idx(model, encoding, context, context_encoding, answers, context_page_char_correspondent, page_retrieval, sep_token_id, pad_token_id, ignore_id, device):

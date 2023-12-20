@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from transformers import LongformerTokenizerFast, LongformerForQuestionAnswering
-import models._model_utils as model_utils
+import utils.model_utils as model_utils
 
 
 class Longformer:

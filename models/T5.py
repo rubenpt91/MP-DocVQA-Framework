@@ -1,7 +1,7 @@
 import random
 import torch.nn as nn
 from transformers import T5Tokenizer, T5ForConditionalGeneration
-import models._model_utils as model_utils
+import utils.model_utils as model_utils
 import transformers.models.t5.modeling_t5
 
 

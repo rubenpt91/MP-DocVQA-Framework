@@ -7,7 +7,6 @@ max_source_length: 512
 device: cuda
 use_spatial_features: True
 use_visual_features: True
-data_parallel: False
 
 training_parameters:
   lr: 2e-4  # 2e-4

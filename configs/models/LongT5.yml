@@ -4,7 +4,6 @@ model_name: LongT5
 # model_weights: tryolabs/long-t5-tglobal-base-blogpost-cqa
 model_weights: rubentito/longt5-tglobal-base-mpdocvqa
 device: cuda
-data_parallel: False
 max_sequence_length: 4096
 
 training_parameters:

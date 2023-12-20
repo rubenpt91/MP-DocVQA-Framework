@@ -3,9 +3,7 @@ import random
 import torch
 import torch.nn as nn
 from transformers import LayoutLMv2Processor, LayoutLMv2ForQuestionAnswering
-from PIL import Image
-import cv2
-import models._model_utils as model_utils
+import utils.model_utils as model_utils
 
 # from transformers.models.layoutlmv2.modeling_layoutlmv2 import LayoutLMv2Model    # TODO Remove
 # from transformers.models.layoutlmv2.processing_layoutlmv2 import LayoutLMv2Processor    # TODO Remove
