@@ -59,10 +59,10 @@ def build_model(config):
     else:
         raise ValueError("Value '{:s}' model not expected. Please choose one of: {:}".format(config.model_name, ', '.join(available_models)))
 
+    model.model.to(config.device)
     if config.distributed:
         torch.nn.parallel.DistributedDataParallel(model.model, device_ids=[config.local_rank])
 
-    model.model.to(config.device)
     return model
 
 

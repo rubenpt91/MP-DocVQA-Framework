@@ -1,4 +1,4 @@
 dataset_name: SP-DocVQA
-imdb_dir: /data/users/rperez/SP⁻DocVQA/imdb/
+imdb_dir: /data/users/rperez/SP-DocVQA/imdb/
 images_dir: /data/users/rperez/SP-DocVQA/images/
 multipage_dataset: False

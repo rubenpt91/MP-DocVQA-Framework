@@ -148,7 +148,10 @@ if __name__ == '__main__':
     config.return_scores_by_sample = True
 
     if config.distributed:
+        os.environ['MASTER_ADDR'] = 'localhost'
+        os.environ['MASTER_PORT'] = '9957'
         torch.multiprocessing.spawn(run_evaluation, nprocs=args.num_gpus, args=(config,))
+
     else:
         run_evaluation(local_rank=0, config=config)
 
